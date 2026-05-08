@@ -1,0 +1,24 @@
+x-app-bind:
+  &default-bind
+  type: bind
+  source: .
+  target: /app
+  consistency: cached
+
+services:
+  dev:
+    image: "virtual-sensor:dev"
+    pull_policy: build
+    container_name: virtual-sensor-dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    user: "${HOST_UID:-root}:${HOST_GID:-root}"
+    working_dir: /app
+    volumes:
+      - *default-bind
+    ports:
+      - "8888:8888"
+    tty: true
+    stdin_open: true
+    command: ["sleep", "infinity"]
