@@ -8,17 +8,18 @@ version = "0.1.0"
 description = "Deterministic virtual sensor pipeline (asset_similarity, water_factor, risk_calc)"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "numpy>=2.0",
+    "pandas>=2.2",
+]
 
 [project.optional-dependencies]
 dev = [
+    "ipykernel>=6.29",
+    "notebook>=7.4",
     "pytest>=8.0",
     "ruff>=0.8",
 ]
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["virtual_sensor*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -28,7 +29,7 @@ addopts = "-q"
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["virtual_sensor", "scripts", "tests"]
+src = ["lean_virtual_sensor", "scripts", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "W"]
