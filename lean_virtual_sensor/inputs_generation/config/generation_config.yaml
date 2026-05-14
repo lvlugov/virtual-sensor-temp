@@ -1,0 +1,142 @@
+# =============================================================================
+# generation_config.yaml
+# Runtime parameters for synthetic dataset generation.
+#
+# This is the ONLY file you need to change between runs.
+# Increment version and change seed for a new independent dataset.
+# All other config files (schema, asset_class_config, conditional_rules)
+# remain stable across runs unless the data model itself changes.
+#
+# Entry point: python generate.py
+# Output:      outputs/synthetic_v{version}_seed{seed}.csv
+# =============================================================================
+
+run:
+  version: "1.0"
+  random_seed: 42
+  n_rows: 1000
+  reference_date: "2026-05-13"   # Anchor date for all date generation (today)
+  output_path: "outputs/synthetic_v1.0_seed42.csv"
+  halt_on_test_failure: true      # Do not write output if any pytest test fails
+
+
+# ── ASSET CLASS PROPORTIONS ───────────────────────────────────────────────────
+# Target row counts per asset class. Must sum to n_rows (1000).
+#
+# Basis: See docs/methodology.md Section 4 for full rationale and references.
+# Summary: Real-world O&G populations are ~55-65% pipe (HOIS survey data,
+# API 583 field evidence). We dial PIPE back to 38% here deliberately to
+# improve minority class coverage for ML training. This is a training diversity
+# decision, not a claim about real-world proportions.
+#
+# References:
+#   - API 583:2014 Table 4.1 (equipment scope — piping is primary focus class)
+#   - HOIS (Hydrocarbon Operations Inspection Scheme) surveys: ~55-65% of CUI
+#     damage records on piping systems
+#   - Energy Institute / TWI CUI surveys 2014-2020: vessels + exchangers ~15-20%
+#     combined in typical refinery asset registers
+#   - ISO 14224:2016 Table A.4 equipment taxonomy: relative population guidance
+
+asset_class_proportions:
+  PIPE: 380
+  PRESSURE_VESSEL: 170
+  HEAT_EXCHANGER: 140
+  COLUMN: 100
+  STORAGE_TANK: 70
+  AIR_COOLER: 65
+  REACTOR: 45
+  OTHER: 30
+  # Total: 1000
+
+
+# ── EXPOSURE ZONE DISTRIBUTION ────────────────────────────────────────────────
+# Target distribution over exposure zones across all asset classes.
+# The real dataset is heavily MARINE (~80%) due to its specific source facility.
+# This synthetic dataset targets a more balanced distribution for generalisability.
+#
+# [ENGINEERING_JUDGEMENT] — no single published source for these proportions.
+# Intended to represent a mixed portfolio (offshore + onshore + arid regions).
+
+exposure_zone_weights:
+  MARINE: 0.35
+  TEMPERATE: 0.40
+  ARID_DRY: 0.15
+  SEVERE: 0.10
+
+
+# ── OPERATING TEMPERATURE DISTRIBUTIONS ──────────────────────────────────────
+# Temperature ranges per metallurgy family and asset class context.
+# Used in Layer 5 generation (operating_temperature drawn from these ranges).
+#
+# Ranges reflect typical process operating windows in O&G / refining.
+# [ENGINEERING_JUDGEMENT] — review with process engineering team.
+#
+# Format: [min, max] in °C. Draws are uniform within range.
+
+operating_temperature_ranges:
+  by_metallurgy:
+    CARBON_STEEL:     [-30, 300]   # Includes NGL / cold service and hot refinery service
+    LOW_ALLOY_STEEL:  [100, 400]   # Typically elevated temperature service
+    AUSTENITIC_SS:    [50, 400]    # Corrosive / high-temp service
+    DUPLEX_SS:        [0, 250]     # Moderate temperature, corrosive service
+    NICKEL_ALLOY:     [100, 500]   # Extreme temperature / severe service
+    OTHER:            [-30, 300]
+
+
+# ── DATE GENERATION PARAMETERS ────────────────────────────────────────────────
+# Controls how dates are drawn relative to asset_age and reference_date.
+# All values in years unless stated.
+
+date_generation:
+  # Insulation: how recently relative to asset commissioning was insulation installed?
+  # Most insulation is replaced at some point; uniform draw over the asset lifetime.
+  insulation_age_min_years: 1
+  insulation_age_max_fraction_of_asset_age: 1.0   # insulation can be as old as the asset
+
+  # Coating: similar logic, but organic coatings typically replaced more often than insulation
+  coating_age_min_years: 1
+  coating_age_max_fraction_of_asset_age: 1.0
+
+  # Last inspection: bounded by inspection interval norms
+  # API 581 / ISO 14224 recommend 4-5 year intervals; critical assets 6 months
+  inspection_age_min_years: 0.5    # most recent inspection at least 6 months ago
+  inspection_age_max_years: 10     # data dictionary max default: 10 years (never inspected)
+
+
+# ── CYCLING PARAMETERS ────────────────────────────────────────────────────────
+# avg_cycles_per_quarter drawn from these ranges.
+# Cycling grade thresholds (API 583 / NACE SP0198):
+#   Steady:  < 20 cycles/quarter
+#   Routine: 20–100 cycles/quarter
+#   Heavy:   > 100 cycles/quarter
+
+cycling_grade_weights:
+  steady:   0.55    # < 20 cycles/quarter  — most continuous process assets
+  routine:  0.35    # 20–100 cycles/quarter — batch / swing service
+  heavy:    0.10    # > 100 cycles/quarter  — highly intermittent
+  # [ENGINEERING_JUDGEMENT]
+
+cycling_grade_ranges:
+  steady:  [0, 19]
+  routine: [20, 100]
+  heavy:   [101, 200]
+
+
+# ── WALL LOSS PARAMETERS ──────────────────────────────────────────────────────
+# last_inspection_thickness generated as: furnished_thickness - wall_loss
+# wall_loss fraction drawn from Beta distribution parameterised below.
+# This produces realistic (right-skewed) wall loss — most assets have minor
+# loss, a tail has significant thinning.
+#
+# wall_loss_fraction = wall_loss / furnished_thickness
+# Capped at 0.60 (60% wall loss — beyond this, asset typically retired)
+#
+# [ENGINEERING_JUDGEMENT] — Beta distribution parameters not calibrated to data.
+# Review against real inspection datasets when available.
+
+wall_loss:
+  distribution: beta
+  alpha: 1.5    # Right-skewed — most assets have low fractional wall loss
+  beta: 8.0
+  min_fraction: 0.01   # At least 1% wall loss (some corrosion expected)
+  max_fraction: 0.60   # Hard cap at 60% wall loss

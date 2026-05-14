@@ -1,0 +1,319 @@
+# =============================================================================
+# asset_class_config.yaml
+# Per-asset-class constraints and probability weights for synthetic generation.
+#
+# This file encodes the physical and engineering constraints that vary by
+# asset class. Values are drawn from:
+#   - API 583:2014 (equipment scope and geometry guidance)
+#   - ISO 14224:2016 Table A.43 (dimensional data for piping/vessels)
+#   - Data dictionary allowed ranges and notes
+#   - Engineering consensus on typical O&G facility populations
+#
+# Structure per class:
+#   component_diameter   : {min, max} outer diameter in mm
+#   furnished_thickness  : {min, max} wall thickness in mm
+#   insulation_thickness : {min, max} insulation layer in mm (guidance only)
+#   geometry_class       : list of allowed geometry_class values for this class
+#   geometry_class_weights : probability weights over allowed geometry classes
+#   orientation_weights  : probability weights over HORIZONTAL | VERTICAL | ANGLED
+#   geometry_complexity_weights : probability weights over SIMPLE | MODERATE | COMPLEX
+#
+# IMPORTANT: All weights within a group must sum to 1.0.
+# Basis for weights documented inline. Where no published reference exists,
+# values are marked [ENGINEERING_JUDGEMENT] and should be reviewed by a
+# domain expert before production use.
+# =============================================================================
+
+PIPE:
+  # ISO 14224:2016 Table A.43 — pipe OD range for CUI scope (DN25 to DN1200)
+  component_diameter:
+    min: 25.0
+    max: 1200.0
+  # API 574 / ASME B36.10 schedule wall thicknesses
+  furnished_thickness:
+    min: 3.0
+    max: 50.0
+  # Typical insulation for process piping (API 583 guidance)
+  insulation_thickness:
+    min: 25
+    max: 150
+  geometry_class_allowed:
+    - STRAIGHT_RUN
+    - ELBOW
+    - NOZZLE
+  # Most process piping is straight run; elbows common; nozzles at tie-ins
+  # [ENGINEERING_JUDGEMENT] — no published frequency data for geometry mix
+  geometry_class_weights:
+    STRAIGHT_RUN: 0.70
+    ELBOW: 0.22
+    NOZZLE: 0.08
+  # Process piping predominantly horizontal; some vertical headers and risers
+  # [ENGINEERING_JUDGEMENT] — consistent with API 583 Section 5.3 narrative
+  orientation_weights:
+    HORIZONTAL: 0.65
+    VERTICAL: 0.20
+    ANGLED: 0.15
+  # Most pipe is moderate complexity; small-bore utility lines tend to simple
+  # [ENGINEERING_JUDGEMENT]
+  geometry_complexity_weights:
+    SIMPLE: 0.30
+    MODERATE: 0.50
+    COMPLEX: 0.20
+
+
+PRESSURE_VESSEL:
+  # ISO 14224:2016 Table A.43 — vessel OD range
+  component_diameter:
+    min: 300.0
+    max: 3000.0
+  # Vessel wall thicknesses per ASME VIII and typical O&G designs
+  furnished_thickness:
+    min: 6.0
+    max: 100.0
+  insulation_thickness:
+    min: 50
+    max: 150
+  geometry_class_allowed:
+    - CYLINDRICAL_SHELL
+    - HEMISPHERICAL_HEAD
+    - ELLIPTICAL_HEAD
+    - TORISPHERICAL_HEAD
+    - NOZZLE
+  # Cylindrical shell dominates vessel body; heads and nozzles present but less
+  # [ENGINEERING_JUDGEMENT]
+  geometry_class_weights:
+    CYLINDRICAL_SHELL: 0.55
+    HEMISPHERICAL_HEAD: 0.05
+    ELLIPTICAL_HEAD: 0.15
+    TORISPHERICAL_HEAD: 0.15
+    NOZZLE: 0.10
+  # Roughly split — horizontal separators/drums vs vertical towers
+  # [ENGINEERING_JUDGEMENT] — API 583 Section 5 references both
+  orientation_weights:
+    HORIZONTAL: 0.50
+    VERTICAL: 0.45
+    ANGLED: 0.05
+  # Vessels often have complex nozzle patterns and support attachments
+  # [ENGINEERING_JUDGEMENT]
+  geometry_complexity_weights:
+    SIMPLE: 0.15
+    MODERATE: 0.50
+    COMPLEX: 0.35
+
+
+HEAT_EXCHANGER:
+  # Shell-and-tube exchangers dominate O&G — OD of shell
+  component_diameter:
+    min: 200.0
+    max: 1500.0
+  furnished_thickness:
+    min: 6.0
+    max: 50.0
+  insulation_thickness:
+    min: 50
+    max: 100
+  geometry_class_allowed:
+    - CYLINDRICAL_SHELL
+    - HEMISPHERICAL_HEAD
+    - ELLIPTICAL_HEAD
+    - NOZZLE
+  # [ENGINEERING_JUDGEMENT]
+  geometry_class_weights:
+    CYLINDRICAL_SHELL: 0.55
+    HEMISPHERICAL_HEAD: 0.05
+    ELLIPTICAL_HEAD: 0.10
+    NOZZLE: 0.30
+  # Shell-and-tube exchangers predominantly horizontal
+  # [ENGINEERING_JUDGEMENT] — consistent with typical plot plan layouts
+  orientation_weights:
+    HORIZONTAL: 0.75
+    VERTICAL: 0.20
+    ANGLED: 0.05
+  # Multiple nozzles and support saddles → moderate to complex
+  # [ENGINEERING_JUDGEMENT]
+  geometry_complexity_weights:
+    SIMPLE: 0.10
+    MODERATE: 0.50
+    COMPLEX: 0.40
+
+
+AIR_COOLER:
+  # Fin-fan header box OD (tube bundles, smaller pipe diameters)
+  # API 583 treats air coolers as separate class from heat exchangers
+  component_diameter:
+    min: 25.0
+    max: 200.0
+  furnished_thickness:
+    min: 3.0
+    max: 15.0
+  insulation_thickness:
+    min: 25
+    max: 75
+  geometry_class_allowed:
+    - CYLINDRICAL_SHELL
+    - NOZZLE
+  # [ENGINEERING_JUDGEMENT]
+  geometry_class_weights:
+    CYLINDRICAL_SHELL: 0.60
+    NOZZLE: 0.40
+  # Air coolers are elevated horizontal structures in virtually all installations
+  # Basis: standard plot plan practice; API 583 AIR_COOLER notes
+  orientation_weights:
+    HORIZONTAL: 0.90
+    VERTICAL: 0.05
+    ANGLED: 0.05
+  # Header boxes with multiple connections — typically moderate to complex
+  # [ENGINEERING_JUDGEMENT]
+  geometry_complexity_weights:
+    SIMPLE: 0.10
+    MODERATE: 0.55
+    COMPLEX: 0.35
+
+
+STORAGE_TANK:
+  # API 650 atmospheric storage tanks — large OD range
+  # Data dictionary: 600–50,000 mm for vessels/storage tanks
+  component_diameter:
+    min: 1000.0
+    max: 30000.0
+  # API 650 minimum shell thickness rules; no upper bound specified beyond 50mm
+  furnished_thickness:
+    min: 6.0
+    max: 50.0
+  insulation_thickness:
+    min: 50
+    max: 200
+  geometry_class_allowed:
+    - CYLINDRICAL_SHELL
+    - CONICAL_SHELL
+    - HEMISPHERICAL_HEAD
+    - TORISPHERICAL_HEAD
+  # [ENGINEERING_JUDGEMENT] — most insulated tank surface is cylindrical shell
+  geometry_class_weights:
+    CYLINDRICAL_SHELL: 0.65
+    CONICAL_SHELL: 0.15
+    HEMISPHERICAL_HEAD: 0.05
+    TORISPHERICAL_HEAD: 0.15
+  # Fixed-roof storage tanks are vertical — standard practice
+  # Basis: API 650; API 653 (tank inspection)
+  orientation_weights:
+    HORIZONTAL: 0.10
+    VERTICAL: 0.88
+    ANGLED: 0.02
+  # Large flat surfaces but many nozzles, manways, and ladder attachments
+  # [ENGINEERING_JUDGEMENT]
+  geometry_complexity_weights:
+    SIMPLE: 0.15
+    MODERATE: 0.55
+    COMPLEX: 0.30
+
+
+COLUMN:
+  # Distillation and absorber columns — tall vessels
+  component_diameter:
+    min: 300.0
+    max: 5000.0
+  furnished_thickness:
+    min: 8.0
+    max: 100.0
+  insulation_thickness:
+    min: 50
+    max: 200
+  geometry_class_allowed:
+    - CYLINDRICAL_SHELL
+    - CONICAL_SHELL
+    - ELLIPTICAL_HEAD
+    - TORISPHERICAL_HEAD
+    - NOZZLE
+  # [ENGINEERING_JUDGEMENT]
+  geometry_class_weights:
+    CYLINDRICAL_SHELL: 0.55
+    CONICAL_SHELL: 0.05
+    ELLIPTICAL_HEAD: 0.15
+    TORISPHERICAL_HEAD: 0.10
+    NOZZLE: 0.15
+  # Columns are almost exclusively vertical — fundamental design requirement
+  # Basis: distillation/separation process engineering; API 583 Section 5
+  orientation_weights:
+    HORIZONTAL: 0.04
+    VERTICAL: 0.94
+    ANGLED: 0.02
+  # Tall columns have trays, many nozzles, and insulation support rings → complex
+  # [ENGINEERING_JUDGEMENT]
+  geometry_complexity_weights:
+    SIMPLE: 0.05
+    MODERATE: 0.35
+    COMPLEX: 0.60
+
+
+REACTOR:
+  # Hydroprocessing / catalytic reactors — thick walled
+  # Data dictionary: 300–3,000 mm
+  component_diameter:
+    min: 300.0
+    max: 3000.0
+  # Thick walls due to high pressure and hydrogen service — up to 100 mm+
+  # Data dictionary explicitly states reactors up to 100 mm
+  furnished_thickness:
+    min: 15.0
+    max: 100.0
+  insulation_thickness:
+    min: 75
+    max: 250
+  geometry_class_allowed:
+    - CYLINDRICAL_SHELL
+    - HEMISPHERICAL_HEAD
+    - ELLIPTICAL_HEAD
+    - NOZZLE
+  # [ENGINEERING_JUDGEMENT]
+  geometry_class_weights:
+    CYLINDRICAL_SHELL: 0.55
+    HEMISPHERICAL_HEAD: 0.10
+    ELLIPTICAL_HEAD: 0.15
+    NOZZLE: 0.20
+  # Reactors predominantly vertical (gravity flow of catalyst/fluids)
+  # [ENGINEERING_JUDGEMENT] — consistent with hydroprocessing plant layouts
+  orientation_weights:
+    HORIZONTAL: 0.12
+    VERTICAL: 0.85
+    ANGLED: 0.03
+  # Dense nozzle patterns, quench connections, catalyst loading nozzles → complex
+  # [ENGINEERING_JUDGEMENT]
+  geometry_complexity_weights:
+    SIMPLE: 0.05
+    MODERATE: 0.30
+    COMPLEX: 0.65
+
+
+OTHER:
+  # Catch-all for miscellaneous insulated equipment
+  component_diameter:
+    min: 25.0
+    max: 3000.0
+  furnished_thickness:
+    min: 3.0
+    max: 100.0
+  insulation_thickness:
+    min: 20
+    max: 200
+  geometry_class_allowed:
+    - STRAIGHT_RUN
+    - CYLINDRICAL_SHELL
+    - ELLIPTICAL_HEAD
+    - TORISPHERICAL_HEAD
+    - NOZZLE
+  # [ENGINEERING_JUDGEMENT] — uniform-ish distribution for catch-all class
+  geometry_class_weights:
+    STRAIGHT_RUN: 0.25
+    CYLINDRICAL_SHELL: 0.35
+    ELLIPTICAL_HEAD: 0.15
+    TORISPHERICAL_HEAD: 0.10
+    NOZZLE: 0.15
+  orientation_weights:
+    HORIZONTAL: 0.50
+    VERTICAL: 0.40
+    ANGLED: 0.10
+  geometry_complexity_weights:
+    SIMPLE: 0.25
+    MODERATE: 0.50
+    COMPLEX: 0.25

@@ -1,0 +1,539 @@
+# =============================================================================
+# schema.yaml
+# Master variable registry for the CUI lean virtual sensor synthetic dataset.
+#
+# This file is the single source of truth for variable definitions.
+# Both the generator (generator/pipeline.py) and the test suite (tests/)
+# read from this file. Change a rule here and it propagates to both.
+#
+# Structure per variable:
+#   group          : Data dictionary group name
+#   type           : categorical | int | float | date | bool
+#   layer          : DAG generation order (1 = no dependencies, 7 = most dependent)
+#   nullable       : whether the field may be null in the synthetic output
+#   allowed_values : (categoricals only) exhaustive list of valid values
+#   range          : (numerics only) [min, max] inclusive
+#   decimals       : (numerics only) decimal places to round to
+#   format         : (dates only) date format string
+#   default        : fallback value if not otherwise determined
+#   constraints    : list of inter-variable rules (enforced in constraints.py)
+#   notes          : interpretation guidance from the data dictionary
+#   standards      : relevant standards references
+#
+# Excluded variables (see bottom of file):
+#   T_ambient(t), T_process(t), RH(t), rainfall(t)  → time-series, separate module
+#   Risk                                              → output label, assigned separately
+# =============================================================================
+
+variables:
+
+  # ── LAYER 1: Independent anchors ──────────────────────────────────────────
+  # These variables have no dependencies on other generated variables.
+  # They are drawn first and anchor all downstream generation.
+
+  asset_class:
+    group: Asset Identification
+    type: categorical
+    layer: 1
+    nullable: false
+    allowed_values:
+      - PIPE
+      - PRESSURE_VESSEL
+      - HEAT_EXCHANGER
+      - AIR_COOLER
+      - STORAGE_TANK
+      - COLUMN
+      - REACTOR
+      - OTHER
+    notes: >
+      Compressors and pumps are out of scope. AIR_COOLER (fin-fan) kept separate
+      from HEAT_EXCHANGER due to different insulation patterns and CUI mechanisms.
+      COLUMN covers distillation and absorber columns. REACTOR treated separately
+      due to thick walls and severe internal conditions.
+    standards: "ISO 14224:2016 Table 5; API 583 Table 4.1"
+
+  exposure_zone:
+    group: Environment & Exposure
+    type: categorical
+    layer: 1
+    nullable: false
+    allowed_values:
+      - MARINE
+      - TEMPERATE
+      - ARID_DRY
+      - SEVERE
+    default: TEMPERATE
+    notes: >
+      Assets within 1 km of coastline classified MARINE even if onshore facility.
+      SEVERE = industrial atmosphere with SO2 or combined chloride loading.
+      Drives Cl_index in corrosion rate model.
+    standards: "ISO 9223 corrosivity categories C1–C5; API 583 Table 4.2; NACE SP0198-2010"
+
+  metallurgy_family:
+    group: Material & Metallurgy
+    type: categorical
+    layer: 1
+    nullable: false
+    allowed_values:
+      - CARBON_STEEL
+      - LOW_ALLOY_STEEL
+      - AUSTENITIC_SS
+      - DUPLEX_SS
+      - NICKEL_ALLOY
+      - OTHER
+    default: CARBON_STEEL
+    notes: >
+      Default to CARBON_STEEL if unknown (conservative). CS active envelope: -4 to 175°C.
+      SS CLSCC envelope: 50–175°C, peak ~120°C. Drives m_metal modifier and corrosion
+      rate pathway.
+    standards: "ISO 14224:2016 Table A.41; API 581; API 583 Table 4.1; NACE SP0198-2010"
+
+  asset_age:
+    group: Asset Identification
+    type: int
+    layer: 1
+    nullable: false
+    range: [0, 80]
+    decimals: 0
+    default: 20
+    constraints:
+      - "asset_age >= insulation_age_years"
+      - "asset_age >= coating_age_years"
+    notes: >
+      Age in years from initial commissioning to current date. Must be >= insulation
+      age and coating age. Conservative default of 20 years if unknown.
+    standards: "API 581 (age modifier m_age); API 583 Section 5.2"
+
+  # ── LAYER 2: Depend on asset_class ────────────────────────────────────────
+  # Per-class allowed values and probability weights defined in asset_class_config.yaml.
+
+  geometry_class:
+    group: Geometry
+    type: categorical
+    layer: 2
+    nullable: false
+    allowed_values:
+      - STRAIGHT_RUN
+      - ELBOW
+      - CYLINDRICAL_SHELL
+      - SPHERICAL_SHELL
+      - HEMISPHERICAL_HEAD
+      - ELLIPTICAL_HEAD
+      - TORISPHERICAL_HEAD
+      - CONICAL_SHELL
+      - NOZZLE
+    default: STRAIGHT_RUN
+    constraints:
+      - "Allowed subset per asset_class defined in asset_class_config.yaml"
+    notes: >
+      Use worst-case (highest m_geom) for conservative scoring. An asset may have
+      multiple geometry types — use most prevalent for population ranking.
+    standards: "API 581 susceptibility modifier m_geom; API 583 Section 5.4; NACE SP0198-2010"
+
+  geometry_complexity:
+    group: Geometry
+    type: categorical
+    layer: 2
+    nullable: false
+    allowed_values:
+      - SIMPLE
+      - MODERATE
+      - COMPLEX
+    default: MODERATE
+    notes: >
+      SIMPLE: smooth surface, minimal attachments. MODERATE: typical industrial,
+      some supports, standard flanges. COMPLEX: multiple welded supports, vacuum
+      rings, insulation support rings, many branch connections. Acts as overlay
+      modifier on geometry_class.
+    standards: "API 583 Section 5.4"
+
+  orientation:
+    group: Geometry
+    type: categorical
+    layer: 2
+    nullable: false
+    allowed_values:
+      - HORIZONTAL
+      - VERTICAL
+      - ANGLED
+    default: HORIZONTAL
+    notes: >
+      ANGLED uses HORIZONTAL as conservative default. Horizontal assets pool water
+      at every support. Vertical assets drain under gravity but collect at base.
+      Probability weights per asset_class in asset_class_config.yaml.
+    standards: "ISO 14224:2016 Table A.40; API 583 Section 5.3"
+
+  shelter_flag:
+    group: Environment & Exposure
+    type: categorical
+    layer: 2
+    nullable: false
+    allowed_values:
+      - PROTECTED
+      - NORMAL
+      - DAMAGED
+    default: NORMAL
+    notes: >
+      PROTECTED: under roof or indoor. DAMAGED: overhead condensate or drip source
+      present (e.g. steam valve above asset). DAMAGED increases risk — not decreases.
+      PROTECTED applies 0.5x rainfall factor in S2 sub-score.
+    standards: "API 583 Section 4.4"
+
+  tracing_system:
+    group: Process Conditions
+    type: categorical
+    layer: 2
+    nullable: false
+    allowed_values:
+      - NONE
+      - STEAM_TRACED
+      - ELECTRIC_TRACED
+      - HOT_OIL_TRACED
+    default: NONE
+    notes: >
+      ~20-30% of insulated O&G piping carries some form of heat tracing. Failed
+      tracing treated as moisture source, not heat source. Enters T_skin calculation
+      as additional heat source term.
+    standards: "API 583 Section 4.3; NACE SP0198-2010"
+
+  # ── LAYER 3: Depend on asset_class + component_diameter ───────────────────
+
+  component_diameter:
+    group: Asset Identification
+    type: float
+    layer: 3
+    nullable: false
+    decimals: 1
+    constraints:
+      - "Range depends on asset_class — see asset_class_config.yaml"
+    notes: >
+      Always outer diameter (OD), not nominal bore. For non-circular cross-sections
+      use equivalent diameter. Small-bore pipe (DN25–DN50) common on instrument and
+      utility lines — do not exclude. Used in T_skin radial heat balance.
+    standards: "ISO 14224:2016 Table A.43"
+
+  furnished_thickness:
+    group: Asset Identification
+    type: float
+    layer: 3
+    nullable: false
+    decimals: 2
+    constraints:
+      - "Range depends on asset_class — see asset_class_config.yaml"
+      - "furnished_thickness >= last_inspection_thickness"
+    notes: >
+      Original as-built wall thickness. Pipe/fittings: 3–50 mm. Pressure vessels
+      and reactors: up to 100 mm. Never changes — fixed design reference baseline.
+    standards: "ISO 14224:2016 Table A.43; API 581 DF calculation"
+
+  insulation_material:
+    group: Insulation
+    type: categorical
+    layer: 3
+    nullable: false
+    allowed_values:
+      - FOAMGLASS
+      - MINERAL_WOOL
+      - FIBERGLASS
+      - CALCIUM_SILICATE
+      - PEARLITE
+      - UNKNOWN
+    default: UNKNOWN
+    notes: >
+      ASBESTOS excluded from synthetic generation (legacy material flagged for
+      abatement; should not appear in new records). UNKNOWN → MINERAL_WOOL
+      coefficients (most conservative of common types). FOAMGLASS: lowest CUI risk
+      (alpha=0.20). CALCIUM_SILICATE: highest risk (alpha=0.95, also concentrates
+      chlorides).
+    standards: "API 583 Table 4.3; NACE SP0198-2010 Table 1"
+
+  insulation_thickness:
+    group: Insulation
+    type: float
+    layer: 3
+    nullable: false
+    decimals: 0
+    range: [20, 300]
+    notes: >
+      Use minimum value along run (worst case for T_skin). Typical: 25 mm
+      small-bore pipe, 50 mm medium-bore, 75–100 mm large-bore and vessels.
+      Below 20 mm unusual — personnel protection only, not thermal insulation.
+    standards: "API 583; NACE SP0198-2010"
+
+  # ── LAYER 4: Date / age chain ──────────────────────────────────────────────
+  # All dates bounded by: (today - asset_age years) <= date <= today.
+  # Reference date for generation defined in generation_config.yaml.
+
+  insulation_install_date:
+    group: Insulation
+    type: date
+    layer: 4
+    nullable: false
+    format: "YYYY-MM-DD"
+    constraints:
+      - "insulation_install_date <= reference_date"
+      - "insulation_install_date >= (reference_date - asset_age years)"
+    notes: >
+      Date of most recent full insulation installation or replacement. Drives
+      insulation_age_years. For CUI, the oldest section is most relevant — partial
+      replacement records should include coverage fraction.
+    standards: "API 583 Section 5.2; API 581"
+
+  coating_application_date:
+    group: Coating
+    type: date
+    layer: 4
+    nullable: false
+    format: "YYYY-MM-DD"
+    constraints:
+      - "coating_application_date <= reference_date"
+      - "coating_application_date >= (reference_date - asset_age years)"
+    notes: >
+      Date under-insulation coating was applied. Drives coating_age_years and
+      auto-downgrade rule. Organic coatings > 10 yr treated as degraded regardless
+      of original specification.
+    standards: "API 583; API 581 m_coat derivation"
+
+  coating_system:
+    group: Coating
+    type: categorical
+    layer: 4
+    nullable: false
+    allowed_values:
+      - TSA
+      - IOZ
+      - EPOXY_HT_MULTI
+      - EPOXY_HT_SINGLE
+      - EPOXY_AGED
+      - BARE
+      - UNKNOWN
+    default: UNKNOWN
+    constraints:
+      - "If coating_age_years > 10 AND coating_system in [EPOXY_HT_MULTI, EPOXY_HT_SINGLE]: reclassify to EPOXY_AGED"
+    notes: >
+      m_coat range: TSA=0.4 (best, galvanic) → IOZ=0.5 → EPOXY_HT_MULTI=0.6 →
+      EPOXY_HT_SINGLE=0.9 → EPOXY_AGED=1.5 → BARE=2.5 (worst). This 6x range makes
+      coating system the single largest susceptibility modifier. UNKNOWN modelled
+      as EPOXY_AGED (m_coat=1.5). Distinguish BARE (never coated) from UNKNOWN
+      (coated but type not recorded).
+    standards: "API 583 Table 4.4; NACE SP0198-2010 Section 5.5; API 581"
+
+  inspection_record_dates:
+    group: Inspection & Maintenance
+    type: date
+    layer: 4
+    nullable: false
+    format: "YYYY-MM-DD"
+    constraints:
+      - "inspection_record_dates <= reference_date"
+    notes: >
+      Most recent inspection date. Full date list stored in real data; synthetic
+      dataset uses the single most-recent date. Drives time_since_last_inspection
+      and evidence composite decay function.
+    standards: "ISO 14224:2016 Table 5; API 581 DF_insp; API 583"
+
+  # ── LAYER 5: Temperature triplet + process operating parameters ───────────
+  # operating_temperature generated first; min and max then bounded relative to it.
+
+  operating_temperature:
+    group: Process Conditions
+    type: float
+    layer: 5
+    nullable: false
+    decimals: 1
+    range: [-100, 500]
+    constraints:
+      - "min_operating_temperature <= operating_temperature"
+      - "operating_temperature <= max_operating_temperature"
+    notes: >
+      Static fallback; T_process(t) historian takes precedence when available.
+      Most important single input for T_skin heat balance.
+    standards: "ISO 14224:2016 Table A.43; API 583; API 581; NACE SP0198-2010"
+
+  min_operating_temperature:
+    group: Process Conditions
+    type: float
+    layer: 5
+    nullable: false
+    decimals: 1
+    constraints:
+      - "min_operating_temperature <= operating_temperature"
+    notes: >
+      Lower bound of thermal cycling range. Assets where min < -4°C AND max > 0°C
+      cycle through active CUI envelope on every shutdown — highest risk scenario.
+      Generated as: operating_temperature minus a positive offset.
+    standards: "API 583; NACE SP0198-2010 cycling grade thresholds"
+
+  max_operating_temperature:
+    group: Process Conditions
+    type: float
+    layer: 5
+    nullable: false
+    decimals: 1
+    constraints:
+      - "max_operating_temperature >= operating_temperature"
+    notes: >
+      Upper bound of thermal cycling. Assets where max > 175°C spend part of each
+      cycle above active CUI range. Generated as: operating_temperature plus a
+      positive offset.
+    standards: "API 583; API 581; NACE SP0198-2010"
+
+  avg_cycles_per_quarter:
+    group: Process Conditions
+    type: int
+    layer: 5
+    nullable: false
+    decimals: 0
+    range: [0, 200]
+    default: 0
+    notes: >
+      Average shutdown/startup thermal cycles per 90-day period. Static fallback
+      when T_process(t) unavailable. Values > 90 imply > 1 cycle/day — verify for
+      batch processes. Feeds cycling grade: Steady (<20/qtr) | Routine (20–100) |
+      Heavy (>100).
+    standards: "API 583 Section 5.5; NACE SP0198-2010"
+
+  operation_vs_shutdown_fraction:
+    group: Process Conditions
+    type: float
+    layer: 5
+    nullable: false
+    decimals: 2
+    range: [0.0, 1.0]
+    default: 1.0
+    notes: >
+      Fraction of time asset is in active operation. 0.0 = permanently shut down
+      (flag for review). Values < 0.2 indicate intermittent or swing service.
+      Static fallback when T_process(t) unavailable.
+    standards: "API 581; ISO 9223; API 583"
+
+  # ── LAYER 6: Conditional flags ─────────────────────────────────────────────
+  # Generated after exposure_zone, insulation_material, and dates are known.
+
+  insulation_chloride_flag:
+    group: Insulation
+    type: bool
+    layer: 6
+    nullable: false
+    default: false
+    constraints:
+      - "MUST be TRUE if: exposure_zone=MARINE AND insulation_material=CALCIUM_SILICATE AND insulation_age_years > 5"
+    notes: >
+      Known or suspected chloride contamination of insulation. Once confirmed TRUE,
+      must not be reset without full insulation replacement and verification. Adds
+      +0.8 to Cl_index and applies delta_Cl=0.5 severity multiplier to every
+      wet-dry cycle in DAI.
+    standards: "NACE SP0198-2010 Section 5.4; API 583 Table 4.2"
+
+  insulation_condition:
+    group: Insulation
+    type: categorical
+    layer: 6
+    nullable: false
+    allowed_values:
+      - GOOD
+      - AVERAGE
+      - POOR
+    default: AVERAGE
+    notes: >
+      GOOD → closed-system damage curve f_closed (active to 175°C).
+      AVERAGE or POOR → open-system curve f_open (peaks at 80°C, drops to zero
+      at 121°C). One of the highest-impact decisions in the model. Use worst
+      observed section (conservative).
+    standards: "NACE SP0198-2010; API 583 Section 5.3; API 581"
+
+  cladding_integrity:
+    group: Coating
+    type: categorical
+    layer: 6
+    nullable: false
+    allowed_values:
+      - GOOD
+      - AVERAGE
+      - POOR
+    default: AVERAGE
+    notes: >
+      Physical condition of external metal cladding. Independent of
+      insulation_condition — good insulation under poor cladding is still high
+      risk. POOR cladding → open-system behaviour regardless of insulation
+      condition. Assess separately.
+    standards: "API 583 Section 5.3; NACE SP0198-2010"
+
+  # ── LAYER 7: Final variables ───────────────────────────────────────────────
+
+  last_inspection_thickness:
+    group: Asset Identification
+    type: float
+    layer: 7
+    nullable: false
+    decimals: 2
+    constraints:
+      - "last_inspection_thickness <= furnished_thickness"
+      - "last_inspection_thickness >= 1.0"
+    notes: >
+      Wall thickness at most recent UT survey. If > furnished_thickness: data
+      quality error — reject record. Drives wall_loss and UT thinning rate.
+      Fully populated in synthetic dataset (no nulls) for ML training quality.
+      NOTE: in the real dataset, nulls here are a meaningful risk signal and
+      must NOT be imputed — handle as Evid_UT=0 in the model.
+    standards: "ISO 14224:2016 Table 5; API 581 UT trend slope"
+
+  washdown_records:
+    group: Inspection & Maintenance
+    type: int
+    layer: 7
+    nullable: false
+    decimals: 0
+    range: [0, 50]
+    default: 0
+    notes: >
+      Count of washdown or hydroblast events in rolling 90-day window. Flag if
+      > 20 per 90 days. 0 = none recorded (not confirmed zero events occurred).
+      Each event is a discrete moisture ingress contribution to S2 sub-score.
+    standards: "API 583 Section 5.2"
+
+
+# =============================================================================
+# EXCLUDED VARIABLES
+# These fields are defined in the data dictionary but deliberately excluded
+# from synthetic generation. Reasons documented below.
+# =============================================================================
+
+excluded_variables:
+
+  - name: "T_ambient(t)"
+    type: timeseries
+    reason: >
+      Hourly dry-bulb air temperature time series. Generated separately as part
+      of the temperature/weather module, which is out of scope for this dataset.
+
+  - name: "RH(t)"
+    type: timeseries
+    reason: >
+      Hourly relative humidity time series. Generated separately alongside
+      T_ambient(t) — both inputs to the Magnus formula dew-point calculation.
+
+  - name: "rainfall(t)"
+    type: timeseries
+    reason: >
+      Hourly rainfall intensity time series. Generated separately as part of
+      the weather module.
+
+  - name: "T_process(t)"
+    type: timeseries
+    reason: >
+      Hourly process fluid temperature from plant historian. Generated separately.
+      Static fallbacks (operating_temperature, min/max) ARE included here.
+
+  - name: "Risk"
+    type: categorical
+    reason: >
+      Output label (Low / Medium / High). Assigned separately after the CUI
+      scoring model is applied. Not part of input generation scope.
+
+  - name: "Asset"
+    type: string
+    reason: >
+      Asset identifier / tag number. Generated as a sequential synthetic ID
+      (e.g. SYNTH-0001) directly in pipeline.py, not via schema-driven
+      generation.
