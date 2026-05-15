@@ -3,17 +3,17 @@
 
 from __future__ import annotations
 
-import virtual_sensor.asset_similarity
-import virtual_sensor.risk_calc
-import virtual_sensor.water_factor
+import advanced_virtual_sensor.asset_similarity
+import advanced_virtual_sensor.risk_calc
+import advanced_virtual_sensor.water_factor
 
 
 def run_pipeline() -> None:
     """Run the pipeline in order. Implementations are added per component."""
     _ = (
-        virtual_sensor.asset_similarity,
-        virtual_sensor.water_factor,
-        virtual_sensor.risk_calc,
+        advanced_virtual_sensor.asset_similarity,
+        advanced_virtual_sensor.water_factor,
+        advanced_virtual_sensor.risk_calc,
     )
 
 

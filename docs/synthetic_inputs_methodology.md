@@ -44,27 +44,30 @@ All static and quasi-static input variables to the CUI scoring model:
 
 ## 3. Architecture Overview
 
-The generation system has four config files and a Python pipeline:
+The generation system has four config files and a Python pipeline under **`lean_virtual_sensor/inputs_generation/`**. Validation tests live under the repository **`tests/`** tree (shared `tests/conftest.py`, test modules under `tests/lean_virtual_sensor/inputs_generation/`).
 
 ```
-config/
-  schema.yaml             ← Master variable registry (types, ranges, allowed values, constraints)
-  asset_class_config.yaml ← Per-class physical constraints and probability weights
-  conditional_rules.yaml  ← Conditional generation rules (deterministic + reasoned weights)
-  generation_config.yaml  ← Run parameters (seed, n_rows, proportions)
+lean_virtual_sensor/inputs_generation/
+  config/
+    schema.yaml             ← Master variable registry (types, ranges, allowed values, constraints)
+    asset_class_config.yaml ← Per-class physical constraints and probability weights
+    conditional_rules.yaml  ← Conditional generation rules (deterministic + reasoned weights)
+    generation_config.yaml  ← Run parameters (seed, n_rows, proportions)
 
-generator/
-  pipeline.py             ← Orchestrates the full generation run
-  layer_generators.py     ← One function per DAG layer
-  constraints.py          ← Post-generation constraint enforcement
-  schema_loader.py        ← Parses config files into Python objects
+  pipeline.py               ← Orchestrates the full generation run
+  layer_generators.py       ← One function per DAG layer
+  constraints.py            ← Post-generation constraint enforcement
+  schema_loader.py          ← Parses config files into Python objects
+  generate.py               ← CLI entry point
 
 tests/
-  test_schema_compliance.py
-  test_constraints.py
-  test_date_chain.py
-  test_completeness.py
-  test_distributions.py
+  conftest.py               ← Shared fixtures; --dataset CLI option; loads config YAMLs
+  lean_virtual_sensor/inputs_generation/
+    test_schema_compliance.py
+    test_constraints.py
+    test_date_chain.py
+    test_completeness.py
+    test_distributions.py
 ```
 
 The pipeline reads all four config files, generates 1,000 rows in DAG layer order, runs the full test suite, and only writes output if all tests pass.
@@ -230,7 +233,7 @@ The Beta(1.5, 8.0) distribution is right-skewed — most assets have minor wall 
 | Deterministic output | Fixed `random_seed` in `generation_config.yaml` |
 | Versioned output | Filename includes version and seed: `synthetic_v1.0_seed42.csv` |
 | Config stability | All four config files are version-controlled. Changes require a version bump. |
-| Library versions | `requirements.txt` pins all dependencies |
+| Library versions | `pyproject.toml` declares dependencies; `uv.lock` pins resolved versions (sync via `uv sync` / project `make sync` in Docker) |
 | Quality gate | Output is only written if all pytest tests pass |
 
 To generate a new independent dataset: increment `version`, change `random_seed`, re-run `python generate.py`.
@@ -239,7 +242,7 @@ To generate a new independent dataset: increment `version`, change `random_seed`
 
 ## 11. Test Suite
 
-The test suite in `tests/` validates any CSV against the schema. It is designed to run on both the synthetic dataset (as a quality gate) and the real dataset (for validation).
+The test suite under **`tests/`** (see Section 3) validates any CSV against the schema. It is designed to run on both the synthetic dataset (as a quality gate) and the real dataset (for validation). Shared fixtures and `--dataset` are defined in **`tests/conftest.py`**.
 
 | Test file | Scope |
 |---|---|
@@ -249,7 +252,9 @@ The test suite in `tests/` validates any CSV against the schema. It is designed 
 | `test_completeness.py` | No nulls in fields defined as nullable=false in schema.yaml |
 | `test_distributions.py` | Asset class counts within ±5% of targets; no degenerate distributions |
 
-Run with: `pytest tests/ --dataset outputs/synthetic_v1.0_seed42.csv`
+Run from the **repository root**, with a path to the CSV (example synthetic output):
+
+`pytest tests/ --dataset lean_virtual_sensor/inputs_generation/outputs/synthetic_v1.0_seed42.csv`
 
 ---
 

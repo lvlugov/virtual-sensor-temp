@@ -3,7 +3,7 @@
 # Master variable registry for the CUI lean virtual sensor synthetic dataset.
 #
 # This file is the single source of truth for variable definitions.
-# Both the generator (generator/pipeline.py) and the test suite (tests/)
+# Both inputs_generation (e.g. pipeline.py) and the test suite (tests/)
 # read from this file. Change a rule here and it propagates to both.
 #
 # Structure per variable:
