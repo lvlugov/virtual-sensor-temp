@@ -379,3 +379,36 @@ locations:
     country: Australia
     latitude: -27.42
     longitude: 153.15
+
+historical_weather:
+  # ACH window length (days). Defines the boundary between the *historical*
+  # wetting period (covered by compute_wet_load) and the trailing *active*
+  # ACH window (summed by asset_temperature.compute_ach). compute_wet_load
+  # summarises the period [last_inspection_date, today - ach_window_days).
+  ach_window_days: 90
+  # Exponential-decay half-life for the recency weight applied to each day
+  # of the historical window. weight = 0.5 ** (days_from_window_end / N).
+  # 365 → 1-year-old day counts ~50% as much as today; 730 → 2-year-old
+  # day counts ~50%; smaller N → more aggressive forgetting.
+  half_life_days: 365
+  # Relative weight of the daily drying term vs raw rainfall in the
+  # weighted ratio. drying_per_day = drying_weight * temp * (1 - rh/100)
+  # is added only on hot-dry days.
+  drying_weight: 0.3
+  # Hot-dry thresholds — drying contribution only counts when daily mean
+  # temperature exceeds drying_temp_threshold_c AND daily mean RH is
+  # below drying_humidity_threshold_percent. Values match ISO 9223:2012
+  # atmospheric corrosivity criteria for drying conditions.
+  drying_temp_threshold_c: 15
+  drying_humidity_threshold_percent: 60
+  # Vapor ingress weight (mm-equivalent per %-RH above the vapor threshold).
+  # Captures moisture entering the insulation through humid air even when
+  # no precipitation occurs. Defaults to 0.1 from atmospheric-corrosion
+  # literature (ISO 9223:2012 "wet" threshold sits at RH > 80; vapor
+  # transport is significant well below that).
+  vapor_weight: 0.1
+  # RH above this counts as vapor-laden air contributing to wetting.
+  # Same numeric default as drying_humidity_threshold_percent because they
+  # describe opposite sides of the same physical tipping point; kept as a
+  # separate key so future calibration can decouple the two regimes.
+  vapor_humidity_threshold_percent: 60
