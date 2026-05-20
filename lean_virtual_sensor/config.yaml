@@ -46,3 +46,336 @@ asset_temperature:
   # Longer gaps remain NaN and effectively split the series so no
   # phantom trough spans them.
   cycle_max_gap_hours: 6
+
+api:
+  # Visual Crossing timeline endpoint base. Full URL is built as
+  #   {base_url}/{lat,lon}/{start}/{end}
+  # per Visual Crossing's REST API. Chosen over Open-Meteo because
+  # per-asset windows can span multiple years between inspections, and
+  # Visual Crossing's API-key-based daily-record quota gives predictable
+  # headroom that Open-Meteo's cost-weighted free tier did not.
+  base_url: https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline
+  # The API key is read from the VISUAL_CROSSING_API_KEY environment
+  # variable (loaded from .env at runtime — see .env.example and
+  # `make env`). Never put the real key in this file: config.yaml is
+  # tracked in git.
+  request_timeout_seconds: 60
+
+# Fleet locations consumed by external_temperature.fetch_bulk_to_disk for
+# the one-shot 10-year pre-fetch of training-set weather data. Each entry
+# is one (operator, site, country, lat, lon) record. Per-asset live fetches
+# do NOT use this list — they take lat/lon directly via fetch_hourly_window.
+locations:
+  - operator: SITECH
+    site: Europe
+    country: Netherlands
+    latitude: 50.9577
+    longitude: 5.8264
+  - operator: PTTGC
+    site: Rayong
+    country: Thailand
+    latitude: 12.734
+    longitude: 101.145
+  - operator: DOW
+    site: Tarragona
+    country: Spain
+    latitude: 41.09
+    longitude: 1.17
+  - operator: Aramco
+    site: R93 JNGLF
+    country: Saudi Arabia
+    latitude: 26.644
+    longitude: 50.1583
+  - operator: Aramco
+    site: Berth 51
+    country: Saudi Arabia
+    latitude: 26.644
+    longitude: 50.1583
+  - operator: ENI
+    site: Brindisi
+    country: Italy
+    latitude: 40.6324
+    longitude: 17.9418
+  - operator: Total
+    site: Elgin
+    country: UK Offshore
+    latitude: 57.05
+    longitude: 1.8333
+  - operator: STORK
+    site: Plantsense
+    country: Netherlands
+    latitude: 52.0907
+    longitude: 5.1214
+  - operator: STORK
+    site: Teesside
+    country: England
+    latitude: 54.58
+    longitude: -1.23
+  - operator: INEOS
+    site: Grangemouth
+    country: Scotland
+    latitude: 56.0094
+    longitude: -3.7239
+  - operator: Chevron
+    site: Pasadena
+    country: USA
+    latitude: 29.6911
+    longitude: -95.2091
+  - operator: EQUINOR
+    site: Stavanger HQ
+    country: Norway
+    latitude: 58.97
+    longitude: 5.7333
+  - operator: ADNOC
+    site: Borouge
+    country: UAE
+    latitude: 24.0833
+    longitude: 52.7333
+  - operator: DOW
+    site: Freeport
+    country: USA
+    latitude: 28.9544
+    longitude: -95.3597
+  - operator: DOW
+    site: Plaquemine
+    country: USA
+    latitude: 30.29
+    longitude: -91.235
+  - operator: DOW
+    site: Boehlen
+    country: Germany
+    latitude: 51.205
+    longitude: 12.3878
+  - operator: SEAH
+    site: LCOT
+    country: England
+    latitude: 55.0
+    longitude: -1.6
+  - operator: ADNOC
+    site: Gas Processing 1
+    country: UAE
+    latitude: 23.76
+    longitude: 53.73
+  - operator: ADNOC
+    site: Gas Processing 2
+    country: UAE
+    latitude: 23.76
+    longitude: 53.73
+  - operator: Aramco
+    site: Khurais
+    country: Saudi Arabia
+    latitude: 25.1
+    longitude: 48.13
+  - operator: Aramco
+    site: Yanbu
+    country: Saudi Arabia
+    latitude: 24.09
+    longitude: 38.02
+  - operator: SHELL
+    site: Mossmorran
+    country: Scotland
+    latitude: 56.15
+    longitude: -3.25
+  - operator: Chevron
+    site: Pascagoula
+    country: USA
+    latitude: 30.37
+    longitude: -88.57
+  - operator: Aramco
+    site: Yanbu 2
+    country: Saudi Arabia
+    latitude: 24.09
+    longitude: 38.02
+  - operator: Chevron
+    site: Pasadena 2
+    country: USA
+    latitude: 29.6911
+    longitude: -95.2091
+  - operator: SHELL
+    site: PDO
+    country: Oman
+    latitude: 23.6346
+    longitude: 58.5301
+  - operator: SEAH
+    site: South Furious
+    country: UK Offshore
+    latitude: 56.5
+    longitude: 1.5
+  - operator: Sirris
+    site: Belgium
+    country: Belgium
+    latitude: 50.5039
+    longitude: 4.4699
+  - operator: Total
+    site: Zeeland
+    country: Netherlands
+    latitude: 51.45
+    longitude: 3.75
+  - operator: Kanoo
+    site: Inventory (KSA)
+    country: Saudi Arabia
+    latitude: 26.4207
+    longitude: 50.0888
+  - operator: Kanoo
+    site: Inventory (UAE)
+    country: UAE
+    latitude: 25.2769
+    longitude: 55.2962
+  - operator: ADNOC
+    site: Borouge (2)
+    country: UAE
+    latitude: 24.0833
+    longitude: 52.7333
+  - operator: Aramco
+    site: MOD1
+    country: Saudi Arabia
+    latitude: 26.644
+    longitude: 50.1583
+  - operator: Aramco
+    site: MOD2
+    country: Saudi Arabia
+    latitude: 26.644
+    longitude: 50.1583
+  - operator: Aramco
+    site: Berth 52
+    country: Saudi Arabia
+    latitude: 26.644
+    longitude: 50.1583
+  - operator: DOW
+    site: Terneuzen
+    country: Netherlands
+    latitude: 51.33
+    longitude: 3.82
+  - operator: DOW
+    site: Barry
+    country: Wales
+    latitude: 51.4
+    longitude: -3.27
+  - operator: Aramco
+    site: PVR Unit 2
+    country: Saudi Arabia
+    latitude: 26.2885
+    longitude: 50.15
+  - operator: INEOS
+    site: Grangemouth 2
+    country: Scotland
+    latitude: 56.0094
+    longitude: -3.7239
+  - operator: Chevron
+    site: Richmond
+    country: USA
+    latitude: 37.9358
+    longitude: -122.3478
+  - operator: Aramco
+    site: Haradh Train 1
+    country: Saudi Arabia
+    latitude: 24.17
+    longitude: 49.13
+  - operator: Aramco
+    site: Shedgum
+    country: Saudi Arabia
+    latitude: 25.55
+    longitude: 49.13
+  - operator: PRCI
+    site: Houston
+    country: USA
+    latitude: 29.7604
+    longitude: -95.3698
+  - operator: TUPRAS
+    site: Izmit
+    country: Turkey
+    latitude: 40.76
+    longitude: 29.95
+  - operator: Aramco
+    site: Riyas
+    country: Saudi Arabia
+    latitude: 26.2885
+    longitude: 50.15
+  # --- Coverage expansion: Nordic/Arctic + N. Canada, Africa, Australia ---
+  # Added to spread the training set across cold-climate, tropical, and
+  # southern-hemisphere weather regimes. Coords are facility-centre.
+  - operator: Equinor
+    site: Mongstad Refinery
+    country: Norway
+    latitude: 60.8103
+    longitude: 5.0327
+  - operator: Equinor
+    site: Hammerfest LNG (Melkoya)
+    country: Norway
+    latitude: 70.6836
+    longitude: 23.6
+  - operator: Neste
+    site: Porvoo Refinery
+    country: Finland
+    latitude: 60.3017
+    longitude: 25.5486
+  - operator: Preem
+    site: Lysekil Refinery
+    country: Sweden
+    latitude: 58.3478
+    longitude: 11.443
+  - operator: Imperial Oil
+    site: Norman Wells (NWT)
+    country: Canada
+    latitude: 65.282
+    longitude: -126.832
+  - operator: Suncor
+    site: Fort McMurray Oil Sands
+    country: Canada
+    latitude: 56.7264
+    longitude: -111.379
+  - operator: Sonatrach
+    site: Skikda LNG/Refinery
+    country: Algeria
+    latitude: 36.881
+    longitude: 6.952
+  - operator: Sasol
+    site: Secunda Synfuels
+    country: South Africa
+    latitude: -26.54
+    longitude: 29.17
+  - operator: Sapref
+    site: Durban Refinery
+    country: South Africa
+    latitude: -29.95
+    longitude: 30.97
+  - operator: Dangote
+    site: Lekki Refinery
+    country: Nigeria
+    latitude: 6.4413
+    longitude: 3.6739
+  - operator: NLNG
+    site: Bonny Island
+    country: Nigeria
+    latitude: 4.42
+    longitude: 7.17
+  - operator: ELNG
+    site: Idku LNG
+    country: Egypt
+    latitude: 31.28
+    longitude: 30.29
+  - operator: Woodside
+    site: Karratha Gas Plant
+    country: Australia
+    latitude: -20.64
+    longitude: 116.77
+  - operator: INPEX
+    site: Ichthys LNG (Darwin)
+    country: Australia
+    latitude: -12.5
+    longitude: 130.87
+  - operator: Santos
+    site: GLNG (Curtis Island)
+    country: Australia
+    latitude: -23.76
+    longitude: 151.23
+  - operator: Viva Energy
+    site: Geelong Refinery
+    country: Australia
+    latitude: -38.1
+    longitude: 144.43
+  - operator: Ampol
+    site: Lytton Refinery (Brisbane)
+    country: Australia
+    latitude: -27.42
+    longitude: 153.15

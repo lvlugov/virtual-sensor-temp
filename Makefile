@@ -48,6 +48,14 @@ sync:
 	@echo "Syncing Python dependencies (uv)..."
 	docker compose run --rm dev uv sync --extra dev
 
+env:
+	@if [ -f .env ]; then \
+		echo ".env already exists — not overwriting. Edit it directly to change keys."; \
+	else \
+		cp .env.example .env; \
+		echo ".env created from .env.example — open it and fill in your real keys."; \
+	fi
+
 notebook-server:
 	@echo "Starting Jupyter Notebook server in container..."
 	docker compose exec dev jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root
