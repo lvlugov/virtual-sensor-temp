@@ -5,6 +5,7 @@ Expected numerical values depend on the calibration in
 wetness band). When those change, update the expected values here.
 """
 
+import pandas as pd
 import pytest
 
 from lean_virtual_sensor.feature_engineering.asset_temperature import (
@@ -28,6 +29,34 @@ ASSET = AssetSpec(
     insulation_condition="GOOD",
     cladding_integrity="GOOD",
 )
+
+# Fixed reference dates so every test's window placement is deterministic.
+# LAST_INSPECTION is well before TODAY - 90 days, so the ACH window is the
+# full configured 90-day trailing slice and the tests' small DataFrames
+# (whose datetimes end at TODAY) sit comfortably inside it.
+TODAY = pd.Timestamp("2026-05-26")
+LAST_INSPECTION = pd.Timestamp("2024-01-01")
+
+
+def _weather_df(temp: float, humidity: float, n_hours: int = 3) -> pd.DataFrame:
+    """Small hourly weather frame whose datetimes end at TODAY."""
+    return pd.DataFrame(
+        {
+            "datetime": pd.date_range(end=TODAY, periods=n_hours, freq="h"),
+            "temp": [temp] * n_hours,
+            "humidity": [humidity] * n_hours,
+        }
+    )
+
+
+def _process_df(t_process: float, n_hours: int = 3) -> pd.DataFrame:
+    """Small hourly process-historian frame matching _weather_df's datetimes."""
+    return pd.DataFrame(
+        {
+            "datetime": pd.date_range(end=TODAY, periods=n_hours, freq="h"),
+            "process_temperature_c": [t_process] * n_hours,
+        }
+    )
 
 
 # ====================================== Step 1: Surface temperature ======================================
@@ -210,9 +239,10 @@ def test_compute_ach_for_asset_dry_hot_is_zero():
     # wetness = 0 every hour → ACH = 0.
     ach = compute_ach_for_asset(
         ASSET,
-        t_process_series=[100, 100, 100],
-        t_ambient_series=[30, 30, 30],
-        rh_series=[20, 20, 20],
+        _weather_df(temp=30, humidity=20),
+        _process_df(t_process=100),
+        LAST_INSPECTION,
+        TODAY,
     )
     assert ach == 0.0
 
@@ -222,9 +252,10 @@ def test_compute_ach_for_asset_wet_warm_is_positive():
     # wetness transition band → both f and w positive → ACH > 0.
     ach = compute_ach_for_asset(
         ASSET,
-        t_process_series=[20, 20, 20],
-        t_ambient_series=[15, 15, 15],
-        rh_series=[95, 95, 95],
+        _weather_df(temp=15, humidity=95),
+        _process_df(t_process=20),
+        LAST_INSPECTION,
+        TODAY,
     )
     assert ach > 0
 
@@ -249,34 +280,39 @@ def test_compute_ach_for_asset_open_vs_closed_differs():
         insulation_condition="GOOD",
         cladding_integrity="POOR",
     )
-    series_kwargs = dict(
-        t_process_series=[20] * 24,
-        t_ambient_series=[15] * 24,
-        rh_series=[95] * 24,
-    )
-    assert compute_ach_for_asset(asset_closed, **series_kwargs) != compute_ach_for_asset(
-        asset_open, **series_kwargs
-    )
+    weather = _weather_df(temp=15, humidity=95, n_hours=24)
+    process = _process_df(t_process=20, n_hours=24)
+    ach_closed = compute_ach_for_asset(asset_closed, weather, process, LAST_INSPECTION, TODAY)
+    ach_open = compute_ach_for_asset(asset_open, weather, process, LAST_INSPECTION, TODAY)
+    assert ach_closed != ach_open
 
 
-def test_compute_ach_for_asset_rejects_length_mismatch():
-    with pytest.raises(ValueError):
-        compute_ach_for_asset(
-            ASSET,
-            t_process_series=[100, 100],
-            t_ambient_series=[20, 20, 20],
-            rh_series=[50, 50, 50],
-        )
-
-
-def test_compute_ach_for_asset_empty_series_is_zero():
+def test_compute_ach_for_asset_inspection_in_or_after_today_is_zero():
+    # When last_inspection_date is at or beyond today, the window collapses
+    # to empty — no trailing period exists to summarise. Symmetric with
+    # compute_wet_load's behaviour for the pre-ACH window.
     ach = compute_ach_for_asset(
         ASSET,
-        t_process_series=[],
-        t_ambient_series=[],
-        rh_series=[],
+        _weather_df(temp=15, humidity=95),
+        _process_df(t_process=20),
+        TODAY,  # inspection == today
+        TODAY,
     )
-    assert ach == 0
+    assert ach == 0.0
+
+
+def test_compute_ach_for_asset_empty_frames_is_zero():
+    # Empty weather + process frames → empty joined window → ACH = 0.
+    empty_weather = pd.DataFrame(columns=["datetime", "temp", "humidity"])
+    empty_process = pd.DataFrame(columns=["datetime", "process_temperature_c"])
+    ach = compute_ach_for_asset(
+        ASSET,
+        empty_weather,
+        empty_process,
+        LAST_INSPECTION,
+        TODAY,
+    )
+    assert ach == 0.0
 
 
 def test_compute_ach_for_asset_propagates_bad_geometry():
@@ -293,9 +329,10 @@ def test_compute_ach_for_asset_propagates_bad_geometry():
     with pytest.raises(ValueError):
         compute_ach_for_asset(
             bad_asset,
-            t_process_series=[20],
-            t_ambient_series=[15],
-            rh_series=[95],
+            _weather_df(temp=15, humidity=95, n_hours=1),
+            _process_df(t_process=20, n_hours=1),
+            LAST_INSPECTION,
+            TODAY,
         )
 
 
@@ -303,7 +340,32 @@ def test_compute_ach_for_asset_propagates_bad_rh():
     with pytest.raises(ValueError):
         compute_ach_for_asset(
             ASSET,
-            t_process_series=[20],
-            t_ambient_series=[15],
-            rh_series=[150],
+            _weather_df(temp=15, humidity=150, n_hours=1),
+            _process_df(t_process=20, n_hours=1),
+            LAST_INSPECTION,
+            TODAY,
         )
+
+
+def test_compute_ach_for_asset_resamples_subhourly_process_data_to_hourly():
+    # Process historian samples every 15 minutes (4 rows per hour) at
+    # timestamps that don't land on :00:00. With a raw exact-datetime
+    # merge, none of these rows would match the hourly weather data and
+    # ACH would be 0. The internal resample-to-hourly bucket lets it
+    # match — score should equal what we'd get from clean hourly process
+    # data at the same value.
+    n_hours = 3
+    process_subhourly = pd.DataFrame(
+        {
+            "datetime": pd.date_range(end=TODAY, periods=4 * n_hours, freq="15min"),
+            "process_temperature_c": [20.0] * (4 * n_hours),
+        }
+    )
+    weather = _weather_df(temp=15, humidity=95, n_hours=n_hours)
+    ach_subhourly = compute_ach_for_asset(
+        ASSET, weather, process_subhourly, LAST_INSPECTION, TODAY,
+    )
+    ach_hourly = compute_ach_for_asset(
+        ASSET, weather, _process_df(t_process=20, n_hours=n_hours), LAST_INSPECTION, TODAY,
+    )
+    assert ach_subhourly == pytest.approx(ach_hourly)

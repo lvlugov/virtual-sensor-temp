@@ -31,3 +31,8 @@ asset_temperature:
   # Wetness factor transition band: width in °C above T_dew over which
   # the wetness factor w(T_skin, T_dew) drops linearly from 1.0 to 0.0.
   wetness_transition_band_c: 10.0
+  # Active CUI Hours aggregation window — number of days back from `today`
+  # the orchestrator slices to before summing into ACH. Single source of
+  # truth for the published "trailing 90-day" convention; load-bearing —
+  # read by `compute_ach_for_asset`.
+  ach_window_days: 90

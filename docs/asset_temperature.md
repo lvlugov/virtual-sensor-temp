@@ -215,11 +215,13 @@ One number per asset per cycle. The theoretical ceiling is `2160` (90 d ·
 24 h, every hour scoring 1.0 on both factors); real assets sit well
 below it because being simultaneously at peak `f` and `w = 1` is rare.
 
-The function takes a pre-built iterable of hourly scores — windowing
-(slicing the hourly series to the trailing 90 days) lives in the caller
-because it depends on the caller's timestamp format. Output is raw, not
-normalised; any 0-1 scaling for regression-readiness is the modelling
-step's call.
+`compute_ach` itself still just sums whatever iterable it's handed —
+the slicing to the trailing window happens one level up in
+`compute_ach_for_asset`, which reads the window length from
+`asset_temperature.ach_window_days` and trims both the weather and
+process-history DataFrames before zipping them into hourly scores.
+Output is raw, not normalised; any 0-1 scaling for regression-readiness
+is the modelling step's call.
 
 ### Cadence note
 
@@ -271,27 +273,41 @@ rather than silently selecting the wrong NACE curve.
 
 ### Orchestration
 
-`compute_ach_for_asset(asset, *, t_process_series, t_ambient_series, rh_series)`
-takes one `AssetSpec` plus three keyword-only hourly time series and
-returns a single raw ACH value:
+`compute_ach_for_asset(asset, weather_df, process_history_df, last_inspection_date, today)`
+takes one `AssetSpec`, two hourly DataFrames from different upstream
+systems, and the two date bounds. It slices both frames itself, joins
+them on `datetime`, and returns one raw ACH value:
 
 ```
+window_start    = max(today - ach_window_days, last_inspection_date)
+weather_window  = weather_df  [datetime ∈ [window_start, today]]
+process_window  = process_history_df [datetime ∈ [window_start, today]]
+window          = weather_window.merge(process_window, on="datetime", how="inner")
+
 k = compute_k(asset)                                                       # once per asset
 open_system = is_open_system(asset.insulation_condition, asset.cladding_integrity)
 f = compute_f_open if open_system else compute_f_closed
-for (T_process, T_ambient, RH) in zip(series, strict=True):
+for (T_process, T_ambient, RH) in zip(window["process_temperature_c"], window["temp"], window["humidity"], strict=True):
     T_skin     = compute_t_skin(T_process, T_ambient, k)
     T_dew      = compute_t_dew(T_ambient, RH)
     hour_score = compute_hour_score(f(T_skin), compute_wetness(T_skin, T_dew))
 ACH = compute_ach(hour_scores)
 ```
 
-`zip(..., strict=True)` on the three series makes length-mismatched
-inputs raise `ValueError` immediately rather than silently truncating to
-the shortest.
+Inputs are two separate DataFrames because weather and process
+temperature come from physically separate upstream systems — the
+per-location weather cache vs the plant's process historian — and the
+function deliberately doesn't pretend either owns the other's columns.
+The `datetime`-keyed inner merge enforces alignment: an hour with no
+matching process reading is dropped rather than silently zero-padded.
 
-Windowing lives in the caller — the function does not read timestamps.
-Slice your hourly series to the trailing 90-day window before calling.
+Windowing now lives inside the function (no longer in the caller). The
+window length is read from `asset_temperature.ach_window_days` in
+`config.yaml` (default 90); the lower bound is clipped to
+`last_inspection_date` so the window never extends back beyond the most
+recent inspection. Symmetric with `compute_wet_load` in
+`historical_weather_feature.py`, which covers the *pre-ACH* half of the
+same overall window.
 
 ---
 
@@ -317,6 +333,7 @@ asset_temperature:
   nace_open_t_points_c: [40, 60, 70, 80, 90, 100]
   nace_open_r_points:   [0.27, 0.35, 0.40, 0.42, 0.40, 0.35]
   wetness_transition_band_c: 10.0     # °C above T_dew over which w drops 1 → 0
+  ach_window_days: 90                 # trailing window summed by compute_ach_for_asset
 ```
 
 Missing keys fail fast at load time via `load_section(..., REQUIRED_KEYS)`,
@@ -371,18 +388,30 @@ modelling layer's job; this layer's job is to deliver the integral.
 
 
 
-### Pipeline takes an `AssetSpec`; series are keyword-only
+### Pipeline takes an `AssetSpec` + two DataFrames + two dates
 
-`compute_ach_for_asset` takes one positional `AssetSpec` and three
-keyword-only hourly series. The asset bundle is a natural conceptual
-unit — one row in a fleet inventory — so the positional slot reads
-naturally; the three series are individually meaningless until paired
-with one another, so kw-only at the call site stops a swap (ambient and
-process are both floats and both plausible — a positional bug would
-quietly produce a wrong ACH). `AssetSpec` is frozen so a single
-instance can be shared across calls safely. The three series feed
-`zip(..., strict=True)` so a length mismatch raises immediately rather
-than silently truncating to the shortest.
+`compute_ach_for_asset` takes one positional `AssetSpec`, a `weather_df`
+from the weather cache, a `process_history_df` from the plant's process
+historian, plus `last_inspection_date` and `today`. Two DataFrames
+instead of one merged frame because weather and process temperature
+come from physically separate upstream systems — they're owned by
+different teams, they arrive at different cadences, and the schema for
+each is set by its source. The function joins them on `datetime` with
+an inner merge so an hour with no matching process reading is dropped
+rather than silently zero-padded. The two date bounds (rather than
+positional series) make the slicing call site self-documenting and
+let each call use a different "today" without rebuilding inputs.
+
+### ACH window lives in `config.yaml` and is consumed by the function
+
+The window length sits at `asset_temperature.ach_window_days` (default
+90), alongside the other calibration constants (NACE band, Magnus
+coefficients, wetness band, insulation conductivities) and read by
+`compute_ach_for_asset` at the top of every call. Single source of
+truth, recalibratable per deployment without touching code. Symmetric
+with `compute_wet_load` in `historical_weather_feature.py`, which also
+reads `ach_window_days` to delimit its (complementary, pre-ACH)
+window.
 
 ### Validation lives in the consuming functions, not in `AssetSpec.__post_init__`
 

@@ -25,11 +25,15 @@ Per-asset CUI feature pipeline in five steps, plus an end-to-end driver:
             "wet enough":
                 hour_score(t) = f(T_skin(t)) * w(T_skin(t), T_dew(t))
 
-    Step 5  Active CUI Hours, raw sum over a 90-day window (caller slices):
+    Step 5  Active CUI Hours, raw sum over the trailing ACH window:
                 ACH = sum of hour_score(t)
+            Window length comes from ``asset_temperature.ach_window_days``
+            in config (default 90).
 
-End-to-end entry point :func:`compute_ach_for_asset` takes an :class:`AssetSpec`
-plus the three keyword-only hourly series and chains Steps 1-5 to one ACH value.
+End-to-end entry point :func:`compute_ach_for_asset` takes an :class:`AssetSpec`,
+an hourly ``weather_df``, an hourly ``process_history_df``, and two dates;
+it slices both DataFrames to the trailing ACH window itself, joins on
+``datetime``, and chains Steps 1-5 to one ACH value.
 
 Material constants (insulation thermal conductivity, Magnus coefficients,
 NACE damage-curve calibration) and the default film coefficients are read
@@ -44,6 +48,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 import numpy as np
+import pandas as pd
 from scipy.interpolate import PchipInterpolator
 
 from lean_virtual_sensor.config import load_section
@@ -104,6 +109,7 @@ REQUIRED_KEYS = (
     "nace_open_t_points_c",
     "nace_open_r_points",
     "wetness_transition_band_c",
+    "ach_window_days",
 )
 
 # ====================================== Step 1: Surface temperature ======================================
@@ -405,12 +411,12 @@ def compute_ach(hour_scores: Iterable[float]) -> float:
 
 def compute_ach_for_asset(
     asset: AssetSpec,
-    *,
-    t_process_series: Iterable[float],
-    t_ambient_series: Iterable[float],
-    rh_series: Iterable[float],
+    weather_df: pd.DataFrame,
+    process_history_df: pd.DataFrame,
+    last_inspection_date: pd.Timestamp,
+    today: pd.Timestamp,
 ) -> float:
-    """Run Steps 1-5 end-to-end for one asset over its hourly window.
+    """Run Steps 1-5 end-to-end for one asset over its trailing ACH window.
 
         Step 1: k = compute_k(asset)                            — constant per asset
                 T_skin(t) = compute_t_skin(T_process(t), T_ambient(t), k)
@@ -420,8 +426,21 @@ def compute_ach_for_asset(
         Step 4: hour_score(t) = compute_hour_score(f(t), w(t))
         Step 5: ACH = compute_ach(hour_score series)
 
-    The caller is responsible for slicing the three input series to the 90-day
-    window before calling — this function does not look at timestamps.
+    The trailing ACH window is read from
+    ``asset_temperature.ach_window_days`` in ``config.yaml`` (default 90).
+    Both ``weather_df`` and ``process_history_df`` are sliced internally to
+    ``[max(today - ach_window_days, last_inspection_date), today]``,
+    resampled to a clean clock-hour grid (mean within each bucket), and
+    joined on ``datetime`` before Steps 1-5 run. Symmetric with
+    :func:`...historical_weather_feature.compute_wet_load`, which covers
+    the *pre-ACH* half of the same overall window.
+
+    Weather and process temperature come from physically separate data
+    sources — the per-location weather cache and the plant's process
+    historian — so they stay as two DataFrames; neither pretends to own
+    the other's columns. The hourly resample before merging means the
+    process historian can log at any cadence (1-minute, 5-minute,
+    irregular) without the inner merge silently dropping every row.
 
     Args:
         asset: Static asset configuration (geometry, materials, insulation
@@ -429,20 +448,76 @@ def compute_ach_for_asset(
             See :class:`AssetSpec`. The NACE open/closed flag is derived
             from ``asset.insulation_condition`` and ``asset.cladding_integrity``
             via :func:`is_open_system`.
-        t_process_series: Hourly process temperatures in °C.
-        t_ambient_series: Hourly ambient air temperatures in °C.
-        rh_series: Hourly relative humidities in (0, 100].
+        weather_df: Hourly DataFrame from the weather cache. Columns
+            ``datetime``, ``temp`` (ambient °C), ``dew`` (°C),
+            ``humidity`` (% in (0, 100]), ``precip`` (mm). This function
+            reads only ``datetime``, ``temp``, ``humidity``; the other
+            columns are part of the shared schema with
+            ``compute_wet_load`` and are ignored here.
+        process_history_df: Hourly DataFrame from the plant's process
+            historian. Columns ``datetime`` and ``process_temperature_c``
+            (°C). One row per hour, aligned with ``weather_df`` on
+            ``datetime``.
+        last_inspection_date: Earliest date considered. The ACH window
+            cannot extend further back than the last inspection — if the
+            inspection is more recent than ``today - ach_window_days``,
+            the window shrinks accordingly.
+        today: Reference date. Window ends at ``today``.
 
     Returns:
-        Raw ACH for the supplied window.
+        Raw ACH for the trailing window. Returns ``0.0`` when
+        ``last_inspection_date >= today`` (no window to summarise) or
+        when the joined slice is empty.
 
     Raises:
         ValueError: Propagated from :func:`compute_k` (bad geometry or
             unknown insulation), :func:`is_open_system` (invalid condition
-            string), :func:`compute_t_dew` (RH out of range), or
-            ``zip(..., strict=True)`` if the three series have different
-            lengths.
+            string), or :func:`compute_t_dew` (RH out of range).
     """
+    cfg = load_section(CONFIG_SECTION, REQUIRED_KEYS)
+    window_start = max(
+        today - pd.Timedelta(days=int(cfg["ach_window_days"])),
+        last_inspection_date,
+    )
+    if window_start >= today:
+        return 0.0
+
+    weather_window = weather_df[
+        (weather_df["datetime"] >= window_start) & (weather_df["datetime"] <= today)
+    ]
+    process_window = process_history_df[
+        (process_history_df["datetime"] >= window_start)
+        & (process_history_df["datetime"] <= today)
+    ]
+    if weather_window.empty or process_window.empty:
+        return 0.0
+
+    # Resample both inputs to a clean clock-hour grid (mean within each
+    # bucket) before merging. The two upstream systems sample at different
+    # cadences — weather is hourly on the hour, but the process historian
+    # may log at 1-minute or irregular intervals — so a raw merge on
+    # `datetime` would mostly drop rows. Hour-level alignment is the
+    # natural cadence for the rest of the math (T_skin, T_dew, wetness).
+    weather_hourly = (
+        weather_window[["datetime", "temp", "humidity"]]
+        .set_index("datetime")
+        .resample("h")
+        .mean()
+        .dropna()
+        .reset_index()
+    )
+    process_hourly = (
+        process_window[["datetime", "process_temperature_c"]]
+        .set_index("datetime")
+        .resample("h")
+        .mean()
+        .dropna()
+        .reset_index()
+    )
+    window = weather_hourly.merge(process_hourly, on="datetime", how="inner")
+    if window.empty:
+        return 0.0
+
     k = compute_k(
         asset.insulation_type,
         asset.insulation_thickness_mm,
@@ -456,7 +531,10 @@ def compute_ach_for_asset(
 
     hour_scores: list[float] = []
     for t_process, t_ambient, rh in zip(
-        t_process_series, t_ambient_series, rh_series, strict=True
+        window["process_temperature_c"],
+        window["temp"],
+        window["humidity"],
+        strict=True,
     ):
         t_skin = compute_t_skin(t_process, t_ambient, k)
         t_dew = compute_t_dew(t_ambient, rh)
