@@ -17,7 +17,30 @@ All calibration data lives under the `asset_temperature` block in
 
 ---
 
-## Step 1 — Skin temperature `T_skin`
+## Standards & provenance
+
+Each step is tagged inline as **[Standard]** (we implement a published
+method) or **[CorrosionRadar]** (our own method, not in any standard).
+A reader auditing this module against the literature should be able to
+trace every standard-tagged piece back to its source; CorrosionRadar
+pieces are deliberate refinements that supplement the standards rather
+than replace them.
+
+| Provenance | What we use it for |
+|---|---|
+| **NACE SP0198-2010, Figure 1** | Step 2 closed- and open-system corrosion-rate curves (`compute_f_closed`, `compute_f_open`); the closed line traces to Speller (1935) as digitised in NACE |
+| **NACE SP0198-2010, condition rule** | The `is_open_system` boolean (closed requires *both* insulation and cladding `"GOOD"`; any compromise is open) |
+| **WMO Magnus-Tetens form** | Step 3a dew-point coefficients (`magnus_a = 17.62`, `magnus_b = 243.12`) |
+| **Textbook 1-D radial conduction** (no specific standard) | Step 1 three-resistance heat balance — internal film, insulation, external film |
+| **CorrosionRadar — ours** | Step 3b wetness factor `w(T_skin, T_dew)` and its transition band · Step 4 hourly damage score `hour_score = f · w` (AND-logic product) · Step 5 **Active CUI Hours** metric and the 90-day aggregation window · implementation choices: PCHIP fit for the open curve, linear extrapolation outside the digitised knots clipped at zero, hard zeros outside the NACE active band, default film coefficients |
+
+The standards pin curve shape, parameter values, and the open/closed
+condition rule; CorrosionRadar combines them into a single per-asset
+metric (ACH) that neither NACE nor WMO defines.
+
+---
+
+## Step 1 — Skin temperature `T_skin` &nbsp;&nbsp;_[Standard: 1-D radial conduction]_
 
 Three thermal resistances in series — internal film, insulation, external
 film — give an attenuation factor `k ∈ (0, 1)`:
@@ -60,7 +83,7 @@ entry point.
 `compute_t_skin(t_process, t_ambient, k)` then applies the attenuation to
 give the skin temperature.
 
-## Step 2 — Damage factor `f(T_skin)`
+## Step 2 — Damage factor `f(T_skin)` &nbsp;&nbsp;_[Standard: NACE SP0198-2010 Fig 1]_
 
 Scores how aggressive corrosion would be at this temperature, *assuming
 water is present on the surface*. Two NACE-derived curves; which one
@@ -120,7 +143,7 @@ Their product peaks in the middle.
 
 ## Step 3 — Surface dew point and wetness factor
 
-### Step 3a — Surface dew point `T_dew`
+### Step 3a — Surface dew point `T_dew` &nbsp;&nbsp;_[Standard: WMO Magnus-Tetens]_
 
 Magnus formula applied to ambient air:
 
@@ -142,7 +165,7 @@ Driven by `compute_t_dew(...)`.
 Below 0 the Magnus log term is undefined; above 100 is physically
 impossible and a likely bad-data sentinel from upstream sensors.
 
-### Step 3b — Wetness factor `w(T_skin, T_dew)`
+### Step 3b — Wetness factor `w(T_skin, T_dew)` &nbsp;&nbsp;_[CorrosionRadar]_
 
 Piecewise-linear score for whether water is likely on the steel surface
 from atmospheric condensation:
@@ -161,7 +184,7 @@ above `T_dew`, partial condensation is possible and `w` falls smoothly
 from 1 to 0 across the transition. The function is continuous at both
 boundaries by construction. Driven by `compute_wetness(...)`.
 
-## Step 4 — Hourly damage score `hour_score`
+## Step 4 — Hourly damage score `hour_score` &nbsp;&nbsp;_[CorrosionRadar]_
 
 `compute_hour_score(f_t_skin, wetness)` multiplies the two factors:
 
@@ -179,7 +202,7 @@ asset-level decision (open/closed insulation system) and is the caller's
 responsibility; this step takes whichever scalar `f` value the caller
 chose.
 
-## Step 5 — Active CUI Hours `ACH_90d`
+## Step 5 — Active CUI Hours `ACH_90d` &nbsp;&nbsp;_[CorrosionRadar]_
 
 `compute_ach(hour_scores)` sums the per-hour scores across the window:
 
@@ -346,13 +369,7 @@ training population) and bolting one onto the feature producer would
 lock every consumer into the same scaler. Normalisation is the
 modelling layer's job; this layer's job is to deliver the integral.
 
-### 90-day window length is hard-coded, not config-driven
 
-The window size sits in code and prose, not in `config.yaml`. The
-function does not slice — it sums whatever it is given — so a config
-key for "window days" would be metadata the function never reads. If a
-caller later needs to vary the window, the natural place is the slicing
-call, not this aggregator. Avoiding dead config keeps the schema lean.
 
 ### Pipeline takes an `AssetSpec`; series are keyword-only
 
