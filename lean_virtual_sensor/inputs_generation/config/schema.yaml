@@ -273,6 +273,7 @@ variables:
     constraints:
       - "insulation_install_date <= reference_date"
       - "insulation_install_date >= (reference_date - asset_age years)"
+      - "insulation_install_date <= inspection_record_dates"
     notes: >
       Date of most recent full insulation installation or replacement. Drives
       insulation_age_years. For CUI, the oldest section is most relevant — partial
@@ -326,6 +327,7 @@ variables:
     format: "YYYY-MM-DD"
     constraints:
       - "inspection_record_dates <= reference_date"
+      - "inspection_record_dates >= insulation_install_date"
     notes: >
       Most recent inspection date. Full date list stored in real data; synthetic
       dataset uses the single most-recent date. Drives time_since_last_inspection

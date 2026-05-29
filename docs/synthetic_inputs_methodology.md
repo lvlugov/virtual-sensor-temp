@@ -98,6 +98,8 @@ Numeric ranges vary by asset class. `component_diameter` is drawn first in this 
 ### Layer 4 — Date / age chain
 All dates are bounded by: `(reference_date − asset_age)` ≤ date ≤ `reference_date`. Coating system is generated here because the auto-downgrade rule requires knowing the coating age immediately.
 
+`insulation_install_date` is drawn before `inspection_record_dates`. The last inspection must be on or after the insulation install date (`insulation_install_date ≤ inspection_record_dates`), so inspection never predates the current insulation system.
+
 `insulation_install_date`, `coating_application_date`, `coating_system`, `inspection_record_dates`
 
 ### Layer 5 — Temperature triplet + process parameters
@@ -248,7 +250,7 @@ The test suite under **`tests/`** (see Section 3) validates any CSV against the 
 |---|---|
 | `test_schema_compliance.py` | All categorical values within allowed sets; all numerics within range; correct types |
 | `test_constraints.py` | Inter-variable rules: min ≤ op_temp ≤ max, last_inspection ≤ furnished_thickness, chloride auto-flag |
-| `test_date_chain.py` | Date ordering: install/application dates within asset lifetime; inspection dates ≤ today |
+| `test_date_chain.py` | Date ordering: install/application dates within asset lifetime; inspection dates ≤ today; inspection ≥ insulation install |
 | `test_completeness.py` | No nulls in fields defined as nullable=false in schema.yaml |
 | `test_distributions.py` | Asset class counts within ±5% of targets; no degenerate distributions |
 

@@ -31,6 +31,7 @@ Constraints enforced (mirrors test_constraints.py — they must stay in sync):
     coating_application_date   <= reference_date
     coating_application_date   >= commissioning_date
     inspection_record_dates    <= reference_date
+    insulation_install_date    <= inspection_record_dates
 
     ASSET AGE
     ---------
@@ -182,6 +183,12 @@ def _enforce_date_chain(
                 n += 1
                 result.at[i, col] = commissioning.date().isoformat()
 
+        ins_ts = pd.Timestamp(str(result.at[i, "insulation_install_date"])).normalize()
+        insp_ts = pd.Timestamp(str(result.at[i, "inspection_record_dates"])).normalize()
+        if insp_ts < ins_ts:
+            n += 1
+            result.at[i, "inspection_record_dates"] = ins_ts.date().isoformat()
+
     return result, n
 
 
@@ -300,6 +307,10 @@ def _collect_unrecoverable_rows(
             reasons.append("insulation_date_window")
         if coat_ts < commissioning or coat_ts > ref_n:
             reasons.append("coating_date_window")
+
+        insp_ts = pd.Timestamp(str(df.at[i, "inspection_record_dates"]))
+        if insp_ts.normalize() < ins_ts.normalize():
+            reasons.append("inspection_before_insulation")
 
         ins_age = years_between_timestamps(ins_ts, ref_n)
         coat_age = years_between_timestamps(coat_ts, ref_n)

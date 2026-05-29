@@ -66,6 +66,15 @@ def test_inspection_date_not_future(df, gen_config):
     assert (ins <= ref).all()
 
 
+def test_inspection_date_not_before_insulation_install(df):
+    """inspection_record_dates >= insulation_install_date for every row."""
+    if df is None:
+        pytest.skip("No dataset provided")
+    install = pd.to_datetime(df["insulation_install_date"])
+    inspection = pd.to_datetime(df["inspection_record_dates"])
+    assert (inspection >= install).all()
+
+
 def test_asset_age_covers_insulation_and_coating_ages(df, gen_config):
     """asset_age (years) is not less than derived insulation / coating ages."""
     if df is None:
