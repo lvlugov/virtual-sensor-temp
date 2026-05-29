@@ -2,15 +2,19 @@
 # conditional_rules.yaml
 # Conditional generation rules for the CUI lean virtual sensor synthetic dataset.
 #
+# review_id: "2026-05-29-sme-draft-1"
+# SME pack: docs/conditional_rules_sme_review.md
+#
 # PURPOSE
 # -------
 # This file controls how variable values are drawn when the draw should NOT be
 # uniform random over allowed values. It encodes two types of rules:
 #
-#   TIER 1 — DETERMINISTIC
-#     Rules explicitly stated in the data dictionary or directly derivable from
-#     standards (API 583, NACE SP0198-2010, API 581). These are enforced as hard
-#     constraints, not probabilities. They are fully auditable.
+#   TIER 1 — DETERMINISTIC (specification)
+#     Hard rules from the data dictionary (and standards where cited). The
+#     generator reads conditional_weights (Tier 2) from this file; Tier 1 blocks
+#     document intended behaviour — see applies_at on each rule. Enforcement in
+#     Python may lag this file (fellow-coder review).
 #
 #   TIER 2 — PHYSICALLY REASONED
 #     Conditional probability weights that follow from engineering physics or
@@ -27,7 +31,13 @@
 #
 # HOW THE GENERATOR USES THIS FILE
 # ---------------------------------
-# For each variable listed here, the generator checks conditions in order.
+# conditional_weights (Tier 2): loaded by the generator. For each variable, rules
+# are checked in order; the first match wins.
+#
+# deterministic_rules (Tier 1): not loaded from this file today — specification
+# and SME review only unless applies_at: generation is stated on a rule.
+#
+# For each Tier 2 variable listed here, the generator checks conditions in order.
 # The first matching condition is applied. If no condition matches, the variable
 # is drawn uniformly over its allowed values (for categoricals) or uniformly
 # over its range (for numerics).
@@ -46,11 +56,12 @@
 deterministic_rules:
 
   insulation_chloride_flag:
+    applies_at: generation
     description: >
       Auto-flag rule from data dictionary (Insulation section, Edge Cases column).
       MARINE + CALCIUM_SILICATE + insulation age > 5 years almost always results
       in chloride contamination. Stated explicitly as auto-flag candidate.
-    source: "Data dictionary insulation_chloride_flag field; NACE SP0198-2010 Section 5.4; API 583 Table 4.2"
+    source: "Data dictionary insulation_chloride_flag field; NACE SP0198-2010 Section 5.4 [CITATION_TBC]; API 583 Table 4.2 [CITATION_TBC]"
     rules:
       - condition:
           exposure_zone: MARINE
@@ -59,18 +70,21 @@ deterministic_rules:
         action: set_value
         value: true
 
-  coating_system_auto_downgrade:
+  coating_system_age_degradation:
+    applies_at: scoring
     description: >
-      Organic epoxy coatings degrade with age. API 583 states coatings > 10 years
-      should be treated as degraded regardless of original specification.
-      Applied as a post-generation correction in constraints.py.
-    source: "Data dictionary coating_system constraints; API 583 coating age rule"
+      Scoring-time rule only. Do not rewrite coating_system in the synthetic
+      dataset (preserve EPOXY_HT_MULTI / EPOXY_HT_SINGLE as recorded metadata).
+      When coating_age_years > 10 and coating_system is EPOXY_HT_MULTI or
+      EPOXY_HT_SINGLE, the CUI model applies degraded coating susceptibility
+      equivalent to EPOXY_AGED without changing the stored coating_system value.
+    source: "Data dictionary coating_system constraints; API 583 coating age rule [CITATION_TBC]"
     rules:
       - condition:
           coating_age_years_gt: 10
           coating_system_in: [EPOXY_HT_MULTI, EPOXY_HT_SINGLE]
-        action: set_value
-        value: EPOXY_AGED
+        action: treat_as_degraded_at_scoring
+        note: "No set_value — metadata unchanged"
 
 
 # ── TIER 2: PHYSICALLY REASONED WEIGHTS ───────────────────────────────────────
@@ -87,7 +101,7 @@ conditional_weights:
       common in high-temperature service but worst for CUI in wet environments.
       MINERAL_WOOL widely used general-purpose material across all environments.
     source: >
-      API 583 Table 4.3 material properties; NACE SP0198-2010 Table 1;
+      API 583 Table 4.3 material properties [CITATION_TBC]; NACE SP0198-2010 Table 1 [CITATION_TBC];
       [ENGINEERING_JUDGEMENT] for specific weight values.
     rules:
       - condition:
@@ -143,7 +157,7 @@ conditional_weights:
       environments. BARE more common on older assets where coating has failed
       or was never applied.
     source: >
-      API 583 Table 4.4 m_coat values; API 581 coating modifier;
+      API 583 Table 4.4 m_coat values [CITATION_TBC]; API 581 coating modifier [CITATION_TBC];
       [ENGINEERING_JUDGEMENT] for specific weight values.
     rules:
       - condition:
@@ -214,7 +228,7 @@ conditional_weights:
       insulation more likely GOOD; older insulation in aggressive environments
       more likely POOR. Physically consistent with API 583 age-band scoring.
     source: >
-      API 583 Section 5.3; API 581 insulation age modifier;
+      API 583 Section 5.3 [CITATION_TBC]; API 581 insulation age modifier [CITATION_TBC];
       [ENGINEERING_JUDGEMENT] for specific weight values.
     rules:
       - condition:
@@ -266,7 +280,7 @@ conditional_weights:
       of cladding fasteners. Similar age-dependence to insulation condition but
       separate variable.
     source: >
-      API 583 Section 5.3; [ENGINEERING_JUDGEMENT] for specific weight values.
+      API 583 Section 5.3 [CITATION_TBC]; [ENGINEERING_JUDGEMENT] for specific weight values.
     rules:
       - condition:
           asset_age_lte: 10
@@ -298,7 +312,7 @@ conditional_weights:
       hydrate formation) and in colder exposure zones. NONE is the majority
       case — ~70-80% of insulated piping has no tracing per industry experience.
     source: >
-      API 583 Section 4.3 (~20-30% of insulated O&G piping has some tracing);
+      API 583 Section 4.3 (~20-30% of insulated O&G piping has some tracing) [CITATION_TBC];
       [ENGINEERING_JUDGEMENT] for condition-specific weights.
     rules:
       - condition:
@@ -334,7 +348,7 @@ conditional_weights:
       assets). Stainless steels used for corrosive services or elevated temperatures.
       Nickel alloys rare — high-consequence specialty applications only.
     source: >
-      ISO 14224:2016 Table A.41; HOIS industry survey data (CS dominant);
+      ISO 14224:2016 Table A.41 [CITATION_TBC]; HOIS industry survey data (CS dominant) [CITATION_TBC];
       [ENGINEERING_JUDGEMENT] for specific weights by exposure zone.
     rules:
       - condition:

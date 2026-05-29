@@ -1,0 +1,156 @@
+# Conditional rules — SME review pack
+
+**Review id:** `2026-05-29-sme-draft-1`  
+**Source file:** `lean_virtual_sensor/inputs_generation/config/conditional_rules.yaml`
+
+## How to use this document
+
+- Tier 2 rules are evaluated **in order**; the **first matching** condition applies.
+- **`[ENGINEERING_JUDGEMENT]`** — numeric weights are assumptions for SME review.
+- **`[CITATION_TBC]`** — standard reference not yet verified.
+- **`applies_at: generation`** — intended hard rule when building synthetic rows.
+- **`applies_at: scoring`** — CUI model behaviour; must **not** change stored `coating_system` metadata.
+
+Please review **conditions, rationale, and weight tables**. Optional feedback table at the end.
+
+---
+
+## Tier 1 — deterministic rules (specification)
+
+### `insulation_chloride_flag` (`applies_at: generation`)
+
+**Source:** Data dictionary — `insulation_chloride_flag` (Edge Cases); NACE SP0198-2010 Section 5.4 `[CITATION_TBC]`; API 583 Table 4.2 `[CITATION_TBC]`
+
+| Condition | Action | Value |
+|-----------|--------|-------|
+| `exposure_zone` = MARINE AND `insulation_material` = CALCIUM_SILICATE AND `insulation_age_years` > 5 | `set_value` | `true` |
+
+---
+
+### `coating_system_age_degradation` (`applies_at: scoring`)
+
+**Source:** Data dictionary — `coating_system` constraints; API 583 coating age rule `[CITATION_TBC]`
+
+Do **not** replace `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` with `EPOXY_AGED` in the dataset. Apply degraded susceptibility at scoring time only.
+
+| Condition | Action |
+|-----------|--------|
+| `coating_age_years` > 10 AND `coating_system` in {EPOXY_HT_MULTI, EPOXY_HT_SINGLE} | `treat_as_degraded_at_scoring` (metadata unchanged) |
+
+---
+
+## Tier 2 — conditional weights (used by generator)
+
+### `insulation_material`
+
+**Source:** API 583 Table 4.3 `[CITATION_TBC]`; NACE SP0198-2010 Table 1 `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
+
+| # | Condition | FOAMGLASS | MINERAL_WOOL | FIBERGLASS | CALCIUM_SILICATE | PEARLITE | UNKNOWN |
+|---|-----------|-----------|--------------|------------|------------------|----------|---------|
+| 1 | MARINE | 0.40 | 0.30 | 0.10 | 0.10 | 0.05 | 0.05 |
+| 2 | ARID_DRY | 0.15 | 0.35 | 0.15 | 0.25 | 0.05 | 0.05 |
+| 3 | SEVERE | 0.30 | 0.35 | 0.15 | 0.10 | 0.05 | 0.05 |
+| 4 | Default | 0.25 | 0.40 | 0.15 | 0.12 | 0.04 | 0.04 |
+
+---
+
+### `coating_system`
+
+**Source:** API 583 Table 4.4 `[CITATION_TBC]`; API 581 coating modifier `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
+
+| # | Condition | TSA | IOZ | EPOXY_HT_MULTI | EPOXY_HT_SINGLE | EPOXY_AGED | BARE | UNKNOWN |
+|---|-----------|-----|-----|----------------|-----------------|------------|------|---------|
+| 1 | `asset_age` ≤ 10, MARINE | 0.25 | 0.25 | 0.25 | 0.15 | 0.05 | 0.03 | 0.02 |
+| 2 | `asset_age` > 25, MARINE | 0.10 | 0.10 | 0.05 | 0.05 | 0.30 | 0.35 | 0.05 |
+| 3 | `asset_age` ≤ 10 | 0.15 | 0.20 | 0.30 | 0.25 | 0.05 | 0.03 | 0.02 |
+| 4 | `asset_age` > 25 | 0.05 | 0.08 | 0.05 | 0.07 | 0.35 | 0.35 | 0.05 |
+| 5 | Default | 0.10 | 0.15 | 0.20 | 0.20 | 0.15 | 0.15 | 0.05 |
+
+---
+
+### `insulation_condition`
+
+**Source:** API 583 Section 5.3 `[CITATION_TBC]`; API 581 insulation age modifier `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
+
+| # | Condition | GOOD | AVERAGE | POOR |
+|---|-----------|------|---------|------|
+| 1 | `insulation_age_years` ≤ 5 | 0.65 | 0.30 | 0.05 |
+| 2 | `insulation_age_years` > 15, MARINE | 0.10 | 0.35 | 0.55 |
+| 3 | `insulation_age_years` > 15 | 0.15 | 0.45 | 0.40 |
+| 4 | 5 < `insulation_age_years` ≤ 15 | 0.35 | 0.50 | 0.15 |
+| 5 | Default | 0.30 | 0.50 | 0.20 |
+
+---
+
+### `cladding_integrity`
+
+**Source:** API 583 Section 5.3 `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
+
+| # | Condition | GOOD | AVERAGE | POOR |
+|---|-----------|------|---------|------|
+| 1 | `asset_age` ≤ 10 | 0.60 | 0.35 | 0.05 |
+| 2 | `asset_age` > 20 | 0.15 | 0.45 | 0.40 |
+| 3 | Default | 0.30 | 0.50 | 0.20 |
+
+---
+
+### `tracing_system`
+
+**Source:** API 583 Section 4.3 `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
+
+| # | Condition | NONE | STEAM_TRACED | ELECTRIC_TRACED | HOT_OIL_TRACED |
+|---|-----------|------|--------------|-----------------|----------------|
+| 1 | `operating_temperature` < 10 °C | 0.40 | 0.35 | 0.20 | 0.05 |
+| 2 | `operating_temperature` ≥ 60 °C | 0.90 | 0.05 | 0.03 | 0.02 |
+| 3 | Default | 0.72 | 0.16 | 0.08 | 0.04 |
+
+---
+
+### `metallurgy_family`
+
+**Source:** ISO 14224:2016 Table A.41 `[CITATION_TBC]`; HOIS survey `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
+
+| # | Condition | CARBON_STEEL | LOW_ALLOY_STEEL | AUSTENITIC_SS | DUPLEX_SS | NICKEL_ALLOY | OTHER |
+|---|-----------|--------------|-----------------|---------------|-----------|--------------|-------|
+| 1 | SEVERE | 0.55 | 0.15 | 0.20 | 0.07 | 0.02 | 0.01 |
+| 2 | Default | 0.72 | 0.12 | 0.10 | 0.04 | 0.01 | 0.01 |
+
+---
+
+## Citations to verify (backlog)
+
+| Rule / variable | Reference to verify |
+|-----------------|---------------------|
+| `insulation_chloride_flag` | NACE SP0198-2010 §5.4; API 583 Table 4.2 |
+| `coating_system_age_degradation` | API 583 coating age rule |
+| `insulation_material` | API 583 Table 4.3; NACE SP0198-2010 Table 1 |
+| `coating_system` | API 583 Table 4.4; API 581 coating modifier |
+| `insulation_condition` | API 583 §5.3; API 581 insulation age modifier |
+| `cladding_integrity` | API 583 §5.3 |
+| `tracing_system` | API 583 §4.3 |
+| `metallurgy_family` | ISO 14224:2016 Table A.41; HOIS survey |
+
+---
+
+## Implementation backlog (not in this rules commit)
+
+| PR topic | Where it will be changed |
+|----------|--------------------------|
+| Remove `OTHER` asset class | `schema.yaml`, `generation_config.yaml`, `asset_class_config.yaml` |
+| Standard DN / wall thickness sampling | `asset_class_config.yaml`, `layer_generators.py` |
+| Stop rewriting `coating_system` in CSV | `layer_generators.py`, `constraints.py`, tests |
+
+---
+
+## SME feedback (optional)
+
+| Section | Approved? | Comments |
+|---------|-------------|----------|
+| Tier 1 — `insulation_chloride_flag` | | |
+| Tier 1 — `coating_system_age_degradation` | | |
+| `insulation_material` | | |
+| `coating_system` | | |
+| `insulation_condition` | | |
+| `cladding_integrity` | | |
+| `tracing_system` | | |
+| `metallurgy_family` | | |
