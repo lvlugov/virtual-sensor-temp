@@ -1,6 +1,6 @@
 # Conditional rules — SME review pack
 
-**Review id:** `2026-05-29-sme-draft-1`  
+**Review id:** `2026-05-29-sme-draft-6`  
 **Source file:** `lean_virtual_sensor/inputs_generation/config/conditional_rules.yaml`
 
 ## How to use this document
@@ -31,7 +31,7 @@ Please review **conditions, rationale, and weight tables**. Optional feedback ta
 
 **Source:** Data dictionary — `coating_system` constraints; API 583 coating age rule `[CITATION_TBC]`
 
-Do **not** replace `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` with `EPOXY_AGED` in the dataset. Apply degraded susceptibility at scoring time only.
+`EPOXY_AGED` is **not** a generated coating type. Do not store it in `coating_system`. Apply degraded susceptibility at scoring time when age > 10 yr and type is `EPOXY_HT_MULTI` or `EPOXY_HT_SINGLE`.
 
 | Condition | Action |
 |-----------|--------|
@@ -56,15 +56,17 @@ Do **not** replace `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` with `EPOXY_AGED` in the
 
 ### `coating_system`
 
+Allowed generated types: **TSA, IOZ, EPOXY_HT_MULTI, EPOXY_HT_SINGLE, BARE, UNKNOWN** (not `EPOXY_AGED`).
+
 **Source:** API 583 Table 4.4 `[CITATION_TBC]`; API 581 coating modifier `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
 
-| # | Condition | TSA | IOZ | EPOXY_HT_MULTI | EPOXY_HT_SINGLE | EPOXY_AGED | BARE | UNKNOWN |
-|---|-----------|-----|-----|----------------|-----------------|------------|------|---------|
-| 1 | `asset_age` ≤ 10, MARINE | 0.25 | 0.25 | 0.25 | 0.15 | 0.05 | 0.03 | 0.02 |
-| 2 | `asset_age` > 25, MARINE | 0.10 | 0.10 | 0.05 | 0.05 | 0.30 | 0.35 | 0.05 |
-| 3 | `asset_age` ≤ 10 | 0.15 | 0.20 | 0.30 | 0.25 | 0.05 | 0.03 | 0.02 |
-| 4 | `asset_age` > 25 | 0.05 | 0.08 | 0.05 | 0.07 | 0.35 | 0.35 | 0.05 |
-| 5 | Default | 0.10 | 0.15 | 0.20 | 0.20 | 0.15 | 0.15 | 0.05 |
+| # | Condition | TSA | IOZ | EPOXY_HT_MULTI | EPOXY_HT_SINGLE | BARE | UNKNOWN |
+|---|-----------|-----|-----|----------------|-----------------|------|---------|
+| 1 | `asset_age` ≤ 10, MARINE | 0.25 | 0.25 | 0.30 | 0.15 | 0.03 | 0.02 |
+| 2 | `asset_age` > 25, MARINE | 0.10 | 0.10 | 0.05 | 0.05 | 0.65 | 0.05 |
+| 3 | `asset_age` ≤ 10 | 0.15 | 0.20 | 0.30 | 0.30 | 0.03 | 0.02 |
+| 4 | `asset_age` > 25 | 0.05 | 0.08 | 0.05 | 0.07 | 0.70 | 0.05 |
+| 5 | Default | 0.10 | 0.15 | 0.20 | 0.20 | 0.30 | 0.05 |
 
 ---
 
@@ -96,24 +98,42 @@ Do **not** replace `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` with `EPOXY_AGED` in the
 
 ### `tracing_system`
 
-**Source:** API 583 Section 4.3 `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
+Allowed values: **NONE**, **HIGH_INTEGRITY_STEAM_TRACED**, **MEDIUM_INTEGRITY_STEAM_TRACED**, **POOR_INTEGRITY_STEAM_TRACED**, **ELECTRIC_TRACED**, **HOT_OIL_TRACED**.
 
-| # | Condition | NONE | STEAM_TRACED | ELECTRIC_TRACED | HOT_OIL_TRACED |
-|---|-----------|------|--------------|-----------------|----------------|
-| 1 | `operating_temperature` < 10 °C | 0.40 | 0.35 | 0.20 | 0.05 |
-| 2 | `operating_temperature` ≥ 60 °C | 0.90 | 0.05 | 0.03 | 0.02 |
-| 3 | Default | 0.72 | 0.16 | 0.08 | 0.04 |
+**Source:** API 583 Section 4.3 `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights (steam band split)
+
+| # | Condition | NONE | HI_STEAM | MED_STEAM | POOR_STEAM | ELECTRIC | HOT_OIL |
+|---|-----------|------|----------|-----------|------------|----------|---------|
+| 1 | `operating_temperature` < 10 °C | 0.40 | 0.10 | 0.15 | 0.10 | 0.20 | 0.05 |
+| 2 | `operating_temperature` ≥ 60 °C | 0.90 | 0.02 | 0.02 | 0.01 | 0.03 | 0.02 |
+| 3 | Default | 0.72 | 0.05 | 0.07 | 0.04 | 0.08 | 0.04 |
+
+---
+
+### `sweating_asset`
+
+Boolean **`true`** / **`false`**. Drawn after `operating_temperature` is known (layer 5).
+
+**Source:** Data dictionary `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
+
+| # | Condition | true | false | Note |
+|---|-----------|------|-------|------|
+| 1 | `operating_temperature` < 10 °C | 0.35 | 0.65 | Cold service |
+| 2 | `operating_temperature` ≥ 60 °C | 0.05 | 0.95 | Hot service |
+| 3 | Default | 0.15 | 0.85 | SME to calibrate |
 
 ---
 
 ### `metallurgy_family`
 
+Allowed: **CARBON_STEEL**, **LOW_ALLOY_STEEL**, **AUSTENITIC_SS**, **DUPLEX_SS** (not `NICKEL_ALLOY` or `OTHER`).
+
 **Source:** ISO 14224:2016 Table A.41 `[CITATION_TBC]`; HOIS survey `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
 
-| # | Condition | CARBON_STEEL | LOW_ALLOY_STEEL | AUSTENITIC_SS | DUPLEX_SS | NICKEL_ALLOY | OTHER |
-|---|-----------|--------------|-----------------|---------------|-----------|--------------|-------|
-| 1 | SEVERE | 0.55 | 0.15 | 0.20 | 0.07 | 0.02 | 0.01 |
-| 2 | Default | 0.72 | 0.12 | 0.10 | 0.04 | 0.01 | 0.01 |
+| # | Condition | CARBON_STEEL | LOW_ALLOY_STEEL | AUSTENITIC_SS | DUPLEX_SS |
+|---|-----------|--------------|-----------------|---------------|-----------|
+| 1 | SEVERE | 0.55 | 0.15 | 0.21 | 0.09 |
+| 2 | Default | 0.74 | 0.12 | 0.10 | 0.04 |
 
 ---
 
@@ -123,6 +143,7 @@ Do **not** replace `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` with `EPOXY_AGED` in the
 |-----------------|---------------------|
 | `insulation_chloride_flag` | NACE SP0198-2010 §5.4; API 583 Table 4.2 |
 | `coating_system_age_degradation` | API 583 coating age rule |
+| `sweating_asset` | Data dictionary |
 | `insulation_material` | API 583 Table 4.3; NACE SP0198-2010 Table 1 |
 | `coating_system` | API 583 Table 4.4; API 581 coating modifier |
 | `insulation_condition` | API 583 §5.3; API 581 insulation age modifier |
@@ -139,6 +160,10 @@ Do **not** replace `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` with `EPOXY_AGED` in the
 | Remove `OTHER` asset class | `schema.yaml`, `generation_config.yaml`, `asset_class_config.yaml` |
 | Standard DN / wall thickness sampling | `asset_class_config.yaml`, `layer_generators.py` |
 | Stop rewriting `coating_system` in CSV | `layer_generators.py`, `constraints.py`, tests |
+| Add `sweating_asset` bool | `schema.yaml`, `layer_generators.py`, tests, CSV |
+| Remove `EPOXY_AGED` from `coating_system` | `schema.yaml`, `conditional_rules` (done), generators, constraints, tests, CSV |
+| `tracing_system` six allowed values | `schema.yaml`, `conditional_rules` (done), generators, tests, CSV |
+| Remove `NICKEL_ALLOY` / `OTHER` from `metallurgy_family` | `schema.yaml`, `conditional_rules` (done), `generation_config` op-temp ranges, tests, CSV |
 
 ---
 
@@ -153,4 +178,5 @@ Do **not** replace `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` with `EPOXY_AGED` in the
 | `insulation_condition` | | |
 | `cladding_integrity` | | |
 | `tracing_system` | | |
+| `sweating_asset` | | |
 | `metallurgy_family` | | |
