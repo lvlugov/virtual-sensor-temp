@@ -171,12 +171,12 @@ Allowed: **CARBON_STEEL**, **LOW_ALLOY_STEEL**, **AUSTENITIC_SS**, **DUPLEX_SS**
 
 | Section | Approved? | Comments |
 |---------|-------------|----------|
-| Tier 1 — `insulation_chloride_flag` | | |
-| Tier 1 — `coating_system_age_degradation` | | |
-| `insulation_material` | | |
-| `coating_system` | | |
-| `insulation_condition` | | |
-| `cladding_integrity` | | |
-| `tracing_system` | | |
-| `sweating_asset` | | |
-| `metallurgy_family` | | |
+| Tier 1 — `insulation_chloride_flag` | Approved | |
+| Tier 1 — `coating_system_age_degradation` | Approved| Some concerns regarding the Unknown option, if Unknown the value should not be close to the wrost case possible? Same coment for the remain. |
+| `insulation_material` | Approved | |
+| `coating_system` | Approved | |
+| `insulation_condition` | Approved | |
+| `cladding_integrity` | Approved | |
+| `tracing_system` | Approved | |
+| `sweating_asset` | Approved | |
+| `metallurgy_family` | Approved | |
