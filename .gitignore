@@ -33,6 +33,7 @@ coverage.xml
 # Local-only material (see project layout)
 local_reference/
 local_data/
+local_docs/
 
 # IDE / OS
 .vscode/
