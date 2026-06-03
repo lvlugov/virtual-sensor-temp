@@ -182,18 +182,20 @@ variables:
   tracing_system:
     group: Process Conditions
     type: categorical
-    layer: 2
+    layer: 5
     nullable: false
     allowed_values:
       - NONE
-      - STEAM_TRACED
+      - HIGH_INTEGRITY_STEAM_TRACED
+      - MEDIUM_INTEGRITY_STEAM_TRACED
+      - POOR_INTEGRITY_STEAM_TRACED
       - ELECTRIC_TRACED
       - HOT_OIL_TRACED
     default: NONE
     notes: >
-      ~20-30% of insulated O&G piping carries some form of heat tracing. Failed
-      tracing treated as moisture source, not heat source. Enters T_skin calculation
-      as additional heat source term.
+      Heat tracing type. Steam bands replace legacy STEAM_TRACED. Drawn in layer 5
+      after operating_temperature is known. Failed tracing treated as moisture
+      source, not heat source.
     standards: "API 583 Section 4.3; NACE SP0198-2010"
 
   # ── LAYER 3: Depend on asset_class + component_diameter ───────────────────
@@ -408,6 +410,17 @@ variables:
       (flag for review). Values < 0.2 indicate intermittent or swing service.
       Static fallback when T_process(t) unavailable.
     standards: "API 581; ISO 9223; API 583"
+
+  sweating_asset:
+    group: Process Conditions
+    type: bool
+    layer: 5
+    nullable: false
+    default: false
+    notes: >
+      External surface sweating / condensation under insulation (moisture source
+      for CUI). Drawn after operating_temperature is known.
+    standards: "Data dictionary [CITATION_TBC]"
 
   # ── LAYER 6: Conditional flags ─────────────────────────────────────────────
   # Generated after exposure_zone, insulation_material, and dates are known.

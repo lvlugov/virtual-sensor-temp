@@ -88,7 +88,7 @@ No dependencies on other generated variables. Drawn first.
 ### Layer 2 — Depend on asset_class
 Per-class probability weights and allowed value subsets are defined in `asset_class_config.yaml`.
 
-`geometry_class`, `geometry_complexity`, `orientation`, `shelter_flag`, `tracing_system`
+`geometry_class`, `geometry_complexity`, `orientation`, `shelter_flag`
 
 ### Layer 3 — Depend on asset_class + component geometry
 Numeric ranges vary by asset class. `component_diameter` is drawn first in this layer; `furnished_thickness` and `insulation_thickness` drawn after.
@@ -105,7 +105,7 @@ All dates are bounded by: `(reference_date − asset_age)` ≤ date ≤ `referen
 ### Layer 5 — Temperature triplet + process parameters
 `operating_temperature` is drawn first; `min` and `max` are then drawn as offsets relative to it, enforcing min ≤ op_temp ≤ max exactly.
 
-`operating_temperature`, `min_operating_temperature`, `max_operating_temperature`, `avg_cycles_per_quarter`, `operation_vs_shutdown_fraction`
+`operating_temperature`, `min_operating_temperature`, `max_operating_temperature`, `avg_cycles_per_quarter`, `operation_vs_shutdown_fraction`, `tracing_system`, `sweating_asset`
 
 ### Layer 6 — Conditional flags
 Generated after `exposure_zone`, `insulation_material`, and dates are known — all three are required to evaluate the chloride auto-flag rule.

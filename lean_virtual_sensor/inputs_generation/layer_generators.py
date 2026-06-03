@@ -13,8 +13,6 @@ unchanged.
 
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 import pandas as pd
 
@@ -108,24 +106,17 @@ def generate_geometry(
 ) -> pd.DataFrame:
     """
     DAG layer 2 — ``geometry_class``, ``geometry_complexity``, ``orientation``,
-    ``shelter_flag``, ``tracing_system`` (methodology §4). ``tracing_system`` is
-    preliminary until :func:`generate_operating` supplies ``operating_temperature``.
+    ``shelter_flag`` (methodology §4).
     """
     result = dataframe.copy()
     row_count = len(result)
     asset_class_config = config.asset_class
     shelter_choices = schema_categorical_choices(config.schema, "shelter_flag")
 
-    tracing_block = conditional_weights_block(config, "tracing_system")
-    if tracing_block is None:
-        raise ValueError("conditional_rules.conditional_weights.tracing_system is required")
-    tracing_rules = tracing_block.get("rules", [])
-
     geometry_classes: list[str] = []
     geometry_complexities: list[str] = []
     orientations: list[str] = []
     shelter_flags: list[str] = []
-    tracing_systems: list[str] = []
 
     for row_index in range(row_count):
         asset_class_key = str(result.at[row_index, "asset_class"])
@@ -140,17 +131,10 @@ def generate_geometry(
         orientations.append(sample_weighted_category(rng, class_config["orientation_weights"]))
         shelter_flags.append(str(rng.choice(shelter_choices)))
 
-        # No operating temperature yet: only predicates satisfiable without it match.
-        row_context_for_tracing: dict[str, Any] = {}
-        tracing_systems.append(
-            sample_first_matching_weighted_rule(tracing_rules, row_context_for_tracing, rng)
-        )
-
     result["geometry_class"] = geometry_classes
     result["geometry_complexity"] = geometry_complexities
     result["orientation"] = orientations
     result["shelter_flag"] = shelter_flags
-    result["tracing_system"] = tracing_systems
 
     return result
 
@@ -309,7 +293,8 @@ def generate_operating(
 ) -> pd.DataFrame:
     """
     DAG layer 5 — operating temperature triplet, cycling, on‑line fraction, and
-    final ``tracing_system`` using ``operating_temperature`` in rule context.
+    ``tracing_system`` and ``sweating_asset`` (conditional rules use
+    ``operating_temperature``).
     """
     result = dataframe.copy()
     generation_yaml = config.generation
@@ -322,6 +307,11 @@ def generate_operating(
         raise ValueError("conditional_rules.conditional_weights.tracing_system is required")
     tracing_rules = tracing_block.get("rules", [])
 
+    sweating_block = conditional_weights_block(config, "sweating_asset")
+    if sweating_block is None:
+        raise ValueError("conditional_rules.conditional_weights.sweating_asset is required")
+    sweating_rules = sweating_block.get("rules", [])
+
     schema_op_low, schema_op_high = schema_float_range_bounds(
         config.schema, "operating_temperature"
     )
@@ -333,6 +323,7 @@ def generate_operating(
     avg_cycles: list[int] = []
     op_vs_shutdown: list[float] = []
     tracing_final: list[str] = []
+    sweating_flags: list[bool] = []
 
     for row_index in range(row_count):
         metallurgy = str(result.at[row_index, "metallurgy_family"])
@@ -368,6 +359,9 @@ def generate_operating(
         tracing_choice = sample_first_matching_weighted_rule(
             tracing_rules, row_context_for_tracing, rng
         )
+        sweating_draw = sample_first_matching_weighted_rule(
+            sweating_rules, row_context_for_tracing, rng
+        )
 
         operating_temps.append(operating_temp)
         min_temps.append(min_temp)
@@ -375,6 +369,7 @@ def generate_operating(
         avg_cycles.append(avg_cycle_val)
         op_vs_shutdown.append(onstream_fraction)
         tracing_final.append(tracing_choice)
+        sweating_flags.append(sweating_draw.lower() == "true")
 
     result["operating_temperature"] = operating_temps
     result["min_operating_temperature"] = min_temps
@@ -382,6 +377,7 @@ def generate_operating(
     result["avg_cycles_per_quarter"] = avg_cycles
     result["operation_vs_shutdown_fraction"] = op_vs_shutdown
     result["tracing_system"] = tracing_final
+    result["sweating_asset"] = sweating_flags
 
     return result
 

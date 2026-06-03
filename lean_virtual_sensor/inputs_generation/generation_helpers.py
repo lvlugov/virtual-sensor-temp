@@ -68,13 +68,27 @@ def schema_float_range_bounds(schema: dict[str, Any], variable_name: str) -> tup
     return float(bounds[0]), float(bounds[1])
 
 
+def _weight_table_labels_and_probs(
+    category_weights: Mapping[Any, Any],
+) -> tuple[list[str], np.ndarray]:
+    """Normalise YAML weight keys (``true``/``false`` may load as bool) for sampling."""
+    labels: list[str] = []
+    probs: list[float] = []
+    for key, weight in category_weights.items():
+        if isinstance(key, bool):
+            labels.append("true" if key else "false")
+        else:
+            labels.append(str(key))
+        probs.append(float(weight))
+    return labels, np.array(probs, dtype=float)
+
+
 def sample_weighted_category(
     rng: np.random.Generator,
     category_weights: Mapping[str, Any],
 ) -> str:
     """Draw a single categorical outcome from a positive weight table (normalized)."""
-    labels = [str(key) for key in category_weights]
-    probabilities = np.array([float(category_weights[key]) for key in labels], dtype=float)
+    labels, probabilities = _weight_table_labels_and_probs(category_weights)
     total = float(probabilities.sum())
     if total <= 0 or not math.isfinite(total):
         raise ValueError(
@@ -91,8 +105,7 @@ def sample_weighted_category_column(
     row_count: int,
 ) -> pd.Series:
     """Vectorized ``sample_weighted_category`` for one column (IID rows)."""
-    labels = [str(key) for key in category_weights]
-    probabilities = np.array([float(category_weights[key]) for key in labels], dtype=float)
+    labels, probabilities = _weight_table_labels_and_probs(category_weights)
     total = float(probabilities.sum())
     if total <= 0 or not math.isfinite(total):
         raise ValueError(
