@@ -56,7 +56,7 @@ lean_virtual_sensor/inputs_generation/
 
   pipeline.py               ← Orchestrates the full generation run
   layer_generators.py       ← One function per DAG layer
-  constraints.py            ← Post-generation constraint enforcement
+  constraints.py            ← Post-generation structural repair (dates, ordering, clamps)
   schema_loader.py          ← Parses config files into Python objects
   generate.py               ← CLI entry point
 
@@ -164,7 +164,7 @@ These rules are explicitly stated in the data dictionary or directly derivable f
 
 **Rule ID:** `R-COAT-DEFER-01` (see `docs/downstream_product_semantics.md`)
 
-Product semantics for old organic epoxy (age > 10 yr) are **undecided**. The generator **currently** rewrites `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` → `EPOXY_AGED` at generation time (`layer_generators.py`, `constraints.py`). SME review favoured downstream degradation without changing stored metadata; that rule was removed from generator config in Phase 1 restructuring. CSV behaviour is unchanged until Option A or B is chosen.
+Product semantics for old organic epoxy (age > 10 yr) are **undecided**. The generator **currently** rewrites `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` → `EPOXY_AGED` at generation time in `layer_generators.py` (DAG layer 4) only. SME review favoured downstream degradation without changing stored metadata; that rule was removed from generator config in Phase 1 restructuring. CSV behaviour is unchanged until Option A or B is chosen.
 
 ### Tier 2 — Physically reasoned (`[ENGINEERING_JUDGEMENT]`)
 

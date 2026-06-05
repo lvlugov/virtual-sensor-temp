@@ -1,11 +1,15 @@
 """
 constraints.py
 ==============
-Post-generation constraint enforcement.
+Post-generation **structural** constraint enforcement.
 
 After all seven layers have run, this module performs a final pass over the
-DataFrame to catch and correct any constraint violations that slipped through
+DataFrame to catch and correct structural violations that slipped through
 the layer generators (e.g. floating-point rounding, edge cases in date maths).
+
+Business rules (Tier 1 deterministic derivations such as R-CHLORIDE-01 and
+R-COAT-DEFER-01) are applied in ``layer_generators`` / YAML — not here.
+Contract tests (``test_constraints.py``) assert those rules on the CSV.
 
 This is a DEFENSIVE pass — the layer generators are expected to produce
 compliant data. If this module has to make many corrections, that indicates
@@ -15,7 +19,7 @@ All corrections are logged. If a correction cannot be made (e.g. a logical
 contradiction), the row is flagged and reported. Generation halts if flagged
 rows exceed MAX_FLAGGED_ROWS.
 
-Constraints enforced (mirrors test_constraints.py — they must stay in sync):
+Structural constraints enforced (mirrors test_constraints.py / test_date_chain):
 
     NUMERIC ORDERING
     ----------------
@@ -37,12 +41,6 @@ Constraints enforced (mirrors test_constraints.py — they must stay in sync):
     ---------
     asset_age >= insulation_age_years  (derived from insulation_install_date)
     asset_age >= coating_age_years     (derived from coating_application_date)
-
-    COATING AUTO-DOWNGRADE (technical debt — R-COAT-DEFER-01)
-    ---------------------------------------------------------
-    If coating_age_years > 10 AND coating_system in {EPOXY_HT_MULTI, EPOXY_HT_SINGLE}:
-        coating_system = EPOXY_AGED
-    Duplicates layer_generators until coating semantics are decided.
 
     RANGE CLAMPS (last resort — log if triggered)
     -----------------------------------------------
@@ -101,10 +99,6 @@ def enforce_all_constraints(
     out, n = _enforce_date_chain(out, reference_ts)
     if n:
         corrections.append({"step": "date_chain", "n_corrections": n})
-
-    out, n = _apply_coating_auto_downgrade(out, reference_ts)
-    if n:
-        corrections.append({"step": "coating_auto_downgrade", "n_corrections": n})
 
     out, n = _clamp_and_round_numerics(out, config)
     if n:
@@ -180,23 +174,6 @@ def _enforce_date_chain(
             n += 1
             result.at[i, "inspection_record_dates"] = ins_ts.date().isoformat()
 
-    return result, n
-
-
-def _apply_coating_auto_downgrade(
-    df: pd.DataFrame, reference_date: pd.Timestamp
-) -> tuple[pd.DataFrame, int]:
-    """Apply Tier 1 coating downgrade rule: EPOXY > 10yr → EPOXY_AGED."""
-    n = 0
-    result = df.copy()
-    ref_n = reference_date.normalize()
-    for i in result.index:
-        coating_ts = pd.Timestamp(str(result.at[i, "coating_application_date"]))
-        age = years_between_timestamps(coating_ts, ref_n)
-        system = str(result.at[i, "coating_system"])
-        if age > 10.0 and system in ("EPOXY_HT_MULTI", "EPOXY_HT_SINGLE"):
-            result.at[i, "coating_system"] = "EPOXY_AGED"
-            n += 1
     return result, n
 
 
@@ -290,11 +267,6 @@ def _collect_unrecoverable_rows(
             reasons.append("insulation_age_vs_asset_age")
         if coat_age > float(asset_age) + 1.0:
             reasons.append("coating_age_vs_asset_age")
-
-        coat_age_y = years_between_timestamps(coat_ts, ref_n)
-        cs = str(df.at[i, "coating_system"])
-        if coat_age_y > 10.0 and cs in ("EPOXY_HT_MULTI", "EPOXY_HT_SINGLE"):
-            reasons.append("coating_tier1_not_downgraded")
 
         for var_name, spec in variables.items():
             if var_name not in df.columns or not isinstance(spec, dict):
