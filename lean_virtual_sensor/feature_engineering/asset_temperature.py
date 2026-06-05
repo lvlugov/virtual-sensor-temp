@@ -474,13 +474,67 @@ def compute_ach_for_asset(
             unknown insulation), :func:`is_open_system` (invalid condition
             string), or :func:`compute_t_dew` (RH out of range).
     """
+    window = prepare_hourly_window(
+        asset, weather_df, process_history_df, last_inspection_date, today,
+    )
+    if window.empty:
+        return 0.0
+
+    open_system = is_open_system(asset.insulation_condition, asset.cladding_integrity)
+    f = compute_f_open if open_system else compute_f_closed
+
+    hour_scores: list[float] = []
+    for t_skin, t_ambient, rh in zip(
+        window["t_skin"], window["temp"], window["humidity"], strict=True,
+    ):
+        t_dew = compute_t_dew(t_ambient, rh)
+        hour_scores.append(
+            compute_hour_score(f(t_skin), compute_wetness(t_skin, t_dew))
+        )
+    return compute_ach(hour_scores)
+
+
+# ====================================== Hourly-window helper ======================================
+
+
+def prepare_hourly_window(
+    asset: AssetSpec,
+    weather_df: pd.DataFrame,
+    process_history_df: pd.DataFrame,
+    last_inspection_date: pd.Timestamp,
+    today: pd.Timestamp,
+) -> pd.DataFrame:
+    """Slice → resample → merge → add T_skin: the hourly window for Steps 2–5.
+
+    Public (no underscore prefix) because it is also consumed by
+    :func:`...cycle_features.compute_cycles_for_asset`, which builds
+    the same T_skin series the ACH pipeline does. Centralising the
+    windowing here means the cycle counter and the ACH summer can
+    never drift apart on what "the window" means.
+
+    Window: ``[max(today - ach_window_days, last_inspection_date), today]``.
+    Both inputs are resampled to a clock-hour grid (mean within each
+    bucket) before merging on ``datetime``, so the process historian
+    may log at any cadence (1-min, 5-min, irregular) without the merge
+    silently dropping rows.
+
+    Returns:
+        DataFrame with columns ``datetime``, ``temp``, ``humidity``,
+        ``process_temperature_c``, ``t_skin``. Empty (with that column
+        schema preserved) when ``last_inspection_date >= today``, when
+        either input is empty in the window, or when the inner merge
+        produces no overlapping timestamps.
+    """
     cfg = load_section(CONFIG_SECTION, REQUIRED_KEYS)
     window_start = max(
         today - pd.Timedelta(days=int(cfg["ach_window_days"])),
         last_inspection_date,
     )
+    empty = pd.DataFrame(
+        columns=["datetime", "temp", "humidity", "process_temperature_c", "t_skin"]
+    )
     if window_start >= today:
-        return 0.0
+        return empty
 
     weather_window = weather_df[
         (weather_df["datetime"] >= window_start) & (weather_df["datetime"] <= today)
@@ -490,14 +544,8 @@ def compute_ach_for_asset(
         & (process_history_df["datetime"] <= today)
     ]
     if weather_window.empty or process_window.empty:
-        return 0.0
+        return empty
 
-    # Resample both inputs to a clean clock-hour grid (mean within each
-    # bucket) before merging. The two upstream systems sample at different
-    # cadences — weather is hourly on the hour, but the process historian
-    # may log at 1-minute or irregular intervals — so a raw merge on
-    # `datetime` would mostly drop rows. Hour-level alignment is the
-    # natural cadence for the rest of the math (T_skin, T_dew, wetness).
     weather_hourly = (
         weather_window[["datetime", "temp", "humidity"]]
         .set_index("datetime")
@@ -516,7 +564,7 @@ def compute_ach_for_asset(
     )
     window = weather_hourly.merge(process_hourly, on="datetime", how="inner")
     if window.empty:
-        return 0.0
+        return empty
 
     k = compute_k(
         asset.insulation_type,
@@ -526,19 +574,11 @@ def compute_ach_for_asset(
         h_internal=asset.h_internal,
         h_external=asset.h_external,
     )
-    open_system = is_open_system(asset.insulation_condition, asset.cladding_integrity)
-    f = compute_f_open if open_system else compute_f_closed
-
-    hour_scores: list[float] = []
-    for t_process, t_ambient, rh in zip(
-        window["process_temperature_c"],
-        window["temp"],
-        window["humidity"],
-        strict=True,
-    ):
-        t_skin = compute_t_skin(t_process, t_ambient, k)
-        t_dew = compute_t_dew(t_ambient, rh)
-        hour_scores.append(
-            compute_hour_score(f(t_skin), compute_wetness(t_skin, t_dew))
-        )
-    return compute_ach(hour_scores)
+    return window.assign(
+        t_skin=[
+            compute_t_skin(t_process, t_ambient, k)
+            for t_process, t_ambient in zip(
+                window["process_temperature_c"], window["temp"], strict=True,
+            )
+        ]
+    )

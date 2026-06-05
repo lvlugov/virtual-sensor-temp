@@ -11,6 +11,13 @@ Per-asset thermal and corrosion-driver calculations:
 End-to-end entry point: `compute_ach_for_asset(...)` chains Steps 1-5 for one
 asset and returns the raw ACH; see [Pipeline](#pipeline--compute_ach_for_asset) below.
 
+A sibling feature — **cooldown cycle counting** — consumes the same
+hourly T_skin series this module produces. It lives in
+[`cycle_features.py`](../lean_virtual_sensor/feature_engineering/cycle_features.py)
+and is documented in [docs/cycle_features.md](cycle_features.md); the
+two modules share the public `prepare_hourly_window` helper exposed
+below.
+
 Driver: [`lean_virtual_sensor/feature_engineering/asset_temperature.py`](../lean_virtual_sensor/feature_engineering/asset_temperature.py).
 All calibration data lives under the `asset_temperature` block in
 [`config.yaml`](../lean_virtual_sensor/config.yaml).
@@ -309,6 +316,15 @@ recent inspection. Symmetric with `compute_wet_load` in
 `historical_weather_feature.py`, which covers the *pre-ACH* half of the
 same overall window.
 
+### Shared window helper: `prepare_hourly_window`
+
+The slice → resample → merge → per-row T_skin step is factored into a
+**public** module-level helper (no underscore prefix) because
+[`cycle_features.compute_cycles_for_asset`](cycle_features.md) calls
+it too. So the hourly T_skin series the cycle counter sees is
+**exactly** the one ACH consumes — no duplicated windowing, no chance
+of the two features drifting apart on their window definition.
+
 ---
 
 ## Config schema (`asset_temperature` block)
@@ -334,6 +350,8 @@ asset_temperature:
   nace_open_r_points:   [0.27, 0.35, 0.40, 0.42, 0.40, 0.35]
   wetness_transition_band_c: 10.0     # °C above T_dew over which w drops 1 → 0
   ach_window_days: 90                 # trailing window summed by compute_ach_for_asset
+  # NB: cycle_features adds cycle_min_swing_c and cycle_max_gap_hours
+  #     to this same block; see docs/cycle_features.md.
 ```
 
 Missing keys fail fast at load time via `load_section(..., REQUIRED_KEYS)`,

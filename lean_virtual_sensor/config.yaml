@@ -34,5 +34,15 @@ asset_temperature:
   # Active CUI Hours aggregation window — number of days back from `today`
   # the orchestrator slices to before summing into ACH. Single source of
   # truth for the published "trailing 90-day" convention; load-bearing —
-  # read by `compute_ach_for_asset`.
+  # read by `compute_ach_for_asset` and shared by `compute_cycles_for_asset`.
   ach_window_days: 90
+  # Cycle counting: a T_skin trough counts as a cooldown cycle when its
+  # prominence (drop vs surrounding baseline) is at least this many °C.
+  # 20 °C sits comfortably above hourly sensor noise (~3 °C) and well
+  # below typical process cooldowns (50 °C+).
+  cycle_min_swing_c: 20.0
+  # Cycle counting: maximum consecutive-NaN gap (in hours) that the
+  # cycle counter will linearly interpolate before computing prominence.
+  # Longer gaps remain NaN and effectively split the series so no
+  # phantom trough spans them.
+  cycle_max_gap_hours: 6

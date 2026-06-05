@@ -9,8 +9,9 @@ Per model run, for each asset:
   2. Derive the most recent inspection date     →  max(inspection_record_dates)
   3. Derive the open/closed system flag         →  system_flag_feature.is_open_system
   4. Compute Active CUI Hours (last 90 days)    →  asset_temperature.compute_ach_for_asset
-  5. Compute historical wet load (pre-90-day)   →  historical_weather_feature.compute_wet_load
-  6. Combine raw inventory + derived features into one flat dict
+  5. Count T_skin cooldown cycles (same window) →  asset_temperature.compute_cycles_for_asset
+  6. Compute historical wet load (pre-90-day)   →  historical_weather_feature.compute_wet_load
+  7. Combine raw inventory + derived features into one flat dict
 
 The orchestrator stays a pure transformation on its inputs: it does not
 fetch weather, does not write to disk, and does not score (the API 583
@@ -32,6 +33,9 @@ from lean_virtual_sensor.feature_engineering.age_features import compute_age_yea
 from lean_virtual_sensor.feature_engineering.asset_temperature import (
     AssetSpec,
     compute_ach_for_asset,
+)
+from lean_virtual_sensor.feature_engineering.cycle_features import (
+    compute_cycles_for_asset,
 )
 from lean_virtual_sensor.feature_engineering.historical_weather_feature import (
     compute_wet_load,
@@ -65,10 +69,10 @@ def compute_features_for_asset(
             derivation (ages, ACH window, wet-load window).
 
     Returns:
-        Flat dict combining the raw inventory passthrough with six
+        Flat dict combining the raw inventory passthrough with seven
         derived features: ``coating_age_years``, ``system_age_years``,
         ``last_inspection_date``, ``open_system``, ``ach_90d``,
-        ``wet_load``.
+        ``cycle_count``, ``wet_load``.
 
     Raises:
         KeyError: If ``asset_inventory`` is missing a required field.
@@ -108,6 +112,13 @@ def compute_features_for_asset(
         last_inspection_date,
         today,
     )
+    cycle_count = compute_cycles_for_asset(
+        asset_spec,
+        weather_df,
+        process_history_df,
+        last_inspection_date,
+        today,
+    )
     wet_load = compute_wet_load(
         weather_df,
         last_inspection_date,
@@ -122,5 +133,6 @@ def compute_features_for_asset(
         "last_inspection_date": last_inspection_date,
         "open_system": open_system,
         "ach_90d": ach_90d,
+        "cycle_count": cycle_count,
         "wet_load": wet_load,
     }
