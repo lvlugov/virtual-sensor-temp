@@ -38,6 +38,18 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Enable DEBUG logging",
     )
+    parser.add_argument(
+        "--output-path",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help="Override run.output_path from generation_config.yaml",
+    )
+    parser.add_argument(
+        "--no-write",
+        action="store_true",
+        help="Do not write output CSV after generation",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -55,7 +67,11 @@ def main(argv: list[str] | None = None) -> int:
     # Import after argparse so ``--help`` works without numpy/pandas installed.
     from pipeline import run_pipeline
 
-    ok = run_pipeline(config_path)
+    ok = run_pipeline(
+        config_path,
+        output_path_override=args.output_path,
+        write_output=not args.no_write,
+    )
     return 0 if ok else 1
 
 

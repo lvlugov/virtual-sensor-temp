@@ -151,6 +151,27 @@ def _validate_configs(config: GeneratorConfig) -> None:
                     _WEIGHT_SUM_TOLERANCE,
                 )
 
+    _validate_deterministic_rules(config.conditional_rules)
+
+
+def _validate_deterministic_rules(conditional_rules: dict[str, Any]) -> None:
+    """Ensure Tier 1 blocks in conditional_rules.yaml are generation-scoped only."""
+    blocks = conditional_rules.get("deterministic_rules")
+    if not isinstance(blocks, dict):
+        return
+    for rule_name, block in blocks.items():
+        if not isinstance(block, dict):
+            raise ValueError(
+                f"deterministic_rules.{rule_name} must be a mapping, got {type(block).__name__}"
+            )
+        applies_at = block.get("applies_at")
+        if applies_at != "generation":
+            raise ValueError(
+                f"deterministic_rules.{rule_name}.applies_at must be 'generation' "
+                f"(got {applies_at!r}). Downstream rules belong in "
+                "docs/downstream_product_semantics.md, not conditional_rules.yaml."
+            )
+
 
 def _assert_weights_sum(label: str, weights: dict[str, Any], tol: float) -> None:
     s = sum(float(v) for v in weights.values())

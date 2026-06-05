@@ -10,11 +10,11 @@
 # This file controls how variable values are drawn when the draw should NOT be
 # uniform random over allowed values. It encodes two types of rules:
 #
-#   TIER 1 — DETERMINISTIC (specification)
-#     Hard rules from the data dictionary (and standards where cited). The
-#     generator reads conditional_weights (Tier 2) from this file; Tier 1 blocks
-#     document intended behaviour — see applies_at on each rule. Enforcement in
-#     Python may lag this file (fellow-coder review).
+#   TIER 1 — DETERMINISTIC (generation)
+#     Hard rules from the data dictionary (and standards where cited). Each block
+#     must have applies_at: generation. Tier 1 is not fully wired to the engine
+#     yet — enforcement may lag this file (see code_restructuring.md).
+#     Downstream / product-only semantics live in docs/downstream_product_semantics.md.
 #
 #   TIER 2 — PHYSICALLY REASONED
 #     Conditional probability weights that follow from engineering physics or
@@ -34,8 +34,8 @@
 # conditional_weights (Tier 2): loaded by the generator. For each variable, rules
 # are checked in order; the first match wins.
 #
-# deterministic_rules (Tier 1): not loaded from this file today — specification
-# and SME review only unless applies_at: generation is stated on a rule.
+# deterministic_rules (Tier 1): generation rules only (applies_at: generation).
+# Not loaded from this file today — specification until rule engine Phase 3.
 #
 # geometry_standards: PIPE NPS / schedule table (ASME B36.10M-style). Not loaded
 # from this file today — specification for component_diameter and
@@ -74,22 +74,6 @@ deterministic_rules:
           insulation_age_years_gt: 5
         action: set_value
         value: true
-
-  coating_system_age_degradation:
-    applies_at: scoring
-    description: >
-      Scoring-time rule only. Do not rewrite coating_system in the synthetic
-      dataset (preserve EPOXY_HT_MULTI / EPOXY_HT_SINGLE as recorded metadata).
-      When coating_age_years > 10 and coating_system is EPOXY_HT_MULTI or
-      EPOXY_HT_SINGLE, the CUI model applies degraded coating susceptibility
-      degraded m_coat at scoring without changing the stored coating_system value.
-    source: "Data dictionary coating_system constraints; API 583 coating age rule [CITATION_TBC]"
-    rules:
-      - condition:
-          coating_age_years_gt: 10
-          coating_system_in: [EPOXY_HT_MULTI, EPOXY_HT_SINGLE]
-        action: treat_as_degraded_at_scoring
-        note: "No set_value — metadata unchanged"
 
 # ── TIER 2: PHYSICALLY REASONED WEIGHTS ───────────────────────────────────────
 # Direction of effect is defensible from engineering principles.
@@ -154,9 +138,10 @@ conditional_weights:
 
   coating_system:
     description: >
-      Coating system type recorded in metadata. Allowed draw categories: TSA, IOZ,
-      EPOXY_HT_MULTI, EPOXY_HT_SINGLE, BARE, UNKNOWN — not EPOXY_AGED (ageing is
-      scoring-time only; see coating_system_age_degradation). Selection is
+      Coating system type. Tier 2 weights draw TSA, IOZ, EPOXY_HT_MULTI,
+      EPOXY_HT_SINGLE, BARE, UNKNOWN. Generation-time rewrite of old organic
+      epoxy to EPOXY_AGED is implemented in Python (product semantics deferred;
+      see docs/downstream_product_semantics.md R-COAT-DEFER-01). Selection is
       influenced by asset age and exposure zone. BARE more common on older assets
       where coating has failed or was never applied.
     source: >
@@ -185,7 +170,7 @@ conditional_weights:
           EPOXY_HT_SINGLE: 0.05
           BARE: 0.65
           UNKNOWN: 0.05
-        note: "[ENGINEERING_JUDGEMENT] Old MARINE assets — BARE or aged epoxy retained as EPOXY_HT_* at scoring"
+        note: "[ENGINEERING_JUDGEMENT] Old MARINE assets — BARE or aged epoxy (may become EPOXY_AGED at generation; see R-COAT-DEFER-01)"
 
       - condition:
           asset_age_lte: 10

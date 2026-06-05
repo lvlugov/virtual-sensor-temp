@@ -22,7 +22,16 @@ What **actually justifies** each generation rule or design choice — not what w
 | # | Rule | Claim | Authority | Evidence | Citations log | SME OK? |
 |---|------|-------|-----------|----------|---------------|---------|
 | P-01 | `insulation_chloride_flag` | MARINE + CALCIUM_SILICATE + insulation age > 5 yr → flag true | | | 1, 36 | `pending` |
-| P-02 | `coating_system_age_degradation` | Epoxy types + coating age > 10 yr → treat as degraded (`applies_at: scoring` in YAML) | | | 2, 43 | `pending` |
+
+---
+
+## Downstream / deferred (not in generator config)
+
+| # | Rule | Claim | Authority | Evidence | Citations log | SME OK? |
+|---|------|-------|-----------|----------|---------------|---------|
+| P-02 | `R-COAT-DEFER-01` (`coating_system` age) | Epoxy types + coating age > 10 yr → degraded susceptibility; CSV semantics undecided | | | 2, 43 | `pending` |
+
+Documented in **`docs/downstream_product_semantics.md`**. Removed from `conditional_rules.yaml` Phase 1 (Option C defer).
 
 ---
 
@@ -88,5 +97,5 @@ Weights are **`engineering_judgement`** unless you record otherwise. Directional
 
 | # | Topic | Claim | Authority | Evidence | Citations log | SME OK? |
 |---|-------|-------|-----------|----------|---------------|---------|
-| P-24 | Methodology §6 vs conditional rules | Tier 1 coating / EPOXY_AGED wording aligned | | | 43 | `pending` |
+| P-24 | Methodology §6 vs coating semantics | Coating deferred; generator Python vs product doc aligned in prose | | | 43 | `pending` |
 | P-25 | SME pack vs conditional rules | Same rules and sources as YAML | | | 45 | `pending` |

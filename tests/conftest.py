@@ -4,7 +4,11 @@ Shared pytest fixtures for the synthetic dataset test suite.
 The test suite is designed to run against ANY dataset CSV, not just the
 synthetic one. Pass the target dataset via the --dataset CLI option::
 
-    pytest tests/ --dataset lean_virtual_sensor/inputs_generation/outputs/synthetic_v1.0_seed42.csv
+    pytest tests/ --dataset lean_virtual_sensor/inputs_generation/config/outputs/synthetic_v1.0_seed42.csv
+
+Or generate a fresh dataset and run all tests without saving it::
+
+    make test-dataset
 
 If --dataset is not provided, data-dependent tests skip.
 Configs are loaded from ``lean_virtual_sensor/inputs_generation/config/``.

@@ -156,10 +156,15 @@ Rules in `conditional_rules.yaml` are classified into two tiers with different l
 
 These rules are explicitly stated in the data dictionary or directly derivable from standards. They are enforced as hard constraints, not probabilities.
 
-| Rule | Source |
-|---|---|
-| `insulation_chloride_flag = TRUE` when MARINE + CALCIUM_SILICATE + insulation age > 5yr | Data dictionary Edge Cases column; NACE SP0198-2010 §5.4; API 583 Table 4.2 |
-| `coating_system` auto-downgrade to EPOXY_AGED when organic coating age > 10yr | Data dictionary coating_system constraints; API 583 coating age rule |
+| Rule | Source | Generator status |
+|---|---|---|
+| `insulation_chloride_flag = TRUE` when MARINE + CALCIUM_SILICATE + insulation age > 5yr | Data dictionary Edge Cases column; NACE SP0198-2010 §5.4; API 583 Table 4.2 | Specified in `conditional_rules.yaml`; enforced in Python (not yet wired to YAML engine) |
+
+### Coating age — deferred (technical debt)
+
+**Rule ID:** `R-COAT-DEFER-01` (see `docs/downstream_product_semantics.md`)
+
+Product semantics for old organic epoxy (age > 10 yr) are **undecided**. The generator **currently** rewrites `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` → `EPOXY_AGED` at generation time (`layer_generators.py`, `constraints.py`). SME review favoured scoring-time degradation without changing stored metadata; that rule was removed from generator config in Phase 1 restructuring. CSV behaviour is unchanged until Option A or B is chosen.
 
 ### Tier 2 — Physically reasoned (`[ENGINEERING_JUDGEMENT]`)
 

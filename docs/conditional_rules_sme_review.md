@@ -3,13 +3,15 @@
 **Review id:** `2026-05-29-sme-draft-6`  
 **Source file:** `lean_virtual_sensor/inputs_generation/config/conditional_rules.yaml`
 
+> **Phase 1 note (2026-06):** `coating_system_age_degradation` was relocated to `docs/downstream_product_semantics.md` (`R-COAT-DEFER-01`). This pack remains a historical SME snapshot; Tier 1 coating text below is retained for audit trail.
+
 ## How to use this document
 
 - Tier 2 rules are evaluated **in order**; the **first matching** condition applies.
 - **`[ENGINEERING_JUDGEMENT]`** — numeric weights are assumptions for SME review.
 - **`[CITATION_TBC]`** — standard reference not yet verified.
-- **`applies_at: generation`** — intended hard rule when building synthetic rows.
-- **`applies_at: scoring`** — CUI model behaviour; must **not** change stored `coating_system` metadata.
+- **Tier 1 generation rules** — hard rules when building synthetic rows (see `conditional_rules.yaml` → `deterministic_rules`).
+- **Downstream product semantics** — rules that affect model/scoring but not generator config; see `docs/downstream_product_semantics.md`.
 
 Please review **conditions, rationale, and weight tables**. Optional feedback table at the end.
 
@@ -27,7 +29,9 @@ Please review **conditions, rationale, and weight tables**. Optional feedback ta
 
 ---
 
-### `coating_system_age_degradation` (`applies_at: scoring`)
+### `coating_system_age_degradation` (relocated — historical SME text)
+
+**Current location:** `docs/downstream_product_semantics.md` (`R-COAT-DEFER-01`). No longer in generator config.
 
 **Source:** Data dictionary — `coating_system` constraints; API 583 coating age rule `[CITATION_TBC]`
 
@@ -142,7 +146,7 @@ Allowed: **CARBON_STEEL**, **LOW_ALLOY_STEEL**, **AUSTENITIC_SS**, **DUPLEX_SS**
 | Rule / variable | Reference to verify |
 |-----------------|---------------------|
 | `insulation_chloride_flag` | NACE SP0198-2010 §5.4; API 583 Table 4.2 |
-| `coating_system_age_degradation` | API 583 coating age rule |
+| `coating_system_age_degradation` | API 583 coating age rule → see `docs/downstream_product_semantics.md` |
 | `sweating_asset` | Data dictionary |
 | `insulation_material` | API 583 Table 4.3; NACE SP0198-2010 Table 1 |
 | `coating_system` | API 583 Table 4.4; API 581 coating modifier |

@@ -44,14 +44,21 @@ from schema_loader import GeneratorConfig, load_all_configs
 logger = logging.getLogger(__name__)
 
 
-def run_pipeline(config_path: Path) -> bool:
+def run_pipeline(
+    config_path: Path,
+    *,
+    output_path_override: Path | None = None,
+    write_output: bool = True,
+) -> bool:
     """Run the full generation pipeline.
 
     Args:
         config_path: Path to generation_config.yaml.
+        output_path_override: If set, write CSV here instead of ``run.output_path``.
+        write_output: If false, do not write a CSV file after generation.
 
     Returns:
-        True if generation succeeded and output was written, False otherwise.
+        True if generation succeeded and output was written (when requested), False otherwise.
     """
     config_path = config_path.resolve()
     if not config_path.is_file():
@@ -83,11 +90,14 @@ def run_pipeline(config_path: Path) -> bool:
         logger.info("Constraint pass corrections: %s", correction_log)
 
     output_rel = Path(str(run["output_path"]))
-    output_path = (
-        output_rel.resolve()
-        if output_rel.is_absolute()
-        else (config_dir / output_rel).resolve()
-    )
+    if output_path_override is not None:
+        output_path = output_path_override.resolve()
+    else:
+        output_path = (
+            output_rel.resolve()
+            if output_rel.is_absolute()
+            else (config_dir / output_rel).resolve()
+        )
 
     halt_on_tests = bool(run.get("halt_on_test_failure", True))
     tmp_path: Path | None = None
@@ -106,13 +116,20 @@ def run_pipeline(config_path: Path) -> bool:
         if tmp_path is not None and tmp_path.is_file():
             tmp_path.unlink(missing_ok=True)
 
-    _write_output(df, output_path)
-    logger.info(
-        "Pipeline complete: %d rows, %d columns → %s",
-        len(df),
-        len(df.columns),
-        output_path,
-    )
+    if write_output:
+        _write_output(df, output_path)
+        logger.info(
+            "Pipeline complete: %d rows, %d columns → %s",
+            len(df),
+            len(df.columns),
+            output_path,
+        )
+    else:
+        logger.info(
+            "Pipeline complete: %d rows, %d columns (output not written)",
+            len(df),
+            len(df.columns),
+        )
     return True
 
 
