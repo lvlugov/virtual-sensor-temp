@@ -38,16 +38,11 @@ Constraints enforced (mirrors test_constraints.py — they must stay in sync):
     asset_age >= insulation_age_years  (derived from insulation_install_date)
     asset_age >= coating_age_years     (derived from coating_application_date)
 
-    COATING AUTO-DOWNGRADE (Tier 1 deterministic rule)
-    ----------------------------------------------------
+    COATING AUTO-DOWNGRADE (technical debt — R-COAT-DEFER-01)
+    ---------------------------------------------------------
     If coating_age_years > 10 AND coating_system in {EPOXY_HT_MULTI, EPOXY_HT_SINGLE}:
         coating_system = EPOXY_AGED
-
-    CHLORIDE AUTO-FLAG (Tier 1 deterministic rule)
-    -----------------------------------------------
-    If exposure_zone == MARINE AND insulation_material == CALCIUM_SILICATE
-       AND insulation_age_years > 5:
-        insulation_chloride_flag = True
+    Duplicates layer_generators until coating semantics are decided.
 
     RANGE CLAMPS (last resort — log if triggered)
     -----------------------------------------------
@@ -110,10 +105,6 @@ def enforce_all_constraints(
     out, n = _apply_coating_auto_downgrade(out, reference_ts)
     if n:
         corrections.append({"step": "coating_auto_downgrade", "n_corrections": n})
-
-    out, n = _apply_chloride_auto_flag(out, reference_ts)
-    if n:
-        corrections.append({"step": "chloride_auto_flag", "n_corrections": n})
 
     out, n = _clamp_and_round_numerics(out, config)
     if n:
@@ -209,25 +200,6 @@ def _apply_coating_auto_downgrade(
     return result, n
 
 
-def _apply_chloride_auto_flag(
-    df: pd.DataFrame, reference_date: pd.Timestamp
-) -> tuple[pd.DataFrame, int]:
-    """Apply Tier 1 chloride flag rule: MARINE + CaSi + age > 5yr → TRUE."""
-    n = 0
-    result = df.copy()
-    ref_n = reference_date.normalize()
-    for i in result.index:
-        exposure = str(result.at[i, "exposure_zone"])
-        material = str(result.at[i, "insulation_material"])
-        ins_ts = pd.Timestamp(str(result.at[i, "insulation_install_date"]))
-        ins_age = years_between_timestamps(ins_ts, ref_n)
-        if exposure == "MARINE" and material == "CALCIUM_SILICATE" and ins_age > 5.0:
-            if not bool(result.at[i, "insulation_chloride_flag"]):
-                result.at[i, "insulation_chloride_flag"] = True
-                n += 1
-    return result, n
-
-
 def _clamp_and_round_numerics(
     df: pd.DataFrame, config: GeneratorConfig
 ) -> tuple[pd.DataFrame, int]:
@@ -318,12 +290,6 @@ def _collect_unrecoverable_rows(
             reasons.append("insulation_age_vs_asset_age")
         if coat_age > float(asset_age) + 1.0:
             reasons.append("coating_age_vs_asset_age")
-
-        exposure = str(df.at[i, "exposure_zone"])
-        material = str(df.at[i, "insulation_material"])
-        if exposure == "MARINE" and material == "CALCIUM_SILICATE" and ins_age > 5.0:
-            if not bool(df.at[i, "insulation_chloride_flag"]):
-                reasons.append("chloride_tier1")
 
         coat_age_y = years_between_timestamps(coat_ts, ref_n)
         cs = str(df.at[i, "coating_system"])
