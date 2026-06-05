@@ -177,6 +177,22 @@ def _validate_deterministic_rules(conditional_rules: dict[str, Any]) -> None:
                 f"(got {applies_at!r}). Downstream rules belong in "
                 "docs/downstream_product_semantics.md, not conditional_rules.yaml."
             )
+        rules = block.get("rules")
+        if not isinstance(rules, list) or not rules:
+            raise ValueError(f"deterministic_rules.{rule_name} must define a non-empty rules list")
+        for index, rule in enumerate(rules):
+            if not isinstance(rule, dict):
+                raise ValueError(
+                    f"deterministic_rules.{rule_name}.rules[{index}] must be a mapping"
+                )
+            if rule.get("action") != "set_value":
+                raise ValueError(
+                    f"deterministic_rules.{rule_name}.rules[{index}] action must be 'set_value'"
+                )
+            if "value" not in rule:
+                raise ValueError(
+                    f"deterministic_rules.{rule_name}.rules[{index}] missing 'value'"
+                )
 
 
 def _validate_rule_ids(conditional_rules: dict[str, Any]) -> None:

@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from generation_helpers import (
+    apply_deterministic_field_value,
     commissioning_timestamp,
     conditional_weights_block,
     random_lookback_timestamp,
@@ -414,12 +415,21 @@ def generate_insulation_flags(
         insulation_material = str(result.at[row_index, "insulation_material"])
         asset_age_years = int(result.at[row_index, "asset_age"])
 
-        tier1_chloride = (
-            exposure_zone == "MARINE"
-            and insulation_material == "CALCIUM_SILICATE"
-            and insulation_age_years > 5.0
+        row_ctx_chloride = {
+            "exposure_zone": exposure_zone,
+            "insulation_material": insulation_material,
+            "insulation_age_years": insulation_age_years,
+        }
+        chloride_flags.append(
+            bool(
+                apply_deterministic_field_value(
+                    config,
+                    "insulation_chloride_flag",
+                    row_ctx_chloride,
+                    default=False,
+                )
+            )
         )
-        chloride_flags.append(bool(tier1_chloride))
 
         row_ctx_insulation = {
             "insulation_age_years": insulation_age_years,

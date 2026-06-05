@@ -158,7 +158,7 @@ These rules are explicitly stated in the data dictionary or directly derivable f
 
 | Rule ID | Generator status | Citations |
 |---|---|---|
-| `R-CHLORIDE-01` | Specified in YAML; enforced in Python (not yet wired to rule engine) | `citations_audit.md` rows 1, 36, 42 |
+| `R-CHLORIDE-01` | Executed from YAML at DAG layer 6 (`apply_deterministic_field_value`); `constraints.py` still re-applies until Phase 4 | `citations_audit.md` rows 1, 36, 42 |
 
 ### Coating age — deferred (technical debt)
 

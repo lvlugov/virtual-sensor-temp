@@ -28,6 +28,61 @@ def conditional_weights_block(
     return block if isinstance(block, dict) else None
 
 
+def deterministic_rules_block(
+    config: GeneratorConfig,
+    field_name: str,
+) -> dict[str, Any] | None:
+    """Return the ``deterministic_rules.<field_name>`` block from rules YAML, if any."""
+    rules_root = config.conditional_rules.get("deterministic_rules")
+    if not isinstance(rules_root, dict):
+        return None
+    block = rules_root.get(field_name)
+    return block if isinstance(block, dict) else None
+
+
+def apply_deterministic_field_value(
+    config: GeneratorConfig,
+    field_name: str,
+    row_context: Mapping[str, Any],
+    *,
+    default: Any = None,
+) -> Any:
+    """
+    Evaluate Tier 1 ``deterministic_rules`` for ``field_name``.
+
+    Walks ordered YAML ``rules``; returns ``value`` from the first rule whose
+    ``condition`` matches ``row_context`` and ``action`` is ``set_value``.
+    If no rule matches, returns ``default``.
+    """
+    block = deterministic_rules_block(config, field_name)
+    if block is None:
+        return default
+    rules = block.get("rules")
+    if not isinstance(rules, list):
+        raise ValueError(
+            f"deterministic_rules.{field_name} must contain a 'rules' list, "
+            f"got {type(rules).__name__}"
+        )
+    for index, rule in enumerate(rules):
+        if not isinstance(rule, dict):
+            continue
+        action = rule.get("action")
+        if action != "set_value":
+            raise ValueError(
+                f"deterministic_rules.{field_name}.rules[{index}] action must be "
+                f"'set_value' (got {action!r})"
+            )
+        condition = rule.get("condition")
+        if not rule_condition_matches(condition, row_context):
+            continue
+        if "value" not in rule:
+            raise ValueError(
+                f"deterministic_rules.{field_name}.rules[{index}] missing 'value'"
+            )
+        return rule["value"]
+    return default
+
+
 def schema_variable(schema: dict[str, Any], variable_name: str) -> dict[str, Any]:
     """Return the schema entry for one variable (must exist)."""
     variables = schema.get("variables")

@@ -35,7 +35,7 @@
 # are checked in order; the first match wins.
 #
 # deterministic_rules (Tier 1): generation rules only (applies_at: generation).
-# Not loaded from this file today — specification until rule engine Phase 3.
+# Loaded at generation time via apply_deterministic_field_value (layer_generators).
 #
 # geometry_standards: PIPE NPS / schedule table (ASME B36.10M-style). Not loaded
 # from this file today — specification for component_diameter and
