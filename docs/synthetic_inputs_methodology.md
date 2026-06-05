@@ -19,7 +19,7 @@ The synthetic dataset provides labelled training data for an ML model that predi
 
 ### What is generated
 
-All static and quasi-static input variables to the CUI scoring model:
+All static and quasi-static input variables to the CUI model:
 
 | Group | Variables |
 |---|---|
@@ -37,7 +37,7 @@ All static and quasi-static input variables to the CUI scoring model:
 | Variable | Reason |
 |---|---|
 | `T_ambient(t)`, `RH(t)`, `rainfall(t)`, `T_process(t)` | Hourly time-series. Generated separately in the temperature/weather module, which is out of scope for this dataset. |
-| `Risk` | Output label. Assigned separately after CUI scoring model is applied. Not an input. |
+| `Risk` | Output label. Assigned separately after the CUI model is applied. Not an input. |
 | `Asset` (tag/ID) | Generated as sequential synthetic ID (`SYNTH-0001` etc.) in the pipeline directly. |
 
 ---
@@ -154,17 +154,17 @@ Rules in `conditional_rules.yaml` are classified into two tiers with different l
 
 ### Tier 1 — Deterministic (fully auditable)
 
-These rules are explicitly stated in the data dictionary or directly derivable from standards. They are enforced as hard constraints, not probabilities.
+These rules are explicitly stated in the data dictionary or directly derivable from standards. They are enforced as hard constraints, not probabilities. Full definition: `conditional_rules.yaml` → `deterministic_rules`.
 
-| Rule | Source | Generator status |
+| Rule ID | Generator status | Citations |
 |---|---|---|
-| `insulation_chloride_flag = TRUE` when MARINE + CALCIUM_SILICATE + insulation age > 5yr | Data dictionary Edge Cases column; NACE SP0198-2010 §5.4; API 583 Table 4.2 | Specified in `conditional_rules.yaml`; enforced in Python (not yet wired to YAML engine) |
+| `R-CHLORIDE-01` | Specified in YAML; enforced in Python (not yet wired to rule engine) | `citations_audit.md` rows 1, 36, 42 |
 
 ### Coating age — deferred (technical debt)
 
 **Rule ID:** `R-COAT-DEFER-01` (see `docs/downstream_product_semantics.md`)
 
-Product semantics for old organic epoxy (age > 10 yr) are **undecided**. The generator **currently** rewrites `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` → `EPOXY_AGED` at generation time (`layer_generators.py`, `constraints.py`). SME review favoured scoring-time degradation without changing stored metadata; that rule was removed from generator config in Phase 1 restructuring. CSV behaviour is unchanged until Option A or B is chosen.
+Product semantics for old organic epoxy (age > 10 yr) are **undecided**. The generator **currently** rewrites `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` → `EPOXY_AGED` at generation time (`layer_generators.py`, `constraints.py`). SME review favoured downstream degradation without changing stored metadata; that rule was removed from generator config in Phase 1 restructuring. CSV behaviour is unchanged until Option A or B is chosen.
 
 ### Tier 2 — Physically reasoned (`[ENGINEERING_JUDGEMENT]`)
 
@@ -172,13 +172,17 @@ The *direction* of these effects is defensible from engineering physics and indu
 
 Every Tier 2 value is tagged `[ENGINEERING_JUDGEMENT]` in `conditional_rules.yaml`. **A CUI/corrosion domain expert should review and adjust these values before the dataset is used in production model training.**
 
-Current Tier 2 rules cover:
-- Insulation material weights by exposure zone (FOAMGLASS preference in MARINE)
-- Coating system weights by asset age and exposure zone
-- Insulation condition degradation with insulation age
-- Cladding integrity degradation with asset age
-- Tracing system prevalence by operating temperature
-- Metallurgy family weights by exposure zone
+| Rule ID | Variable | Summary |
+|---|---|---|
+| `R-INSMAT-W-01` | `insulation_material` | Weights by exposure zone (FOAMGLASS preference in MARINE) |
+| `R-COAT-W-01` | `coating_system` | Weights by asset age and exposure zone |
+| `R-INSCOND-W-01` | `insulation_condition` | Degradation with insulation age / marine exposure |
+| `R-CLAD-W-01` | `cladding_integrity` | Degradation with asset age |
+| `R-TRACE-W-01` | `tracing_system` | Prevalence by operating temperature |
+| `R-SWEAT-W-01` | `sweating_asset` | Sweating likelihood by operating temperature |
+| `R-METAL-W-01` | `metallurgy_family` | CS dominant; more SS in severe exposure |
+
+Geometry (not loaded by generator yet): `R-PIPE-NPS-01` — see `conditional_rules.yaml` → `geometry_standards`.
 
 ### What was deliberately excluded
 
@@ -275,7 +279,7 @@ Run from the **repository root**, with a path to the CSV (example synthetic outp
 
 4. **Inspection interval realism**: `inspection_record_dates` currently drawn uniformly within `[0.5, 10]` years from today. Real inspection intervals cluster around regulatory and risk-based inspection (RBI) schedules (typically 4–5 years for standard assets; 6 months for critical). A mixture distribution would be more realistic.
 
-5. **Risk labels**: Not generated here. Will be assigned separately using the CUI scoring algorithm.
+5. **Risk labels**: Not generated here. Will be assigned separately using the CUI model.
 
 ---
 

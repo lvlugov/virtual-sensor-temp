@@ -126,7 +126,7 @@ variables:
     constraints:
       - "Allowed subset per asset_class defined in asset_class_config.yaml"
     notes: >
-      Use worst-case (highest m_geom) for conservative scoring. An asset may have
+      Use worst-case (highest m_geom) for a conservative risk estimate. An asset may have
       multiple geometry types — use most prevalent for population ranking.
     standards: "API 581 susceptibility modifier m_geom; API 583 Section 5.4; NACE SP0198-2010"
 
@@ -544,7 +544,7 @@ excluded_variables:
     type: categorical
     reason: >
       Output label (Low / Medium / High). Assigned separately after the CUI
-      scoring model is applied. Not part of input generation scope.
+      model is applied. Not part of input generation scope.
 
   - name: "Asset"
     type: string

@@ -39,7 +39,7 @@ def test_last_inspection_thickness_minimum(df):
 
 
 def test_chloride_auto_flag(df, gen_config):
-    """MARINE + CALCIUM_SILICATE + insulation_age > 5y ⇒ insulation_chloride_flag True."""
+    """R-CHLORIDE-01: MARINE + CALCIUM_SILICATE + insulation_age > 5y ⇒ flag true."""
     if df is None:
         pytest.skip("No dataset provided")
     ref = _reference_ts(gen_config)

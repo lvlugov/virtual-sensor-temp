@@ -151,7 +151,13 @@ def _validate_configs(config: GeneratorConfig) -> None:
                     _WEIGHT_SUM_TOLERANCE,
                 )
 
-    _validate_deterministic_rules(config.conditional_rules)
+    _validate_conditional_rules(config.conditional_rules)
+
+
+def _validate_conditional_rules(conditional_rules: dict[str, Any]) -> None:
+    """Validate Tier 1 scope and rule IDs in conditional_rules.yaml."""
+    _validate_deterministic_rules(conditional_rules)
+    _validate_rule_ids(conditional_rules)
 
 
 def _validate_deterministic_rules(conditional_rules: dict[str, Any]) -> None:
@@ -171,6 +177,30 @@ def _validate_deterministic_rules(conditional_rules: dict[str, Any]) -> None:
                 f"(got {applies_at!r}). Downstream rules belong in "
                 "docs/downstream_product_semantics.md, not conditional_rules.yaml."
             )
+
+
+def _validate_rule_ids(conditional_rules: dict[str, Any]) -> None:
+    """Require unique stable rule IDs on generation rule blocks."""
+    seen: set[str] = set()
+
+    def register(rule_id: Any, location: str) -> None:
+        if not isinstance(rule_id, str) or not rule_id.strip():
+            raise ValueError(f"{location}: missing required id (expected R-... format)")
+        if not rule_id.startswith("R-"):
+            raise ValueError(f"{location}: id must start with 'R-' (got {rule_id!r})")
+        if rule_id in seen:
+            raise ValueError(f"Duplicate rule id {rule_id!r} at {location}")
+        seen.add(rule_id)
+
+    for section in ("deterministic_rules", "conditional_weights", "geometry_standards"):
+        blocks = conditional_rules.get(section)
+        if not isinstance(blocks, dict):
+            continue
+        for block_name, block in blocks.items():
+            location = f"{section}.{block_name}"
+            if not isinstance(block, dict):
+                raise ValueError(f"{location} must be a mapping, got {type(block).__name__}")
+            register(block.get("id"), location)
 
 
 def _assert_weights_sum(label: str, weights: dict[str, Any], tol: float) -> None:

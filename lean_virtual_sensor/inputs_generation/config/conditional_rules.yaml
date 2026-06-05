@@ -52,6 +52,14 @@
 #   action: set_weights → weighted random draw over allowed_values
 #
 # Conditions reference already-generated variables (per DAG layer order).
+#
+# RULE IDS
+# --------
+# Stable identifiers for audit, provenance, and citations (Phase 2 restructuring).
+#   Tier 1 deterministic block:  R-{TOPIC}-01
+#   Tier 2 conditional_weights:  R-{TOPIC}-W-01
+#   Geometry specification:      R-{TOPIC}-01
+# Downstream / deferred rules: docs/downstream_product_semantics.md (e.g. R-COAT-DEFER-01)
 # =============================================================================
 
 
@@ -61,6 +69,7 @@
 deterministic_rules:
 
   insulation_chloride_flag:
+    id: R-CHLORIDE-01
     applies_at: generation
     description: >
       Auto-flag rule from data dictionary (Insulation section, Edge Cases column).
@@ -82,6 +91,7 @@ deterministic_rules:
 conditional_weights:
 
   insulation_material:
+    id: R-INSMAT-W-01
     description: >
       Insulation material selection is influenced by exposure zone and operating
       temperature. FOAMGLASS preferred in MARINE environments due to closed-cell
@@ -137,6 +147,7 @@ conditional_weights:
         note: "[ENGINEERING_JUDGEMENT] MINERAL_WOOL most widely used general-purpose material"
 
   coating_system:
+    id: R-COAT-W-01
     description: >
       Coating system type. Tier 2 weights draw TSA, IOZ, EPOXY_HT_MULTI,
       EPOXY_HT_SINGLE, BARE, UNKNOWN. Generation-time rewrite of old organic
@@ -192,7 +203,7 @@ conditional_weights:
           EPOXY_HT_SINGLE: 0.07
           BARE: 0.70
           UNKNOWN: 0.05
-        note: "[ENGINEERING_JUDGEMENT] Older assets — BARE or aged epoxy retained as EPOXY_HT_* at scoring"
+        note: "[ENGINEERING_JUDGEMENT] Older assets — BARE or aged epoxy retained as EPOXY_HT_* downstream (see R-COAT-DEFER-01)"
 
       # Default
       - condition: {}
@@ -206,10 +217,11 @@ conditional_weights:
         note: "[ENGINEERING_JUDGEMENT]"
 
   insulation_condition:
+    id: R-INSCOND-W-01
     description: >
       Insulation condition degrades with age and exposure severity. Newer
       insulation more likely GOOD; older insulation in aggressive environments
-      more likely POOR. Physically consistent with API 583 age-band scoring.
+      more likely POOR. Physically consistent with API 583 age bands.
     source: >
       API 583 Section 5.3 [CITATION_TBC]; API 581 insulation age modifier [CITATION_TBC];
       [ENGINEERING_JUDGEMENT] for specific weight values.
@@ -257,6 +269,7 @@ conditional_weights:
         note: "[ENGINEERING_JUDGEMENT]"
 
   cladding_integrity:
+    id: R-CLAD-W-01
     description: >
       Cladding integrity degrades with age, independent of insulation condition.
       Mechanically damaged by thermal cycling, wind, personnel access, corrosion
@@ -290,6 +303,7 @@ conditional_weights:
         note: "[ENGINEERING_JUDGEMENT]"
 
   tracing_system:
+    id: R-TRACE-W-01
     description: >
       Heat tracing type. Allowed values: NONE, HIGH_INTEGRITY_STEAM_TRACED,
       MEDIUM_INTEGRITY_STEAM_TRACED, POOR_INTEGRITY_STEAM_TRACED, ELECTRIC_TRACED,
@@ -334,6 +348,7 @@ conditional_weights:
         note: "[ENGINEERING_JUDGEMENT] Former STEAM_TRACED weight split across integrity bands"
 
   sweating_asset:
+    id: R-SWEAT-W-01
     description: >
       Boolean: asset exhibits external surface sweating / condensation under
       insulation (moisture source for CUI). More likely on cold service and
@@ -362,6 +377,7 @@ conditional_weights:
         note: "[ENGINEERING_JUDGEMENT] Default prevalence — SME to calibrate"
 
   metallurgy_family:
+    id: R-METAL-W-01
     description: >
       Allowed values: CARBON_STEEL, LOW_ALLOY_STEEL, AUSTENITIC_SS, DUPLEX_SS
       (not NICKEL_ALLOY or OTHER). Carbon steel dominates O&G insulated equipment;
@@ -396,6 +412,7 @@ conditional_weights:
 geometry_standards:
 
   pipe_nps:
+    id: R-PIPE-NPS-01
     applies_at: generation
     asset_class: PIPE
     variables:

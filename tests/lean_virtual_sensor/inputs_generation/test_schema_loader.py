@@ -79,8 +79,8 @@ def test_deterministic_rules_must_be_generation_scoped(tmp_path: Path) -> None:
     bad_rules = CONFIG_DIR / "conditional_rules.yaml"
     text = bad_rules.read_text(encoding="utf-8")
     text = text.replace(
-        "insulation_chloride_flag:\n    applies_at: generation",
-        "insulation_chloride_flag:\n    applies_at: scoring",
+        "    id: R-CHLORIDE-01\n    applies_at: generation",
+        "    id: R-CHLORIDE-01\n    applies_at: downstream",
     )
     (d / "conditional_rules.yaml").write_text(text, encoding="utf-8")
 
@@ -89,10 +89,43 @@ def test_deterministic_rules_must_be_generation_scoped(tmp_path: Path) -> None:
 
 
 def test_repo_conditional_rules_has_generation_only_deterministic_rules() -> None:
-    """Guardrail: repo config must not reintroduce scoring-time Tier 1 blocks."""
+    """Guardrail: repo config must not reintroduce downstream Tier 1 blocks."""
     cfg = load_all_configs(CONFIG_DIR)
     blocks = cfg.conditional_rules.get("deterministic_rules", {})
     assert isinstance(blocks, dict)
     assert "coating_system_age_degradation" not in blocks
     for name, block in blocks.items():
         assert block.get("applies_at") == "generation", name
+
+
+def test_repo_conditional_rules_rule_ids_are_unique() -> None:
+    """Every generation rule block in conditional_rules.yaml has a unique id."""
+    cfg = load_all_configs(CONFIG_DIR)
+    ids: list[str] = []
+    for section in ("deterministic_rules", "conditional_weights", "geometry_standards"):
+        blocks = cfg.conditional_rules.get(section, {})
+        assert isinstance(blocks, dict)
+        for block in blocks.values():
+            rule_id = block.get("id")
+            assert isinstance(rule_id, str) and rule_id.startswith("R-")
+            ids.append(rule_id)
+    assert len(ids) == len(set(ids))
+    assert "R-CHLORIDE-01" in ids
+    assert "R-INSMAT-W-01" in ids
+
+
+def test_missing_rule_id_raises(tmp_path: Path) -> None:
+    import shutil
+
+    d = tmp_path / "cfg"
+    d.mkdir()
+    shutil.copy(CONFIG_DIR / "schema.yaml", d / "schema.yaml")
+    shutil.copy(CONFIG_DIR / "asset_class_config.yaml", d / "asset_class_config.yaml")
+    shutil.copy(CONFIG_DIR / "generation_config.yaml", d / "generation_config.yaml")
+
+    text = (CONFIG_DIR / "conditional_rules.yaml").read_text(encoding="utf-8")
+    text = text.replace("    id: R-CHLORIDE-01\n", "")
+    (d / "conditional_rules.yaml").write_text(text, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="missing required id"):
+        load_all_configs(d)

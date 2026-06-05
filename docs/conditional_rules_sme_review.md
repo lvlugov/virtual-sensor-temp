@@ -10,8 +10,8 @@
 - Tier 2 rules are evaluated **in order**; the **first matching** condition applies.
 - **`[ENGINEERING_JUDGEMENT]`** — numeric weights are assumptions for SME review.
 - **`[CITATION_TBC]`** — standard reference not yet verified.
-- **Tier 1 generation rules** — hard rules when building synthetic rows (see `conditional_rules.yaml` → `deterministic_rules`).
-- **Downstream product semantics** — rules that affect model/scoring but not generator config; see `docs/downstream_product_semantics.md`.
+- **Rule IDs** — stable identifiers in `conditional_rules.yaml` (`R-CHLORIDE-01`, `R-INSMAT-W-01`, …). Weight tables below; full YAML is authoritative.
+- **Downstream product semantics** — deferred rules (e.g. `R-COAT-DEFER-01`); see `docs/downstream_product_semantics.md`.
 
 Please review **conditions, rationale, and weight tables**. Optional feedback table at the end.
 
@@ -19,7 +19,7 @@ Please review **conditions, rationale, and weight tables**. Optional feedback ta
 
 ## Tier 1 — deterministic rules (specification)
 
-### `insulation_chloride_flag` (`applies_at: generation`)
+### `R-CHLORIDE-01` — `insulation_chloride_flag` (`applies_at: generation`)
 
 **Source:** Data dictionary — `insulation_chloride_flag` (Edge Cases); NACE SP0198-2010 Section 5.4 `[CITATION_TBC]`; API 583 Table 4.2 `[CITATION_TBC]`
 
@@ -29,23 +29,23 @@ Please review **conditions, rationale, and weight tables**. Optional feedback ta
 
 ---
 
-### `coating_system_age_degradation` (relocated — historical SME text)
+### `R-COAT-DEFER-01` — coating age (relocated — historical SME text)
 
 **Current location:** `docs/downstream_product_semantics.md` (`R-COAT-DEFER-01`). No longer in generator config.
 
 **Source:** Data dictionary — `coating_system` constraints; API 583 coating age rule `[CITATION_TBC]`
 
-`EPOXY_AGED` is **not** a generated coating type. Do not store it in `coating_system`. Apply degraded susceptibility at scoring time when age > 10 yr and type is `EPOXY_HT_MULTI` or `EPOXY_HT_SINGLE`.
+`EPOXY_AGED` is **not** a generated coating type. Do not store it in `coating_system`. Apply degraded susceptibility downstream when age > 10 yr and type is `EPOXY_HT_MULTI` or `EPOXY_HT_SINGLE`.
 
 | Condition | Action |
 |-----------|--------|
-| `coating_age_years` > 10 AND `coating_system` in {EPOXY_HT_MULTI, EPOXY_HT_SINGLE} | `treat_as_degraded_at_scoring` (metadata unchanged) |
+| `coating_age_years` > 10 AND `coating_system` in {EPOXY_HT_MULTI, EPOXY_HT_SINGLE} | Treat as degraded downstream (metadata unchanged) |
 
 ---
 
 ## Tier 2 — conditional weights (used by generator)
 
-### `insulation_material`
+### `R-INSMAT-W-01` — `insulation_material`
 
 **Source:** API 583 Table 4.3 `[CITATION_TBC]`; NACE SP0198-2010 Table 1 `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
 
@@ -58,7 +58,7 @@ Please review **conditions, rationale, and weight tables**. Optional feedback ta
 
 ---
 
-### `coating_system`
+### `R-COAT-W-01` — `coating_system`
 
 Allowed generated types: **TSA, IOZ, EPOXY_HT_MULTI, EPOXY_HT_SINGLE, BARE, UNKNOWN** (not `EPOXY_AGED`).
 
@@ -74,7 +74,7 @@ Allowed generated types: **TSA, IOZ, EPOXY_HT_MULTI, EPOXY_HT_SINGLE, BARE, UNKN
 
 ---
 
-### `insulation_condition`
+### `R-INSCOND-W-01` — `insulation_condition`
 
 **Source:** API 583 Section 5.3 `[CITATION_TBC]`; API 581 insulation age modifier `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
 
@@ -88,7 +88,7 @@ Allowed generated types: **TSA, IOZ, EPOXY_HT_MULTI, EPOXY_HT_SINGLE, BARE, UNKN
 
 ---
 
-### `cladding_integrity`
+### `R-CLAD-W-01` — `cladding_integrity`
 
 **Source:** API 583 Section 5.3 `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
 
@@ -100,7 +100,7 @@ Allowed generated types: **TSA, IOZ, EPOXY_HT_MULTI, EPOXY_HT_SINGLE, BARE, UNKN
 
 ---
 
-### `tracing_system`
+### `R-TRACE-W-01` — `tracing_system`
 
 Allowed values: **NONE**, **HIGH_INTEGRITY_STEAM_TRACED**, **MEDIUM_INTEGRITY_STEAM_TRACED**, **POOR_INTEGRITY_STEAM_TRACED**, **ELECTRIC_TRACED**, **HOT_OIL_TRACED**.
 
@@ -114,7 +114,7 @@ Allowed values: **NONE**, **HIGH_INTEGRITY_STEAM_TRACED**, **MEDIUM_INTEGRITY_ST
 
 ---
 
-### `sweating_asset`
+### `R-SWEAT-W-01` — `sweating_asset`
 
 Boolean **`true`** / **`false`**. Drawn after `operating_temperature` is known (layer 5).
 
@@ -128,7 +128,7 @@ Boolean **`true`** / **`false`**. Drawn after `operating_temperature` is known (
 
 ---
 
-### `metallurgy_family`
+### `R-METAL-W-01` — `metallurgy_family`
 
 Allowed: **CARBON_STEEL**, **LOW_ALLOY_STEEL**, **AUSTENITIC_SS**, **DUPLEX_SS** (not `NICKEL_ALLOY` or `OTHER`).
 
@@ -143,17 +143,18 @@ Allowed: **CARBON_STEEL**, **LOW_ALLOY_STEEL**, **AUSTENITIC_SS**, **DUPLEX_SS**
 
 ## Citations to verify (backlog)
 
-| Rule / variable | Reference to verify |
-|-----------------|---------------------|
-| `insulation_chloride_flag` | NACE SP0198-2010 §5.4; API 583 Table 4.2 |
-| `coating_system_age_degradation` | API 583 coating age rule → see `docs/downstream_product_semantics.md` |
-| `sweating_asset` | Data dictionary |
-| `insulation_material` | API 583 Table 4.3; NACE SP0198-2010 Table 1 |
-| `coating_system` | API 583 Table 4.4; API 581 coating modifier |
-| `insulation_condition` | API 583 §5.3; API 581 insulation age modifier |
-| `cladding_integrity` | API 583 §5.3 |
-| `tracing_system` | API 583 §4.3 |
-| `metallurgy_family` | ISO 14224:2016 Table A.41; HOIS survey |
+| Rule ID | Reference to verify |
+|---------|---------------------|
+| `R-CHLORIDE-01` | NACE SP0198-2010 §5.4; API 583 Table 4.2 |
+| `R-COAT-DEFER-01` | API 583 coating age rule → `docs/downstream_product_semantics.md` |
+| `R-SWEAT-W-01` | Data dictionary |
+| `R-INSMAT-W-01` | API 583 Table 4.3; NACE SP0198-2010 Table 1 |
+| `R-COAT-W-01` | API 583 Table 4.4; API 581 coating modifier |
+| `R-INSCOND-W-01` | API 583 §5.3; API 581 insulation age modifier |
+| `R-CLAD-W-01` | API 583 §5.3 |
+| `R-TRACE-W-01` | API 583 §4.3 |
+| `R-METAL-W-01` | ISO 14224:2016 Table A.41; HOIS survey |
+| `R-PIPE-NPS-01` | ASME B36.10M; repo NPS PDF |
 
 ---
 
@@ -175,12 +176,12 @@ Allowed: **CARBON_STEEL**, **LOW_ALLOY_STEEL**, **AUSTENITIC_SS**, **DUPLEX_SS**
 
 | Section | Approved? | Comments |
 |---------|-------------|----------|
-| Tier 1 — `insulation_chloride_flag` | Approved | |
-| Tier 1 — `coating_system_age_degradation` | Approved| Some concerns regarding the Unknown option, if Unknown the value should not be close to the wrost case possible? Same coment for the remain. |
-| `insulation_material` | Approved | |
-| `coating_system` | Approved | |
-| `insulation_condition` | Approved | |
-| `cladding_integrity` | Approved | |
-| `tracing_system` | Approved | |
-| `sweating_asset` | Approved | |
-| `metallurgy_family` | Approved | |
+| `R-CHLORIDE-01` | Approved | |
+| `R-COAT-DEFER-01` | Approved| Some concerns regarding the Unknown option, if Unknown the value should not be close to the wrost case possible? Same coment for the remain. |
+| `R-INSMAT-W-01` | Approved | |
+| `R-COAT-W-01` | Approved | |
+| `R-INSCOND-W-01` | Approved | |
+| `R-CLAD-W-01` | Approved | |
+| `R-TRACE-W-01` | Approved | |
+| `R-SWEAT-W-01` | Approved | |
+| `R-METAL-W-01` | Approved | |

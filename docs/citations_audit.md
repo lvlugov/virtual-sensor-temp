@@ -14,18 +14,18 @@ If the same table or section appears on several rows, verify it once and reuse t
 
 | # | File | Where | Cited as | Exists? | What it actually says | Verdict | Action |
 |---|------|-------|----------|---------|----------------------|---------|--------|
-| 1 | `conditional_rules.yaml` | `insulation_chloride_flag` source | Data dictionary; NACE SP0198 §5.4; API 583 Table 4.2 | | | `pending` | |
+| 1 | `conditional_rules.yaml` | `R-CHLORIDE-01` source | Data dictionary; NACE SP0198 §5.4; API 583 Table 4.2 | | | `pending` | |
 | 2 | `docs/downstream_product_semantics.md` | `R-COAT-DEFER-01` source | Data dictionary; API 583 coating age rule | | | `pending` | |
-| 3 | `conditional_rules.yaml` | `insulation_material` source | API 583 Table 4.3; NACE SP0198 Table 1 | | | `pending` | |
-| 4 | `conditional_rules.yaml` | `insulation_material` description | FOAMGLASS preferred in MARINE (closed cell) | | | `pending` | |
-| 5 | `conditional_rules.yaml` | `coating_system` source | API 583 Table 4.4; API 581 coating modifier | | | `pending` | |
-| 6 | `conditional_rules.yaml` | `insulation_condition` source | API 583 §5.3; API 581 insulation age modifier | | | `pending` | |
-| 7 | `conditional_rules.yaml` | `insulation_condition` description | Consistent with API 583 age-band scoring | | | `pending` | |
-| 8 | `conditional_rules.yaml` | `cladding_integrity` source | API 583 §5.3 | | | `pending` | |
-| 9 | `conditional_rules.yaml` | `tracing_system` source | API 583 §4.3 (~20–30% traced piping) | | | `pending` | |
-| 10 | `conditional_rules.yaml` | `sweating_asset` source | Data dictionary | | | `pending` | |
-| 11 | `conditional_rules.yaml` | `metallurgy_family` source | ISO 14224 Table A.41; HOIS survey | | | `pending` | |
-| 12 | `conditional_rules.yaml` | `geometry_standards.pipe_nps` | ASME B36.10M; repo NPS PDF | | | `pending` | |
+| 3 | `conditional_rules.yaml` | `R-INSMAT-W-01` source | API 583 Table 4.3; NACE SP0198 Table 1 | | | `pending` | |
+| 4 | `conditional_rules.yaml` | `R-INSMAT-W-01` description | FOAMGLASS preferred in MARINE (closed cell) | | | `pending` | |
+| 5 | `conditional_rules.yaml` | `R-COAT-W-01` source | API 583 Table 4.4; API 581 coating modifier | | | `pending` | |
+| 6 | `conditional_rules.yaml` | `R-INSCOND-W-01` source | API 583 §5.3; API 581 insulation age modifier | | | `pending` | |
+| 7 | `conditional_rules.yaml` | `R-INSCOND-W-01` description | Consistent with API 583 age bands | | | `pending` | |
+| 8 | `conditional_rules.yaml` | `R-CLAD-W-01` source | API 583 §5.3 | | | `pending` | |
+| 9 | `conditional_rules.yaml` | `R-TRACE-W-01` source | API 583 §4.3 (~20–30% traced piping) | | | `pending` | |
+| 10 | `conditional_rules.yaml` | `R-SWEAT-W-01` source | Data dictionary | | | `pending` | |
+| 11 | `conditional_rules.yaml` | `R-METAL-W-01` source | ISO 14224 Table A.41; HOIS survey | | | `pending` | |
+| 12 | `conditional_rules.yaml` | `R-PIPE-NPS-01` | ASME B36.10M; repo NPS PDF | | | `pending` | |
 | 13 | `schema.yaml` | `asset_class` standards | ISO 14224 Table 5; API 583 Table 4.1 | | | `pending` | |
 | 14 | `schema.yaml` | `exposure_zone` standards | ISO 9223 C1–C5; API 583 Table 4.2; NACE SP0198 | | | `pending` | |
 | 15 | `schema.yaml` | `metallurgy_family` standards | ISO 14224 A.41; API 581; API 583 Table 4.1; NACE SP0198 | | | `pending` | |
@@ -55,10 +55,10 @@ If the same table or section appears on several rows, verify it once and reuse t
 | 39 | `schema.yaml` | `last_inspection_thickness` standards | ISO 14224 Table 5; API 581 UT trend slope | | | `pending` | |
 | 40 | `schema.yaml` | `washdown_records` standards | API 583 §5.2 | | | `pending` | |
 | 41 | `synthetic_inputs_methodology.md` | §5 asset proportions | HOIS surveys; API 583 Table 4.1; ISO 14224 Table A.4 | | | `pending` | |
-| 42 | `synthetic_inputs_methodology.md` | §6 Tier 1 chloride row | NACE §5.4; API 583 Table 4.2; data dictionary | | | `pending` | |
+| 42 | `synthetic_inputs_methodology.md` | §6 `R-CHLORIDE-01` | NACE §5.4; API 583 Table 4.2; data dictionary | | | `pending` | |
 | 43 | `docs/downstream_product_semantics.md` | R-COAT-DEFER-01; methodology §6 coating defer | API 583 coating age; EPOXY_AGED generation debt | | | `pending` | |
-| 44 | `synthetic_inputs_methodology.md` | §6 Tier 2 bullets | Directional effects (insulation, coating, tracing, etc.) | | | `pending` | |
-| 45 | `conditional_rules_sme_review.md` | Tier 1 + weight blocks | Same sources as rows 1–11 above | | | `pending` | |
+| 44 | `synthetic_inputs_methodology.md` | §6 Tier 2 rule IDs | Directional effects — see R-INSMAT-W-01 … R-METAL-W-01 | | | `pending` | |
+| 45 | `conditional_rules_sme_review.md` | Rule IDs R-CHLORIDE-01 … R-PIPE-NPS-01 | Same sources as rows 1–12 above | | | `pending` | |
 
 ---
 
