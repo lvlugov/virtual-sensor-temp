@@ -57,7 +57,11 @@ def test_chloride_auto_flag(df, gen_config):
 
 
 def test_coating_auto_downgrade(df, gen_config):
-    """R-COAT-DEFER-01: no row has coating_age > 10y and undegraded organic epoxy (layer 4)."""
+    """Interim Option B rewrite (layer 4): no row has coating_age > 10y and undegraded epoxy.
+
+    Asserts current Python behaviour in ``generate_dates``, not SME-reviewed
+    downstream semantics for ``R-COAT-DEFER-01`` (see ``docs/downstream_product_semantics.md``).
+    """
     if df is None:
         pytest.skip("No dataset provided")
     ref = _reference_ts(gen_config)

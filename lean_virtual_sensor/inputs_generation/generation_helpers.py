@@ -1,7 +1,7 @@
 """
 Shared helpers for synthetic row generation: schema lookups, YAML conditional
-weights, and weighted sampling. Used by ``layer_generators`` (and later
-``constraints``) so generation logic stays readable and testable in isolation.
+weights, Tier 1 ``set_value`` rules, and weighted sampling. Used by
+``layer_generators`` so generation logic stays readable and testable in isolation.
 """
 
 from __future__ import annotations

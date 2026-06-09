@@ -7,8 +7,9 @@ After all seven layers have run, this module performs a final pass over the
 DataFrame to catch and correct structural violations that slipped through
 the layer generators (e.g. floating-point rounding, edge cases in date maths).
 
-Business rules (Tier 1 deterministic derivations such as R-CHLORIDE-01 and
-R-COAT-DEFER-01) are applied in ``layer_generators`` / YAML — not here.
+Business rules (Tier 1 deterministic derivations such as R-CHLORIDE-01, and
+the interim coating rewrite in ``generate_dates`` pending R-COAT-DEFER-01) are
+applied in ``layer_generators`` / YAML — not here.
 Contract tests (``test_constraints.py``) assert those rules on the CSV.
 
 This is a DEFENSIVE pass — the layer generators are expected to produce

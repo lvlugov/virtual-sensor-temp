@@ -217,7 +217,8 @@ def generate_dates(
 ) -> pd.DataFrame:
     """
     DAG layer 4 — insulation / coating / inspection dates and ``coating_system``
-    (methodology §4). Applies Tier‑1 epoxy downgrade when coating age > 10 years.
+    (methodology §4). Interim Option B epoxy rewrite when coating age > 10 years
+    (pending ``R-COAT-DEFER-01``; see ``docs/downstream_product_semantics.md``).
     """
     result = dataframe.copy()
     generation_yaml = config.generation

@@ -23,7 +23,7 @@ run:
 # ── ASSET CLASS PROPORTIONS ───────────────────────────────────────────────────
 # Target row counts per asset class. Must sum to n_rows (1000).
 #
-# Basis: See docs/methodology.md Section 4 for full rationale and references.
+# Basis: See docs/synthetic_inputs_methodology.md §5 for full rationale and references.
 # Summary: Real-world O&G populations are ~55-65% pipe (HOIS survey data,
 # API 583 field evidence). We dial PIPE back to 38% here deliberately to
 # improve minority class coverage for ML training. This is a training diversity

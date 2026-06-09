@@ -12,8 +12,8 @@
 #
 #   TIER 1 — DETERMINISTIC (generation)
 #     Hard rules from the data dictionary (and standards where cited). Each block
-#     must have applies_at: generation. Tier 1 is not fully wired to the engine
-#     yet — enforcement may lag this file (see code_restructuring.md).
+#     must have applies_at: generation. Wired rules run via
+#     apply_deterministic_field_value() in layer_generators (see R-CHLORIDE-01).
 #     Downstream / product-only semantics live in docs/downstream_product_semantics.md.
 #
 #   TIER 2 — PHYSICALLY REASONED

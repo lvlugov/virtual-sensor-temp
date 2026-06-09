@@ -164,7 +164,7 @@ These rules are explicitly stated in the data dictionary or directly derivable f
 
 **Rule ID:** `R-COAT-DEFER-01` (see `docs/downstream_product_semantics.md`)
 
-Product semantics for old organic epoxy (age > 10 yr) are **undecided**. The generator **currently** rewrites `EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` → `EPOXY_AGED` at generation time in `layer_generators.py` (DAG layer 4) only. SME review favoured downstream degradation without changing stored metadata; that rule was removed from generator config in Phase 1 restructuring. CSV behaviour is unchanged until Option A or B is chosen.
+Product semantics for old organic epoxy (age > 10 yr) are **undecided** (`R-COAT-DEFER-01`). The generator **currently** applies an interim **Option B** rewrite (`EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` → `EPOXY_AGED`) in `layer_generators.py` (DAG layer 4) only — hardcoded Python, not YAML. SME review favoured downstream degradation without changing stored metadata; that rule was removed from generator config in Phase 1 restructuring. Contract test: `test_coating_auto_downgrade` (asserts interim rewrite, not downstream semantics). CSV behaviour is unchanged until Option A or B is chosen.
 
 ### Tier 2 — Physically reasoned (`[ENGINEERING_JUDGEMENT]`)
 
@@ -218,7 +218,7 @@ The ranges reflect typical process service windows in O&G / refining:
 
 These ranges are `[ENGINEERING_JUDGEMENT]` and should be reviewed with a process engineering team.
 
-The CUI active envelope for carbon steel (−4 to 175°C) and austenitic SS (50–175°C, peak ~120°C) is not enforced at generation time — assets outside this envelope are valid records (they score low CUI risk, which is useful training signal).
+The CUI active envelope for carbon steel (−4 to 175°C) and austenitic SS (50–175°C, peak ~120°C) is not enforced at generation time — assets outside this envelope are valid records (the CUI model would treat them as low susceptibility, which is useful training signal).
 
 ---
 
