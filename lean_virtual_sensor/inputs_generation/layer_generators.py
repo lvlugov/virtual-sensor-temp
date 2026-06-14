@@ -24,6 +24,7 @@ from generation_helpers import (
     random_lookback_timestamp,
     random_timestamp_uniform_between,
     reference_timestamp,
+    sample_component_geometry,
     sample_first_matching_weighted_rule,
     sample_geometry_class_for_asset_class,
     sample_weighted_category,
@@ -181,18 +182,17 @@ def generate_wall_insulation(
         if not isinstance(class_config, dict):
             raise ValueError(f"Unknown asset_class {asset_class_key!r} in asset_class_config.yaml")
 
-        diameter_limits = class_config["component_diameter"]
-        wall_limits = class_config["furnished_thickness"]
         insulation_thickness_limits = class_config["insulation_thickness"]
 
-        diameter_low, diameter_high = float(diameter_limits["min"]), float(diameter_limits["max"])
-        wall_low, wall_high = float(wall_limits["min"]), float(wall_limits["max"])
         insul_mm_low, insul_mm_high = float(insulation_thickness_limits["min"]), float(
             insulation_thickness_limits["max"]
         )
 
-        component_diameters.append(round(float(rng.uniform(diameter_low, diameter_high)), 1))
-        furnished_thicknesses.append(round(float(rng.uniform(wall_low, wall_high)), 2))
+        od_mm, wall_mm = sample_component_geometry(
+            asset_class_key, class_config, config.conditional_rules, rng
+        )
+        component_diameters.append(od_mm)
+        furnished_thicknesses.append(wall_mm)
 
         row_context_for_insulation = {
             "exposure_zone": result.at[row_index, "exposure_zone"],

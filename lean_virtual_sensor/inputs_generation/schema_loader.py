@@ -152,6 +152,135 @@ def _validate_configs(config: GeneratorConfig) -> None:
                 )
 
     _validate_conditional_rules(config.conditional_rules)
+    _validate_geometry_config(config)
+
+
+def _validate_geometry_config(config: GeneratorConfig) -> None:
+    """Validate PIPE NPS catalog and non-pipe geometry_sampling blocks."""
+    pipe_class_cfg = config.asset_class.get("PIPE")
+    if not isinstance(pipe_class_cfg, dict):
+        raise ValueError("asset_class_config.yaml must define PIPE")
+
+    geometry_standards = config.conditional_rules.get("geometry_standards")
+    if not isinstance(geometry_standards, dict):
+        raise ValueError("conditional_rules.yaml must define geometry_standards")
+    pipe_nps = geometry_standards.get("pipe_nps")
+    if not isinstance(pipe_nps, dict):
+        raise ValueError("geometry_standards.pipe_nps is required")
+
+    _validate_pipe_nps_catalog(pipe_class_cfg, pipe_nps)
+
+    for class_name, class_cfg in config.asset_class.items():
+        if class_name == "PIPE":
+            continue
+        if not isinstance(class_cfg, dict):
+            continue
+        _validate_non_pipe_geometry_sampling(class_name, class_cfg)
+
+
+def _validate_pipe_nps_catalog(pipe_class_cfg: dict[str, Any], pipe_nps: dict[str, Any]) -> None:
+    catalog = pipe_nps.get("nps_catalog")
+    if not isinstance(catalog, list) or not catalog:
+        raise ValueError("geometry_standards.pipe_nps.nps_catalog must be a non-empty list")
+
+    diameter_limits = pipe_class_cfg.get("component_diameter")
+    wall_limits = pipe_class_cfg.get("furnished_thickness")
+    if not isinstance(diameter_limits, dict) or not isinstance(wall_limits, dict):
+        raise ValueError("PIPE must define component_diameter and furnished_thickness bounds")
+
+    diam_min = float(diameter_limits["min"])
+    diam_max = float(diameter_limits["max"])
+    wall_min = float(wall_limits["min"])
+    wall_max = float(wall_limits["max"])
+
+    total_weight = 0.0
+    for index, row in enumerate(catalog):
+        if not isinstance(row, dict):
+            raise ValueError(f"pipe_nps.nps_catalog[{index}] must be a mapping")
+        for key in ("od_mm", "wall_mm", "weight"):
+            if key not in row:
+                raise ValueError(f"pipe_nps.nps_catalog[{index}] missing {key!r}")
+        od_mm = float(row["od_mm"])
+        wall_mm = float(row["wall_mm"])
+        total_weight += float(row["weight"])
+        if not (diam_min <= od_mm <= diam_max):
+            raise ValueError(
+                f"pipe_nps.nps_catalog[{index}] od_mm {od_mm} outside PIPE "
+                f"component_diameter [{diam_min}, {diam_max}]"
+            )
+        if not (wall_min <= wall_mm <= wall_max):
+            raise ValueError(
+                f"pipe_nps.nps_catalog[{index}] wall_mm {wall_mm} outside PIPE "
+                f"furnished_thickness [{wall_min}, {wall_max}]"
+            )
+
+    if total_weight <= 0:
+        raise ValueError("pipe_nps.nps_catalog weights must sum to a positive value")
+
+
+def _validate_non_pipe_geometry_sampling(class_name: str, class_cfg: dict[str, Any]) -> None:
+    geometry_sampling = class_cfg.get("geometry_sampling")
+    if not isinstance(geometry_sampling, dict):
+        raise ValueError(f"asset_class_config[{class_name}] missing geometry_sampling block")
+
+    diameter_limits = class_cfg.get("component_diameter")
+    if not isinstance(diameter_limits, dict):
+        raise ValueError(f"asset_class_config[{class_name}] missing component_diameter")
+    if "mode" not in diameter_limits:
+        raise ValueError(f"asset_class_config[{class_name}].component_diameter missing mode")
+
+    diam_min = float(diameter_limits["min"])
+    diam_max = float(diameter_limits["max"])
+    diam_mode = float(diameter_limits["mode"])
+    if not (diam_min <= diam_mode <= diam_max):
+        raise ValueError(
+            f"asset_class_config[{class_name}].component_diameter.mode must lie "
+            f"between min and max (got {diam_mode}, range [{diam_min}, {diam_max}])"
+        )
+
+    method = geometry_sampling.get("method")
+    wall_cfg = geometry_sampling.get("wall")
+    if not isinstance(wall_cfg, dict):
+        raise ValueError(f"asset_class_config[{class_name}].geometry_sampling missing wall block")
+
+    if method == "triangular_coupled_wall":
+        for key in ("t_over_d_min", "t_over_d_max", "clamp_min", "clamp_max"):
+            if key not in wall_cfg:
+                raise ValueError(
+                    f"asset_class_config[{class_name}].geometry_sampling.wall missing {key!r}"
+                )
+        t_min = float(wall_cfg["t_over_d_min"])
+        t_max = float(wall_cfg["t_over_d_max"])
+        if t_min <= 0 or t_max < t_min:
+            raise ValueError(
+                f"asset_class_config[{class_name}] invalid t_over_d band [{t_min}, {t_max}]"
+            )
+        clamp_min = float(wall_cfg["clamp_min"])
+        clamp_max = float(wall_cfg["clamp_max"])
+        if clamp_min > clamp_max:
+            raise ValueError(
+                f"asset_class_config[{class_name}] wall clamp_min must be <= clamp_max"
+            )
+        return
+
+    if method == "triangular_fixed_wall":
+        for key in ("min", "max"):
+            if key not in wall_cfg:
+                raise ValueError(
+                    f"asset_class_config[{class_name}].geometry_sampling.wall missing {key!r}"
+                )
+        fixed_min = float(wall_cfg["min"])
+        fixed_max = float(wall_cfg["max"])
+        if fixed_min > fixed_max:
+            raise ValueError(
+                f"asset_class_config[{class_name}] fixed wall min must be <= max"
+            )
+        return
+
+    raise ValueError(
+        f"asset_class_config[{class_name}].geometry_sampling.method must be "
+        f"triangular_coupled_wall or triangular_fixed_wall (got {method!r})"
+    )
 
 
 def _validate_conditional_rules(conditional_rules: dict[str, Any]) -> None:

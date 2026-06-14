@@ -57,7 +57,7 @@ Weights are **`engineering_judgement`** unless you record otherwise. Directional
 
 | # | Rule ID | Claim | Authority | Evidence | Citations log | SME OK? |
 |---|---------|-------|-----------|----------|---------------|---------|
-| P-10 | `R-PIPE-NPS-01` | PIPE diameter/wall from NPS catalog, not uniform min/max | | | 12 | `pending` |
+| P-10 | `R-PIPE-NPS-01` | PIPE diameter/wall from NPS catalog, not uniform min/max | `standard` | ASME B36.10M; `component_geometry_sizing.md` | 12 | `pending` |
 
 ---
 
@@ -91,7 +91,7 @@ Weights are **`engineering_judgement`** unless you record otherwise. Directional
 | # | Area | Claim | Authority | Evidence | Citations log | SME OK? |
 |---|------|-------|-----------|----------|---------------|---------|
 | P-22 | Per-class geometry, orientation, etc. | Allowed values and weights by asset class | `engineering_judgement` | `asset_class_config.yaml` | — | `pending` |
-| P-23 | Diameter / wall (non-PIPE) | Uniform in class min/max until NPS-style tables added | `engineering_judgement` | Methodology §12 limitation 2 | — | `pending` |
+| P-23 | Diameter / wall (non-PIPE) | Triangular diameter at representative size; wall coupled via `t/D` | `engineering_judgement` | `component_geometry_sizing.md`; ASME VIII / API 650 informed | — | `pending` |
 
 ---
 

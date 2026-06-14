@@ -409,9 +409,8 @@ conditional_weights:
         note: "[ENGINEERING_JUDGEMENT] CS dominant per ISO 14224 and HOIS survey data"
 
 
-# ── GEOMETRY STANDARDS (specification) ──────────────────────────────────────────
-# PIPE: sample from NPS catalog (OD + schedule wall), not uniform min/max range.
-# Other asset classes: remain on asset_class_config.yaml ranges until tables added.
+# ── GEOMETRY STANDARDS (generation) ─────────────────────────────────────────────
+# PIPE: weighted NPS catalog (OD + wall coupled). Non-pipe: asset_class_config.yaml.
 
 geometry_standards:
 
@@ -424,78 +423,21 @@ geometry_standards:
       furnished_thickness: wall_mm
     source_document: "NPS-nominal-pipe-size-chart-inches__1_.pdf"
     standard: "ASME B36.10M [CITATION_TBC]"
-    default_schedule: schedule_40
     method: >
-      Draw NPS from nps_sampling_weights, then set component_diameter to od_mm
-      and furnished_thickness to wall_mm for default_schedule. Optional future:
-      weighted draw across schedule_40 and schedule_80 per row.
-    nps_sampling_weights:
-      "1/8": 0.01
-      "1/4": 0.01
-      "3/8": 0.01
-      "1/2": 0.02
-      "3/4": 0.03
-      "1": 0.04
-      "1 1/4": 0.03
-      "1 1/2": 0.03
-      "2": 0.095
-      "2 1/2": 0.04
-      "3": 0.07
-      "3 1/2": 0.02
-      "4": 0.12
-      "5": 0.02
-      "6": 0.10
-      "8": 0.09
-      "10": 0.05
-      "12": 0.04
-      "14": 0.03
-      "16": 0.02
-      "18": 0.01
-      "20": 0.01
-      "22": 0.01
-      "24": 0.03
-      "26": 0.01
-      "28": 0.01
-      "30": 0.01
-      "32": 0.01
-      "34": 0.005
-      "36": 0.005
-      "38": 0.005
-      "40": 0.005
-      "42": 0.005
-    note: "[ENGINEERING_JUDGEMENT] Weights sum to 1.0; emphasise DN50–DN300 process piping"
+      Draw one row from nps_catalog by weight; set component_diameter to od_mm
+      and furnished_thickness to wall_mm from that row (coupled pair).
+    note: "[ENGINEERING_JUDGEMENT] Weights sum to 100; refinery line population, median ≈ 4″"
     nps_catalog:
-      # od_mm / wall_mm from ASME B36.10M Schedule 40 unless noted [CITATION_TBC]
-      - { nps_in: "1/8", dn: 6, od_mm: 10.3, schedules: { schedule_40: { wall_mm: 1.73 }, schedule_80: { wall_mm: 2.41 } } }
-      - { nps_in: "1/4", dn: 8, od_mm: 13.7, schedules: { schedule_40: { wall_mm: 2.24 }, schedule_80: { wall_mm: 3.02 } } }
-      - { nps_in: "3/8", dn: 10, od_mm: 17.1, schedules: { schedule_40: { wall_mm: 2.31 }, schedule_80: { wall_mm: 3.20 } } }
-      - { nps_in: "1/2", dn: 15, od_mm: 21.3, schedules: { schedule_40: { wall_mm: 2.77 }, schedule_80: { wall_mm: 3.73 } } }
-      - { nps_in: "3/4", dn: 20, od_mm: 26.7, schedules: { schedule_40: { wall_mm: 2.87 }, schedule_80: { wall_mm: 3.91 } } }
-      - { nps_in: "1", dn: 25, od_mm: 33.4, schedules: { schedule_40: { wall_mm: 3.38 }, schedule_80: { wall_mm: 4.55 } } }
-      - { nps_in: "1 1/4", dn: 32, od_mm: 42.2, schedules: { schedule_40: { wall_mm: 3.56 }, schedule_80: { wall_mm: 4.85 } } }
-      - { nps_in: "1 1/2", dn: 40, od_mm: 48.3, schedules: { schedule_40: { wall_mm: 3.68 }, schedule_80: { wall_mm: 5.08 } } }
-      - { nps_in: "2", dn: 50, od_mm: 60.3, schedules: { schedule_40: { wall_mm: 3.91 }, schedule_80: { wall_mm: 5.54 } } }
-      - { nps_in: "2 1/2", dn: 65, od_mm: 73.0, schedules: { schedule_40: { wall_mm: 5.16 }, schedule_80: { wall_mm: 7.01 } } }
-      - { nps_in: "3", dn: 80, od_mm: 88.9, schedules: { schedule_40: { wall_mm: 5.49 }, schedule_80: { wall_mm: 7.62 } } }
-      - { nps_in: "3 1/2", dn: 90, od_mm: 101.6, schedules: { schedule_40: { wall_mm: 5.74 }, schedule_80: { wall_mm: 8.08 } } }
-      - { nps_in: "4", dn: 100, od_mm: 114.3, schedules: { schedule_40: { wall_mm: 6.02 }, schedule_80: { wall_mm: 8.56 } } }
-      - { nps_in: "5", dn: 125, od_mm: 141.3, schedules: { schedule_40: { wall_mm: 6.55 }, schedule_80: { wall_mm: 9.53 } } }
-      - { nps_in: "6", dn: 150, od_mm: 168.3, schedules: { schedule_40: { wall_mm: 7.11 }, schedule_80: { wall_mm: 10.97 } } }
-      - { nps_in: "8", dn: 200, od_mm: 219.1, schedules: { schedule_40: { wall_mm: 8.18 }, schedule_80: { wall_mm: 12.70 } } }
-      - { nps_in: "10", dn: 250, od_mm: 273.0, schedules: { schedule_40: { wall_mm: 9.27 }, schedule_80: { wall_mm: 15.09 } } }
-      - { nps_in: "12", dn: 300, od_mm: 323.8, schedules: { schedule_40: { wall_mm: 10.31 }, schedule_80: { wall_mm: 17.48 } } }
-      - { nps_in: "14", dn: 350, od_mm: 355.6, schedules: { schedule_40: { wall_mm: 11.13 }, schedule_80: { wall_mm: 19.05 } } }
-      - { nps_in: "16", dn: 400, od_mm: 406.4, schedules: { schedule_40: { wall_mm: 12.70 }, schedule_80: { wall_mm: 21.44 } } }
-      - { nps_in: "18", dn: 450, od_mm: 457.0, schedules: { schedule_40: { wall_mm: 14.27 }, schedule_80: { wall_mm: 23.83 } } }
-      - { nps_in: "20", dn: 500, od_mm: 508.0, schedules: { schedule_40: { wall_mm: 15.09 }, schedule_80: { wall_mm: 26.19 } } }
-      - { nps_in: "22", dn: 550, od_mm: 559.0, schedules: { schedule_40: { wall_mm: 15.09 }, schedule_80: { wall_mm: 28.45 } } }
-      - { nps_in: "24", dn: 600, od_mm: 610.0, schedules: { schedule_40: { wall_mm: 17.48 }, schedule_80: { wall_mm: 30.96 } } }
-      - { nps_in: "26", dn: 650, od_mm: 660.4, schedules: { schedule_40: { wall_mm: 12.70 } } }
-      - { nps_in: "28", dn: 700, od_mm: 711.2, schedules: { schedule_40: { wall_mm: 12.70 } } }
-      - { nps_in: "30", dn: 750, od_mm: 762.0, schedules: { schedule_40: { wall_mm: 12.70 } } }
-      - { nps_in: "32", dn: 800, od_mm: 813.0, schedules: { schedule_40: { wall_mm: 17.48 } } }
-      - { nps_in: "34", dn: 850, od_mm: 864.0, schedules: { schedule_40: { wall_mm: 17.48 } } }
-      - { nps_in: "36", dn: 900, od_mm: 914.0, schedules: { schedule_40: { wall_mm: 19.05 } } }
-      - { nps_in: "38", dn: 950, od_mm: 965.2, schedules: { schedule_40: { wall_mm: 19.05 } } }
-      - { nps_in: "40", dn: 1000, od_mm: 1016.0, schedules: { schedule_40: { wall_mm: 19.05 } } }
-      - { nps_in: "42", dn: 1050, od_mm: 1067.0, schedules: { schedule_40: { wall_mm: 19.05 } } }
+      # od_mm / wall_mm from ASME B36.10M Sch 40 up to 12″, STD above [CITATION_TBC]
+      - { nps_in: "1", od_mm: 33.4, wall_mm: 3.38, schedule: "Sch 40", weight: 8 }
+      - { nps_in: "1 1/2", od_mm: 48.3, wall_mm: 3.68, schedule: "Sch 40", weight: 10 }
+      - { nps_in: "2", od_mm: 60.3, wall_mm: 3.91, schedule: "Sch 40", weight: 15 }
+      - { nps_in: "3", od_mm: 88.9, wall_mm: 5.49, schedule: "Sch 40", weight: 15 }
+      - { nps_in: "4", od_mm: 114.3, wall_mm: 6.02, schedule: "Sch 40", weight: 15 }
+      - { nps_in: "6", od_mm: 168.3, wall_mm: 7.11, schedule: "Sch 40", weight: 12 }
+      - { nps_in: "8", od_mm: 219.1, wall_mm: 8.18, schedule: "Sch 40", weight: 9 }
+      - { nps_in: "10", od_mm: 273.0, wall_mm: 9.27, schedule: "Sch 40", weight: 6 }
+      - { nps_in: "12", od_mm: 323.9, wall_mm: 10.31, schedule: "Sch 40", weight: 5 }
+      - { nps_in: "16", od_mm: 406.4, wall_mm: 9.53, schedule: "STD", weight: 3 }
+      - { nps_in: "20", od_mm: 508.0, wall_mm: 9.53, schedule: "STD", weight: 1.5 }
+      - { nps_in: "24", od_mm: 610.0, wall_mm: 9.53, schedule: "STD", weight: 0.5 }

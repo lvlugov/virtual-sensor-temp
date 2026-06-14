@@ -314,6 +314,119 @@ def _asset_age_years_from_context(row_context: Mapping[str, Any]) -> float | Non
     return None
 
 
+# --- component geometry sampling -------------------------------------------
+
+
+def geometry_standards_pipe_nps(conditional_rules: Mapping[str, Any]) -> dict[str, Any]:
+    """Return ``geometry_standards.pipe_nps`` from conditional rules YAML."""
+    geometry_standards = conditional_rules.get("geometry_standards")
+    if not isinstance(geometry_standards, dict):
+        raise ValueError("conditional_rules.geometry_standards is required")
+    pipe_nps = geometry_standards.get("pipe_nps")
+    if not isinstance(pipe_nps, dict):
+        raise ValueError("geometry_standards.pipe_nps is required")
+    return pipe_nps
+
+
+def sample_nps_catalog_geometry(
+    rng: np.random.Generator,
+    pipe_nps_block: Mapping[str, Any],
+) -> tuple[float, float]:
+    """Draw a weighted ``(od_mm, wall_mm)`` pair from the PIPE NPS catalog."""
+    catalog = pipe_nps_block.get("nps_catalog")
+    if not isinstance(catalog, list) or not catalog:
+        raise ValueError("pipe_nps.nps_catalog must be a non-empty list")
+    weights = np.array([float(row["weight"]) for row in catalog], dtype=float)
+    total = float(weights.sum())
+    if total <= 0 or not math.isfinite(total):
+        raise ValueError("pipe_nps catalog weights must sum to a positive finite value")
+    probabilities = weights / total
+    index = int(rng.choice(len(catalog), p=probabilities))
+    row = catalog[index]
+    return float(row["od_mm"]), float(row["wall_mm"])
+
+
+def sample_triangular_diameter(
+    rng: np.random.Generator,
+    diameter_min: float,
+    diameter_mode: float,
+    diameter_max: float,
+) -> float:
+    """Draw outer diameter from a triangular distribution."""
+    return float(rng.triangular(diameter_min, diameter_mode, diameter_max))
+
+
+def sample_coupled_wall_thickness(
+    rng: np.random.Generator,
+    diameter: float,
+    t_over_d_min: float,
+    t_over_d_max: float,
+    clamp_min: float,
+    clamp_max: float,
+) -> float:
+    """Draw wall thickness as ``(t/D) × diameter``, clamped to ``[clamp_min, clamp_max]``."""
+    t_over_d = float(rng.uniform(t_over_d_min, t_over_d_max))
+    wall = t_over_d * diameter
+    return float(max(clamp_min, min(clamp_max, wall)))
+
+
+def sample_component_geometry(
+    asset_class_key: str,
+    class_config: Mapping[str, Any],
+    conditional_rules: Mapping[str, Any],
+    rng: np.random.Generator,
+) -> tuple[float, float]:
+    """
+    Draw ``(component_diameter, furnished_thickness)`` for one asset class.
+
+    PIPE uses the weighted NPS catalog; other classes use triangular diameter
+    with coupled or fixed wall thickness per ``geometry_sampling`` in class config.
+    """
+    if asset_class_key == "PIPE":
+        pipe_nps = geometry_standards_pipe_nps(conditional_rules)
+        od_mm, wall_mm = sample_nps_catalog_geometry(rng, pipe_nps)
+        return round(od_mm, 1), round(wall_mm, 2)
+
+    geometry_sampling = class_config.get("geometry_sampling")
+    if not isinstance(geometry_sampling, dict):
+        raise ValueError(f"{asset_class_key!r}: missing geometry_sampling in asset_class_config")
+
+    diameter_limits = class_config["component_diameter"]
+    wall_limits = class_config["furnished_thickness"]
+    wall_min_env = float(wall_limits["min"])
+    wall_max_env = float(wall_limits["max"])
+    diameter = sample_triangular_diameter(
+        rng,
+        float(diameter_limits["min"]),
+        float(diameter_limits["mode"]),
+        float(diameter_limits["max"]),
+    )
+
+    method = geometry_sampling.get("method")
+    wall_cfg = geometry_sampling["wall"]
+    if method == "triangular_fixed_wall":
+        fixed_min = max(float(wall_cfg["min"]), wall_min_env)
+        fixed_max = min(float(wall_cfg["max"]), wall_max_env)
+        wall = float(rng.uniform(fixed_min, fixed_max))
+    elif method == "triangular_coupled_wall":
+        clamp_min = max(float(wall_cfg["clamp_min"]), wall_min_env)
+        clamp_max = min(float(wall_cfg["clamp_max"]), wall_max_env)
+        wall = sample_coupled_wall_thickness(
+            rng,
+            diameter,
+            float(wall_cfg["t_over_d_min"]),
+            float(wall_cfg["t_over_d_max"]),
+            clamp_min,
+            clamp_max,
+        )
+    else:
+        raise ValueError(
+            f"{asset_class_key!r}: unknown geometry_sampling.method {method!r}"
+        )
+
+    return round(diameter, 1), round(wall, 2)
+
+
 # --- calendar / reference timeline -------------------------------------------
 
 

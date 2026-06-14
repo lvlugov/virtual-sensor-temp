@@ -199,7 +199,7 @@ Every Tier 2 value is tagged `[ENGINEERING_JUDGEMENT]` in `conditional_rules.yam
 | `R-SWEAT-W-01` | `sweating_asset` | Sweating likelihood by operating temperature |
 | `R-METAL-W-01` | `metallurgy_family` | CS dominant; more SS in severe exposure |
 
-Geometry (not loaded by generator yet): `R-PIPE-NPS-01` — see `conditional_rules.yaml` → `geometry_standards`.
+Geometry: `R-PIPE-NPS-01` — see `conditional_rules.yaml` → `geometry_standards` and [component geometry sizing](component_geometry_sizing.md).
 
 ### What was deliberately excluded
 
@@ -292,7 +292,7 @@ Run from the **repository root**, with a path to the CSV (example synthetic outp
 
 2. **`tracing_active`**: Not generated — pending data dictionary definition.
 
-3. **Asset class diameter distributions**: Currently drawn uniformly within `[min, max]` from `asset_class_config.yaml`. Real diameter distributions are not uniform (piping clusters around standard nominal bore sizes: DN50, DN100, DN150, DN200, DN300, DN600). A discrete or log-normal distribution over standard sizes would be more realistic.
+3. **Asset class diameter distributions**: Implemented per [component geometry sizing](component_geometry_sizing.md) — NPS catalog for PIPE (`R-PIPE-NPS-01`), triangular diameter plus coupled wall for other classes.
 
 4. **Correlated operating temperature and asset class**: No explicit conditioning of operating_temperature on asset_class. In practice, REACTORs and COLUMNs tend to run hotter than STORAGE_TANKs. This could be added as a Tier 2 rule.
 

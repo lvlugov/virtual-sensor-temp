@@ -89,4 +89,6 @@ If the same table or section appears on several rows, verify it once and reuse t
 | ISO 9223 | Categories C1–C5 | 14, 35 | | | `pending` |
 | HOIS | Survey reports | 11, 41 | | | `pending` |
 | ASME B36.10M | Pipe dimensions | 12 | | | `pending` |
+| ASME VIII | Pressure vessel shell t/D practice (non-pipe geometry) | P-23 | | | `pending` |
+| API 650 | Storage tank thin-shell t/D practice (non-pipe geometry) | P-23 | | | `pending` |
 | Data dictionary | Product field definitions | 1, 2, 10 | | | `pending` |
