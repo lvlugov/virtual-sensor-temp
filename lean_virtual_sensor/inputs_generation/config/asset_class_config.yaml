@@ -25,10 +25,10 @@
 # =============================================================================
 
 PIPE:
-  # ISO 14224:2016 Table A.43 — pipe OD range for CUI scope (DN25 to DN1200)
+  # Data dictionary: 33.4 – 610 mm (pipe NPS)
   component_diameter:
-    min: 25.0
-    max: 1200.0
+    min: 33.4
+    max: 610.0
   # API 574 / ASME B36.10 schedule wall thicknesses
   furnished_thickness:
     min: 3.0
@@ -62,10 +62,10 @@ PIPE:
 
 
 PRESSURE_VESSEL:
-  # ISO 14224:2016 Table A.43 — vessel OD range
+  # Data dictionary: 500 – 4,000 mm
   component_diameter:
-    min: 300.0
-    max: 3000.0
+    min: 500.0
+    max: 4000.0
   # Vessel wall thicknesses per ASME VIII and typical O&G designs
   furnished_thickness:
     min: 6.0
@@ -75,14 +75,15 @@ PRESSURE_VESSEL:
     max: 150
   geometry_class_allowed:
     - CYLINDRICAL_SHELL
+    - SPHERICAL_SHELL
     - HEMISPHERICAL_HEAD
     - ELLIPTICAL_HEAD
     - TORISPHERICAL_HEAD
     - NOZZLE
-  # Cylindrical shell dominates vessel body; heads and nozzles present but less
   # [ENGINEERING_JUDGEMENT]
   geometry_class_weights:
-    CYLINDRICAL_SHELL: 0.55
+    CYLINDRICAL_SHELL: 0.52
+    SPHERICAL_SHELL: 0.03
     HEMISPHERICAL_HEAD: 0.05
     ELLIPTICAL_HEAD: 0.15
     TORISPHERICAL_HEAD: 0.15
@@ -138,11 +139,10 @@ HEAT_EXCHANGER:
 
 
 AIR_COOLER:
-  # Fin-fan header box OD (tube bundles, smaller pipe diameters)
-  # API 583 treats air coolers as separate class from heat exchangers
+  # Data dictionary: 100 – 500 mm
   component_diameter:
-    min: 25.0
-    max: 200.0
+    min: 100.0
+    max: 500.0
   furnished_thickness:
     min: 3.0
     max: 15.0
@@ -171,11 +171,10 @@ AIR_COOLER:
 
 
 STORAGE_TANK:
-  # API 650 atmospheric storage tanks — large OD range
-  # Data dictionary: 600–50,000 mm for vessels/storage tanks
+  # Data dictionary: 3,000 – 40,000 mm
   component_diameter:
-    min: 1000.0
-    max: 30000.0
+    min: 3000.0
+    max: 40000.0
   # API 650 minimum shell thickness rules; no upper bound specified beyond 50mm
   furnished_thickness:
     min: 6.0
@@ -209,9 +208,9 @@ STORAGE_TANK:
 
 
 COLUMN:
-  # Distillation and absorber columns — tall vessels
+  # Data dictionary: 800 – 5,000 mm
   component_diameter:
-    min: 300.0
+    min: 800.0
     max: 5000.0
   furnished_thickness:
     min: 8.0
@@ -247,11 +246,10 @@ COLUMN:
 
 
 REACTOR:
-  # Hydroprocessing / catalytic reactors — thick walled
-  # Data dictionary: 300–3,000 mm
+  # Data dictionary: 1,000 – 4,000 mm
   component_diameter:
-    min: 300.0
-    max: 3000.0
+    min: 1000.0
+    max: 4000.0
   # Thick walls due to high pressure and hydrogen service — up to 100 mm+
   # Data dictionary explicitly states reactors up to 100 mm
   furnished_thickness:
@@ -284,36 +282,3 @@ REACTOR:
     MODERATE: 0.30
     COMPLEX: 0.65
 
-
-OTHER:
-  # Catch-all for miscellaneous insulated equipment
-  component_diameter:
-    min: 25.0
-    max: 3000.0
-  furnished_thickness:
-    min: 3.0
-    max: 100.0
-  insulation_thickness:
-    min: 20
-    max: 200
-  geometry_class_allowed:
-    - STRAIGHT_RUN
-    - CYLINDRICAL_SHELL
-    - ELLIPTICAL_HEAD
-    - TORISPHERICAL_HEAD
-    - NOZZLE
-  # [ENGINEERING_JUDGEMENT] — uniform-ish distribution for catch-all class
-  geometry_class_weights:
-    STRAIGHT_RUN: 0.25
-    CYLINDRICAL_SHELL: 0.35
-    ELLIPTICAL_HEAD: 0.15
-    TORISPHERICAL_HEAD: 0.10
-    NOZZLE: 0.15
-  orientation_weights:
-    HORIZONTAL: 0.50
-    VERTICAL: 0.40
-    ANGLED: 0.10
-  geometry_complexity_weights:
-    SIMPLE: 0.25
-    MODERATE: 0.50
-    COMPLEX: 0.25

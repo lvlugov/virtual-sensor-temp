@@ -109,8 +109,9 @@ conditional_weights:
           MINERAL_WOOL: 0.30
           FIBERGLASS: 0.10
           CALCIUM_SILICATE: 0.10
-          PEARLITE: 0.05
-          UNKNOWN: 0.05
+          PERLITE: 0.05
+          UNKNOWN: 0.04
+          ASBESTOS: 0.01
         note: "[ENGINEERING_JUDGEMENT] FOAMGLASS upweighted in MARINE — closed-cell preferred for wet environments"
 
       - condition:
@@ -119,9 +120,10 @@ conditional_weights:
           FOAMGLASS: 0.15
           MINERAL_WOOL: 0.35
           FIBERGLASS: 0.15
-          CALCIUM_SILICATE: 0.25
-          PEARLITE: 0.05
-          UNKNOWN: 0.05
+          CALCIUM_SILICATE: 0.24
+          PERLITE: 0.05
+          UNKNOWN: 0.04
+          ASBESTOS: 0.01
         note: "[ENGINEERING_JUDGEMENT] CaSi more common where drying concern less acute"
 
       - condition:
@@ -130,9 +132,10 @@ conditional_weights:
           FOAMGLASS: 0.30
           MINERAL_WOOL: 0.35
           FIBERGLASS: 0.15
-          CALCIUM_SILICATE: 0.10
-          PEARLITE: 0.05
-          UNKNOWN: 0.05
+          CALCIUM_SILICATE: 0.09
+          PERLITE: 0.05
+          UNKNOWN: 0.04
+          ASBESTOS: 0.01
         note: "[ENGINEERING_JUDGEMENT]"
 
       # Default (TEMPERATE or no condition match)
@@ -141,20 +144,20 @@ conditional_weights:
           FOAMGLASS: 0.25
           MINERAL_WOOL: 0.40
           FIBERGLASS: 0.15
-          CALCIUM_SILICATE: 0.12
-          PEARLITE: 0.04
-          UNKNOWN: 0.04
+          CALCIUM_SILICATE: 0.11
+          PERLITE: 0.04
+          UNKNOWN: 0.03
+          ASBESTOS: 0.01
         note: "[ENGINEERING_JUDGEMENT] MINERAL_WOOL most widely used general-purpose material"
 
   coating_system:
     id: R-COAT-W-01
     description: >
       Coating system type. Tier 2 weights draw TSA, IOZ, EPOXY_HT_MULTI,
-      EPOXY_HT_SINGLE, BARE, UNKNOWN. Generation-time rewrite of old organic
-      epoxy to EPOXY_AGED is implemented in Python (product semantics deferred;
-      see docs/downstream_product_semantics.md R-COAT-DEFER-01). Selection is
-      influenced by asset age and exposure zone. BARE more common on older assets
-      where coating has failed or was never applied.
+      EPOXY_HT_SINGLE, BARE, UNKNOWN. Coating age degradation is applied
+      downstream in the CUI model — stored metadata is not rewritten at
+      generation time (see docs/downstream_product_semantics.md). Selection is
+      influenced by years since commissioning and exposure zone.
     source: >
       API 583 Table 4.4 m_coat values [CITATION_TBC]; API 581 coating modifier [CITATION_TBC];
       [ENGINEERING_JUDGEMENT] for specific weight values.
@@ -181,7 +184,7 @@ conditional_weights:
           EPOXY_HT_SINGLE: 0.05
           BARE: 0.65
           UNKNOWN: 0.05
-        note: "[ENGINEERING_JUDGEMENT] Old MARINE assets — BARE or aged epoxy (may become EPOXY_AGED at generation; see R-COAT-DEFER-01)"
+        note: "[ENGINEERING_JUDGEMENT] Old MARINE assets — BARE or aged epoxy retained as EPOXY_HT_* in metadata"
 
       - condition:
           asset_age_lte: 10
@@ -203,7 +206,7 @@ conditional_weights:
           EPOXY_HT_SINGLE: 0.07
           BARE: 0.70
           UNKNOWN: 0.05
-        note: "[ENGINEERING_JUDGEMENT] Older assets — BARE or aged epoxy retained as EPOXY_HT_* downstream (see R-COAT-DEFER-01)"
+        note: "[ENGINEERING_JUDGEMENT] Older assets — BARE or aged epoxy retained as EPOXY_HT_* in metadata"
 
       # Default
       - condition: {}
@@ -220,8 +223,8 @@ conditional_weights:
     id: R-INSCOND-W-01
     description: >
       Insulation condition degrades with age and exposure severity. Newer
-      insulation more likely GOOD; older insulation in aggressive environments
-      more likely POOR. Physically consistent with API 583 age bands.
+      insulation more likely ABOVE_AVERAGE; older insulation in aggressive environments
+      more likely BELOW_AVERAGE. Physically consistent with API 583 age bands.
     source: >
       API 583 Section 5.3 [CITATION_TBC]; API 581 insulation age modifier [CITATION_TBC];
       [ENGINEERING_JUDGEMENT] for specific weight values.
@@ -229,43 +232,43 @@ conditional_weights:
       - condition:
           insulation_age_years_lte: 5
         weights:
-          GOOD: 0.65
+          ABOVE_AVERAGE: 0.65
           AVERAGE: 0.30
-          POOR: 0.05
+          BELOW_AVERAGE: 0.05
         note: "[ENGINEERING_JUDGEMENT] New insulation predominantly good condition"
 
       - condition:
           insulation_age_years_gt: 15
           exposure_zone: MARINE
         weights:
-          GOOD: 0.10
+          ABOVE_AVERAGE: 0.10
           AVERAGE: 0.35
-          POOR: 0.55
+          BELOW_AVERAGE: 0.55
         note: "[ENGINEERING_JUDGEMENT] Old insulation in marine environment likely degraded"
 
       - condition:
           insulation_age_years_gt: 15
         weights:
-          GOOD: 0.15
+          ABOVE_AVERAGE: 0.15
           AVERAGE: 0.45
-          POOR: 0.40
+          BELOW_AVERAGE: 0.40
         note: "[ENGINEERING_JUDGEMENT]"
 
       - condition:
           insulation_age_years_gt: 5
           insulation_age_years_lte: 15
         weights:
-          GOOD: 0.35
+          ABOVE_AVERAGE: 0.35
           AVERAGE: 0.50
-          POOR: 0.15
+          BELOW_AVERAGE: 0.15
         note: "[ENGINEERING_JUDGEMENT]"
 
       # Default
       - condition: {}
         weights:
-          GOOD: 0.30
+          ABOVE_AVERAGE: 0.30
           AVERAGE: 0.50
-          POOR: 0.20
+          BELOW_AVERAGE: 0.20
         note: "[ENGINEERING_JUDGEMENT]"
 
   cladding_integrity:
@@ -281,25 +284,25 @@ conditional_weights:
       - condition:
           asset_age_lte: 10
         weights:
-          GOOD: 0.60
+          ABOVE_AVERAGE: 0.60
           AVERAGE: 0.35
-          POOR: 0.05
+          BELOW_AVERAGE: 0.05
         note: "[ENGINEERING_JUDGEMENT]"
 
       - condition:
           asset_age_gt: 20
         weights:
-          GOOD: 0.15
+          ABOVE_AVERAGE: 0.15
           AVERAGE: 0.45
-          POOR: 0.40
+          BELOW_AVERAGE: 0.40
         note: "[ENGINEERING_JUDGEMENT]"
 
       # Default
       - condition: {}
         weights:
-          GOOD: 0.30
+          ABOVE_AVERAGE: 0.30
           AVERAGE: 0.50
-          POOR: 0.20
+          BELOW_AVERAGE: 0.20
         note: "[ENGINEERING_JUDGEMENT]"
 
   tracing_system:
@@ -379,8 +382,8 @@ conditional_weights:
   metallurgy_family:
     id: R-METAL-W-01
     description: >
-      Allowed values: CARBON_STEEL, LOW_ALLOY_STEEL, AUSTENITIC_SS, DUPLEX_SS
-      (not NICKEL_ALLOY or OTHER). Carbon steel dominates O&G insulated equipment;
+      Allowed values: CARBON_STEEL, LOW_ALLOY_STEEL, AUSTENITIC_SS, DUPLEX_SS.
+      Carbon steel dominates O&G insulated equipment;
       stainless steels used for corrosive or elevated-temperature service.
     source: >
       ISO 14224:2016 Table A.41 [CITATION_TBC]; HOIS industry survey data (CS dominant) [CITATION_TBC];

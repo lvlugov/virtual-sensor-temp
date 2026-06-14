@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from generation_helpers import parse_commissioning_timestamp
 from layer_generators import (
     generate_anchors,
     generate_dates,
@@ -52,11 +53,11 @@ def test_dates_respect_commissioning_and_reference(cfg):
     reference = pd.Timestamp(cfg.generation["run"]["reference_date"]).normalize()
 
     for _, row in dataframe.iterrows():
-        commissioning = reference - pd.DateOffset(years=int(row["asset_age"]))
+        commissioning = parse_commissioning_timestamp(row["asset_commissioning_date"])
         for column in (
             "insulation_install_date",
             "coating_application_date",
-            "inspection_record_dates",
+            "latest_inspection_date",
         ):
             event = pd.Timestamp(str(row[column])).normalize()
             assert event <= reference

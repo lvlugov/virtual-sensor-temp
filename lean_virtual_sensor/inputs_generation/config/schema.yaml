@@ -2,7 +2,9 @@
 # schema.yaml
 # Master variable registry for the CUI lean virtual sensor synthetic dataset.
 #
-# This file is the single source of truth for variable definitions.
+# Variable definitions align with the product data dictionary (source of truth):
+#   data_dictionary_lean_virtual_sensor_2026-06-14.csv
+#
 # Both inputs_generation (e.g. pipeline.py) and the test suite (tests/)
 # read from this file. Change a rule here and it propagates to both.
 #
@@ -22,14 +24,12 @@
 #
 # Excluded variables (see bottom of file):
 #   T_ambient(t), T_process(t), RH(t), rainfall(t)  → time-series, separate module
-#   Risk                                              → output label, assigned separately
+#   Risk                                            → output label, assigned separately
 # =============================================================================
 
 variables:
 
   # ── LAYER 1: Independent anchors ──────────────────────────────────────────
-  # These variables have no dependencies on other generated variables.
-  # They are drawn first and anchor all downstream generation.
 
   asset_class:
     group: Asset Identification
@@ -44,7 +44,6 @@ variables:
       - STORAGE_TANK
       - COLUMN
       - REACTOR
-      - OTHER
     notes: >
       Compressors and pumps are out of scope. AIR_COOLER (fin-fan) kept separate
       from HEAT_EXCHANGER due to different insulation patterns and CUI mechanisms.
@@ -79,8 +78,6 @@ variables:
       - LOW_ALLOY_STEEL
       - AUSTENITIC_SS
       - DUPLEX_SS
-      - NICKEL_ALLOY
-      - OTHER
     default: CARBON_STEEL
     notes: >
       Default to CARBON_STEEL if unknown (conservative). CS active envelope: -4 to 175°C.
@@ -88,26 +85,24 @@ variables:
       rate pathway.
     standards: "ISO 14224:2016 Table A.41; API 581; API 583 Table 4.1; NACE SP0198-2010"
 
-  asset_age:
+  asset_commissioning_date:
     group: Asset Identification
-    type: int
+    type: date
     layer: 1
     nullable: false
-    range: [0, 80]
-    decimals: 0
-    default: 20
+    format: "YYYY-MM-DD"
     constraints:
-      - "asset_age >= insulation_age_years"
-      - "asset_age >= coating_age_years"
+      - "asset_commissioning_date <= reference_date"
+      - "insulation_install_date >= asset_commissioning_date"
+      - "coating_application_date >= asset_commissioning_date"
     notes: >
-      Age in years from initial commissioning to current date. Must be >= insulation
-      age and coating age. Conservative default of 20 years if unknown.
-    standards: "API 581 (age modifier m_age); API 583 Section 5.2"
+      Date when the asset was commissioned. All component dates must be on or after
+      this date. Synthetic rows draw commissioning uniformly over the prior 80 years.
+    standards: "API 581 (asset age drives susceptibility modifier m_age); API 583 Section 5.2"
 
   # ── LAYER 2: Depend on asset_class ────────────────────────────────────────
-  # Per-class allowed values and probability weights defined in asset_class_config.yaml.
 
-  geometry_class:
+  most_prevalent_geometry_class:
     group: Geometry
     type: categorical
     layer: 2
@@ -144,7 +139,7 @@ variables:
       SIMPLE: smooth surface, minimal attachments. MODERATE: typical industrial,
       some supports, standard flanges. COMPLEX: multiple welded supports, vacuum
       rings, insulation support rings, many branch connections. Acts as overlay
-      modifier on geometry_class.
+      modifier on most_prevalent_geometry_class.
     standards: "API 583 Section 5.4"
 
   orientation:
@@ -224,8 +219,8 @@ variables:
       - "Range depends on asset_class — see asset_class_config.yaml"
       - "furnished_thickness >= last_inspection_thickness"
     notes: >
-      Original as-built wall thickness. Pipe/fittings: 3–50 mm. Pressure vessels
-      and reactors: up to 100 mm. Never changes — fixed design reference baseline.
+      Original as-built wall thickness. Global range 3–120 mm per data dictionary.
+      Never changes — fixed design reference baseline.
     standards: "ISO 14224:2016 Table A.43; API 581 DF calculation"
 
   insulation_material:
@@ -238,15 +233,15 @@ variables:
       - MINERAL_WOOL
       - FIBERGLASS
       - CALCIUM_SILICATE
-      - PEARLITE
+      - PERLITE
+      - ASBESTOS
       - UNKNOWN
     default: UNKNOWN
     notes: >
-      ASBESTOS excluded from synthetic generation (legacy material flagged for
-      abatement; should not appear in new records). UNKNOWN → MINERAL_WOOL
-      coefficients (most conservative of common types). FOAMGLASS: lowest CUI risk
-      (alpha=0.20). CALCIUM_SILICATE: highest risk (alpha=0.95, also concentrates
-      chlorides).
+      ASBESTOS retained for legacy records; very low prevalence in synthetic data.
+      UNKNOWN → MINERAL_WOOL coefficients (most conservative of common types).
+      FOAMGLASS: lowest CUI risk (alpha=0.20). CALCIUM_SILICATE: highest risk
+      (alpha=0.95, also concentrates chlorides).
     standards: "API 583 Table 4.3; NACE SP0198-2010 Table 1"
 
   insulation_thickness:
@@ -263,8 +258,6 @@ variables:
     standards: "API 583; NACE SP0198-2010"
 
   # ── LAYER 4: Date / age chain ──────────────────────────────────────────────
-  # All dates bounded by: (today - asset_age years) <= date <= today.
-  # Reference date for generation defined in generation_config.yaml.
 
   insulation_install_date:
     group: Insulation
@@ -274,8 +267,8 @@ variables:
     format: "YYYY-MM-DD"
     constraints:
       - "insulation_install_date <= reference_date"
-      - "insulation_install_date >= (reference_date - asset_age years)"
-      - "insulation_install_date <= inspection_record_dates"
+      - "insulation_install_date >= asset_commissioning_date"
+      - "insulation_install_date <= latest_inspection_date"
     notes: >
       Date of most recent full insulation installation or replacement. Drives
       insulation_age_years. For CUI, the oldest section is most relevant — partial
@@ -290,11 +283,11 @@ variables:
     format: "YYYY-MM-DD"
     constraints:
       - "coating_application_date <= reference_date"
-      - "coating_application_date >= (reference_date - asset_age years)"
+      - "coating_application_date >= asset_commissioning_date"
     notes: >
-      Date under-insulation coating was applied. Drives coating_age_years and
-      auto-downgrade rule. Organic coatings > 10 yr treated as degraded regardless
-      of original specification.
+      Date under-insulation coating was applied. Drives coating_age_years.
+      Degraded susceptibility for old organic epoxy is applied downstream in the
+      CUI model, not by rewriting stored coating_system metadata.
     standards: "API 583; API 581 m_coat derivation"
 
   coating_system:
@@ -307,37 +300,43 @@ variables:
       - IOZ
       - EPOXY_HT_MULTI
       - EPOXY_HT_SINGLE
-      - EPOXY_AGED
       - BARE
       - UNKNOWN
     default: UNKNOWN
-    constraints:
-      - "If coating_age_years > 10 AND coating_system in [EPOXY_HT_MULTI, EPOXY_HT_SINGLE]: reclassify to EPOXY_AGED"
     notes: >
       m_coat range: TSA=0.4 (best, galvanic) → IOZ=0.5 → EPOXY_HT_MULTI=0.6 →
-      EPOXY_HT_SINGLE=0.9 → EPOXY_AGED=1.5 → BARE=2.5 (worst). This 6x range makes
-      coating system the single largest susceptibility modifier. UNKNOWN modelled
-      as EPOXY_AGED (m_coat=1.5). Distinguish BARE (never coated) from UNKNOWN
-      (coated but type not recorded).
+      EPOXY_HT_SINGLE=0.9 → BARE=2.5 (worst). Distinguish BARE (never coated)
+      from UNKNOWN (coated but type not recorded). Age-based degradation is a
+      downstream model rule — see docs/downstream_product_semantics.md.
     standards: "API 583 Table 4.4; NACE SP0198-2010 Section 5.5; API 581"
 
-  inspection_record_dates:
+  latest_inspection_date:
     group: Inspection & Maintenance
     type: date
     layer: 4
     nullable: false
     format: "YYYY-MM-DD"
     constraints:
-      - "inspection_record_dates <= reference_date"
-      - "inspection_record_dates >= insulation_install_date"
+      - "latest_inspection_date <= reference_date"
+      - "latest_inspection_date >= insulation_install_date"
     notes: >
-      Most recent inspection date. Full date list stored in real data; synthetic
-      dataset uses the single most-recent date. Drives time_since_last_inspection
-      and evidence composite decay function.
+      Most recent inspection date. Synthetic rows always populated (no nulls).
+      Drives time_since_last_inspection and evidence composite decay function.
     standards: "ISO 14224:2016 Table 5; API 581 DF_insp; API 583"
 
+  inspection_ever_done:
+    group: Inspection & Maintenance
+    type: bool
+    layer: 4
+    nullable: false
+    default: true
+    notes: >
+      Whether an inspection has ever been conducted. Synthetic rows always true
+      (inspection date and thickness populated). Real data may be false with null
+      latest_inspection_date and last_inspection_thickness.
+    standards: "ISO 14224:2016 Table 5"
+
   # ── LAYER 5: Temperature triplet + process operating parameters ───────────
-  # operating_temperature generated first; min and max then bounded relative to it.
 
   operating_temperature:
     group: Process Conditions
@@ -365,7 +364,6 @@ variables:
     notes: >
       Lower bound of thermal cycling range. Assets where min < -4°C AND max > 0°C
       cycle through active CUI envelope on every shutdown — highest risk scenario.
-      Generated as: operating_temperature minus a positive offset.
     standards: "API 583; NACE SP0198-2010 cycling grade thresholds"
 
   max_operating_temperature:
@@ -378,8 +376,7 @@ variables:
       - "max_operating_temperature >= operating_temperature"
     notes: >
       Upper bound of thermal cycling. Assets where max > 175°C spend part of each
-      cycle above active CUI range. Generated as: operating_temperature plus a
-      positive offset.
+      cycle above active CUI range.
     standards: "API 583; API 581; NACE SP0198-2010"
 
   avg_cycles_per_quarter:
@@ -392,9 +389,8 @@ variables:
     default: 0
     notes: >
       Average shutdown/startup thermal cycles per 90-day period. Static fallback
-      when T_process(t) unavailable. Values > 90 imply > 1 cycle/day — verify for
-      batch processes. Feeds cycling grade: Steady (<20/qtr) | Routine (20–100) |
-      Heavy (>100).
+      when T_process(t) unavailable. Values > 100 imply more than one cycle per day.
+      Feeds cycling grade: Steady (<20/qtr) | Routine (20–100) | Heavy (>100).
     standards: "API 583 Section 5.5; NACE SP0198-2010"
 
   operation_vs_shutdown_fraction:
@@ -408,22 +404,20 @@ variables:
     notes: >
       Fraction of time asset is in active operation. 0.0 = permanently shut down
       (flag for review). Values < 0.2 indicate intermittent or swing service.
-      Static fallback when T_process(t) unavailable.
     standards: "API 581; ISO 9223; API 583"
 
   sweating_asset:
-    group: Process Conditions
+    group: Environment & Exposure
     type: bool
     layer: 5
     nullable: false
     default: false
     notes: >
-      External surface sweating / condensation under insulation (moisture source
-      for CUI). Drawn after operating_temperature is known.
-    standards: "Data dictionary [CITATION_TBC]"
+      Metal surface temperature drops below local dew point, allowing atmospheric
+      moisture to condense on the steel surface (moisture source for CUI).
+    standards: "Data dictionary"
 
   # ── LAYER 6: Conditional flags ─────────────────────────────────────────────
-  # Generated after exposure_zone, insulation_material, and dates are known.
 
   insulation_chloride_flag:
     group: Insulation
@@ -435,9 +429,7 @@ variables:
       - "MUST be TRUE if: exposure_zone=MARINE AND insulation_material=CALCIUM_SILICATE AND insulation_age_years > 5"
     notes: >
       Known or suspected chloride contamination of insulation. Once confirmed TRUE,
-      must not be reset without full insulation replacement and verification. Adds
-      +0.8 to Cl_index and applies delta_Cl=0.5 severity multiplier to every
-      wet-dry cycle in DAI.
+      must not be reset without full insulation replacement and verification.
     standards: "NACE SP0198-2010 Section 5.4; API 583 Table 4.2"
 
   insulation_condition:
@@ -446,32 +438,30 @@ variables:
     layer: 6
     nullable: false
     allowed_values:
-      - GOOD
+      - BELOW_AVERAGE
       - AVERAGE
-      - POOR
+      - ABOVE_AVERAGE
     default: AVERAGE
     notes: >
-      GOOD → closed-system damage curve f_closed (active to 175°C).
-      AVERAGE or POOR → open-system curve f_open (peaks at 80°C, drops to zero
-      at 121°C). One of the highest-impact decisions in the model. Use worst
-      observed section (conservative).
+      ABOVE_AVERAGE → closed-system damage curve f_closed (active to 175°C).
+      AVERAGE or BELOW_AVERAGE → open-system curve f_open (peaks at 80°C, drops
+      to zero at 121°C). One of the highest-impact decisions in the model.
     standards: "NACE SP0198-2010; API 583 Section 5.3; API 581"
 
   cladding_integrity:
-    group: Coating
+    group: Insulation
     type: categorical
     layer: 6
     nullable: false
     allowed_values:
-      - GOOD
+      - BELOW_AVERAGE
       - AVERAGE
-      - POOR
+      - ABOVE_AVERAGE
     default: AVERAGE
     notes: >
       Physical condition of external metal cladding. Independent of
-      insulation_condition — good insulation under poor cladding is still high
-      risk. POOR cladding → open-system behaviour regardless of insulation
-      condition. Assess separately.
+      insulation_condition. BELOW_AVERAGE cladding → open-system behaviour
+      regardless of insulation condition. Assess separately.
     standards: "API 583 Section 5.3; NACE SP0198-2010"
 
   # ── LAYER 7: Final variables ───────────────────────────────────────────────
@@ -486,11 +476,8 @@ variables:
       - "last_inspection_thickness <= furnished_thickness"
       - "last_inspection_thickness >= 1.0"
     notes: >
-      Wall thickness at most recent UT survey. If > furnished_thickness: data
-      quality error — reject record. Drives wall_loss and UT thinning rate.
-      Fully populated in synthetic dataset (no nulls) for ML training quality.
-      NOTE: in the real dataset, nulls here are a meaningful risk signal and
-      must NOT be imputed — handle as Evid_UT=0 in the model.
+      Wall thickness at most recent UT survey. Synthetic rows always populated.
+      Real data nulls are meaningful (Evid_UT=0) — do not impute.
     standards: "ISO 14224:2016 Table 5; API 581 UT trend slope"
 
   washdown_records:
@@ -504,14 +491,11 @@ variables:
     notes: >
       Count of washdown or hydroblast events in rolling 90-day window. Flag if
       > 20 per 90 days. 0 = none recorded (not confirmed zero events occurred).
-      Each event is a discrete moisture ingress contribution to S2 sub-score.
     standards: "API 583 Section 5.2"
 
 
 # =============================================================================
 # EXCLUDED VARIABLES
-# These fields are defined in the data dictionary but deliberately excluded
-# from synthetic generation. Reasons documented below.
 # =============================================================================
 
 excluded_variables:
@@ -549,6 +533,11 @@ excluded_variables:
   - name: "Asset"
     type: string
     reason: >
-      Asset identifier / tag number. Generated as a sequential synthetic ID
-      (e.g. SYNTH-0001) directly in pipeline.py, not via schema-driven
-      generation.
+      Synthetic asset tag (e.g. SYNTH-0001). Generated in pipeline.py for ML
+      row identity; not a data dictionary variable.
+
+  - name: "tracing_active"
+    type: bool
+    reason: >
+      Companion to tracing_system — pending data dictionary definition.
+      See local_reference/clarify_with_Angel.md.

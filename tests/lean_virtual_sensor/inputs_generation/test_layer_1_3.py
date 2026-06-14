@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from layer_generators import generate_anchors, generate_geometry, generate_wall_insulation
@@ -48,15 +49,18 @@ def test_anchors_match_configured_class_counts(cfg):
         )
 
 
-def test_anchors_respect_schema_categoricals_and_asset_age(cfg):
+def test_anchors_respect_schema_categoricals_and_commissioning_date(cfg):
     variables = cfg.schema["variables"]
     exposure_allowed = set(variables["exposure_zone"]["allowed_values"])
     metallurgy_allowed = set(variables["metallurgy_family"]["allowed_values"])
     dataframe = _run_first_three_dag_layers(cfg)
     assert set(dataframe["exposure_zone"].unique()).issubset(exposure_allowed)
     assert set(dataframe["metallurgy_family"].unique()).issubset(metallurgy_allowed)
-    age_low, age_high = variables["asset_age"]["range"]
-    assert dataframe["asset_age"].between(int(age_low), int(age_high)).all()
+    ref = pd.Timestamp(str(cfg.generation["run"]["reference_date"])).normalize()
+    commissioning = pd.to_datetime(dataframe["asset_commissioning_date"])
+    assert (commissioning <= ref).all()
+    earliest = ref - pd.DateOffset(years=80)
+    assert (commissioning >= earliest).all()
 
 
 def test_geometry_columns_respect_asset_class_tables(cfg):
@@ -66,7 +70,7 @@ def test_geometry_columns_respect_asset_class_tables(cfg):
         asset_class_key = row["asset_class"]
         class_entry = asset_class_config[asset_class_key]
         allowed_geometry = set(class_entry["geometry_class_allowed"])
-        assert row["geometry_class"] in allowed_geometry
+        assert row["most_prevalent_geometry_class"] in allowed_geometry
         assert row["geometry_complexity"] in class_entry["geometry_complexity_weights"]
         assert row["orientation"] in class_entry["orientation_weights"]
 

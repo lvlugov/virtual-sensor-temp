@@ -255,14 +255,16 @@ def _evaluate_predicate(
         return row_context.get("insulation_material") == predicate_value
 
     if predicate_key == "asset_age_lte":
-        if "asset_age" not in row_context:
+        age_years = _asset_age_years_from_context(row_context)
+        if age_years is None:
             return False
-        return int(row_context["asset_age"]) <= int(predicate_value)
+        return age_years <= float(predicate_value)
 
     if predicate_key == "asset_age_gt":
-        if "asset_age" not in row_context:
+        age_years = _asset_age_years_from_context(row_context)
+        if age_years is None:
             return False
-        return int(row_context["asset_age"]) > int(predicate_value)
+        return age_years > float(predicate_value)
 
     if predicate_key == "operating_temperature_lt":
         if "operating_temperature" not in row_context:
@@ -301,6 +303,17 @@ def _evaluate_predicate(
     return False
 
 
+def _asset_age_years_from_context(row_context: Mapping[str, Any]) -> float | None:
+    """Years from commissioning to reference, for coating/cladding rule predicates."""
+    if "asset_age_years" in row_context:
+        return float(row_context["asset_age_years"])
+    if "asset_commissioning_date" in row_context and "reference_date" in row_context:
+        commissioning = pd.Timestamp(str(row_context["asset_commissioning_date"])).normalize()
+        reference = pd.Timestamp(str(row_context["reference_date"])).normalize()
+        return years_between_timestamps(commissioning, reference)
+    return None
+
+
 # --- calendar / reference timeline -------------------------------------------
 
 
@@ -316,8 +329,21 @@ def commissioning_timestamp(
     reference: pd.Timestamp,
     asset_age_years: int,
 ) -> pd.Timestamp:
-    """Nominal commissioning date: ``reference_date`` minus ``asset_age`` whole years."""
+    """Nominal commissioning date: ``reference_date`` minus ``asset_age_years`` whole years."""
     return (reference - pd.DateOffset(years=int(asset_age_years))).normalize()
+
+
+def parse_commissioning_timestamp(commissioning_date: str | pd.Timestamp) -> pd.Timestamp:
+    """Parse ``asset_commissioning_date`` to a normalised timestamp."""
+    return pd.Timestamp(str(commissioning_date)).normalize()
+
+
+def asset_age_years_at_reference(
+    reference: pd.Timestamp,
+    commissioning: pd.Timestamp,
+) -> float:
+    """Whole-life years from commissioning to reference (for rule predicates)."""
+    return years_between_timestamps(commissioning.normalize(), reference.normalize())
 
 
 def years_between_timestamps(

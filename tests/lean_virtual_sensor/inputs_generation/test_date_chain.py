@@ -9,7 +9,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from generation_helpers import commissioning_timestamp, years_between_timestamps
+from generation_helpers import parse_commissioning_timestamp, years_between_timestamps
 
 
 def _reference_ts(gen_config: dict) -> pd.Timestamp:
@@ -27,12 +27,11 @@ def test_insulation_install_date_not_future(df, gen_config):
 
 
 def test_insulation_install_date_within_asset_lifetime(df, gen_config):
-    """insulation_install_date >= commissioning_date (reference − asset_age)."""
+    """insulation_install_date >= asset_commissioning_date."""
     if df is None:
         pytest.skip("No dataset provided")
-    ref = _reference_ts(gen_config)
     for _, row in df.iterrows():
-        commissioning = commissioning_timestamp(ref, int(row["asset_age"]))
+        commissioning = parse_commissioning_timestamp(row["asset_commissioning_date"])
         ins = pd.Timestamp(row["insulation_install_date"]).normalize()
         assert ins >= commissioning.normalize(), (row.get("Asset"), ins, commissioning)
 
@@ -47,46 +46,46 @@ def test_coating_application_date_not_future(df, gen_config):
 
 
 def test_coating_application_date_within_asset_lifetime(df, gen_config):
-    """coating_application_date >= commissioning_date."""
+    """coating_application_date >= asset_commissioning_date."""
     if df is None:
         pytest.skip("No dataset provided")
-    ref = _reference_ts(gen_config)
     for _, row in df.iterrows():
-        commissioning = commissioning_timestamp(ref, int(row["asset_age"]))
+        commissioning = parse_commissioning_timestamp(row["asset_commissioning_date"])
         coat = pd.Timestamp(row["coating_application_date"]).normalize()
         assert coat >= commissioning.normalize()
 
 
 def test_inspection_date_not_future(df, gen_config):
-    """inspection_record_dates <= reference_date for every row."""
+    """latest_inspection_date <= reference_date for every row."""
     if df is None:
         pytest.skip("No dataset provided")
     ref = _reference_ts(gen_config)
-    ins = pd.to_datetime(df["inspection_record_dates"])
+    ins = pd.to_datetime(df["latest_inspection_date"])
     assert (ins <= ref).all()
 
 
 def test_inspection_date_not_before_insulation_install(df):
-    """inspection_record_dates >= insulation_install_date for every row."""
+    """latest_inspection_date >= insulation_install_date for every row."""
     if df is None:
         pytest.skip("No dataset provided")
     install = pd.to_datetime(df["insulation_install_date"])
-    inspection = pd.to_datetime(df["inspection_record_dates"])
+    inspection = pd.to_datetime(df["latest_inspection_date"])
     assert (inspection >= install).all()
 
 
-def test_asset_age_covers_insulation_and_coating_ages(df, gen_config):
-    """asset_age (years) is not less than derived insulation / coating ages."""
+def test_commissioning_covers_insulation_and_coating_ages(df, gen_config):
+    """Years since commissioning cover derived insulation / coating ages."""
     if df is None:
         pytest.skip("No dataset provided")
     ref = _reference_ts(gen_config)
     for _, row in df.iterrows():
-        asset_age = int(row["asset_age"])
+        commissioning = parse_commissioning_timestamp(row["asset_commissioning_date"])
+        asset_life = years_between_timestamps(commissioning, ref)
         ins_age = years_between_timestamps(
             pd.Timestamp(row["insulation_install_date"]).normalize(), ref
         )
         coat_age = years_between_timestamps(
             pd.Timestamp(row["coating_application_date"]).normalize(), ref
         )
-        assert ins_age <= float(asset_age) + 1.0, (row.get("Asset"), ins_age, asset_age)
-        assert coat_age <= float(asset_age) + 1.0, (row.get("Asset"), coat_age, asset_age)
+        assert ins_age <= asset_life + 1.0, (row.get("Asset"), ins_age, asset_life)
+        assert coat_age <= asset_life + 1.0, (row.get("Asset"), coat_age, asset_life)

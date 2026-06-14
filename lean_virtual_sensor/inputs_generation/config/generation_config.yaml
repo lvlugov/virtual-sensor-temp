@@ -39,14 +39,13 @@ run:
 
 asset_class_proportions:
   PIPE: 380
-  PRESSURE_VESSEL: 170
-  HEAT_EXCHANGER: 140
-  COLUMN: 100
-  STORAGE_TANK: 70
-  AIR_COOLER: 65
-  REACTOR: 45
-  OTHER: 30
-  # Total: 1000
+  PRESSURE_VESSEL: 175
+  HEAT_EXCHANGER: 145
+  COLUMN: 105
+  STORAGE_TANK: 75
+  AIR_COOLER: 70
+  REACTOR: 50
+  # Total: 1000 (OTHER removed — not in data dictionary)
 
 
 # ── EXPOSURE ZONE DISTRIBUTION ────────────────────────────────────────────────
@@ -79,12 +78,10 @@ operating_temperature_ranges:
     LOW_ALLOY_STEEL:  [100, 400]   # Typically elevated temperature service
     AUSTENITIC_SS:    [50, 400]    # Corrosive / high-temp service
     DUPLEX_SS:        [0, 250]     # Moderate temperature, corrosive service
-    NICKEL_ALLOY:     [100, 500]   # Extreme temperature / severe service
-    OTHER:            [-30, 300]
 
 
 # ── DATE GENERATION PARAMETERS ────────────────────────────────────────────────
-# Controls how dates are drawn relative to asset_age and reference_date.
+# Controls how dates are drawn relative to asset_commissioning_date and reference_date.
 # All values in years unless stated.
 
 date_generation:

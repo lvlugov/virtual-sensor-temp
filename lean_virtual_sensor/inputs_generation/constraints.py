@@ -1,52 +1,7 @@
 """
-constraints.py
-==============
-Post-generation **structural** constraint enforcement.
+Post-generation structural constraint enforcement.
 
-After all seven layers have run, this module performs a final pass over the
-DataFrame to catch and correct structural violations that slipped through
-the layer generators (e.g. floating-point rounding, edge cases in date maths).
-
-Business rules (Tier 1 deterministic derivations such as R-CHLORIDE-01, and
-the interim coating rewrite in ``generate_dates`` pending R-COAT-DEFER-01) are
-applied in ``layer_generators`` / YAML — not here.
-Contract tests (``test_constraints.py``) assert those rules on the CSV.
-
-This is a DEFENSIVE pass — the layer generators are expected to produce
-compliant data. If this module has to make many corrections, that indicates
-a bug in a layer generator, not normal operation.
-
-All corrections are logged. If a correction cannot be made (e.g. a logical
-contradiction), the row is flagged and reported. Generation halts if flagged
-rows exceed MAX_FLAGGED_ROWS.
-
-Structural constraints enforced (mirrors test_constraints.py / test_date_chain):
-
-    NUMERIC ORDERING
-    ----------------
-    min_operating_temperature  <= operating_temperature
-    operating_temperature      <= max_operating_temperature
-    last_inspection_thickness  <= furnished_thickness
-    last_inspection_thickness  >= 1.0
-
-    DATE ORDERING
-    -------------
-    insulation_install_date    <= reference_date
-    insulation_install_date    >= commissioning_date  (reference_date - asset_age)
-    coating_application_date   <= reference_date
-    coating_application_date   >= commissioning_date
-    inspection_record_dates    <= reference_date
-    insulation_install_date    <= inspection_record_dates
-
-    ASSET AGE
-    ---------
-    asset_age >= insulation_age_years  (derived from insulation_install_date)
-    asset_age >= coating_age_years     (derived from coating_application_date)
-
-    RANGE CLAMPS (last resort — log if triggered)
-    -----------------------------------------------
-    All numeric fields clamped to [min, max] from schema.yaml
-    All float fields rounded to schema-specified decimal places
+See module docstring in constraints.py for enforced rules.
 """
 
 from __future__ import annotations
@@ -58,7 +13,8 @@ import numpy as np
 import pandas as pd
 
 from generation_helpers import (
-    commissioning_timestamp,
+    asset_age_years_at_reference,
+    parse_commissioning_timestamp,
     reference_timestamp,
     years_between_timestamps,
 )
@@ -66,25 +22,14 @@ from schema_loader import GeneratorConfig
 
 logger = logging.getLogger(__name__)
 
-MAX_FLAGGED_ROWS = 0  # Halt if any row cannot be corrected
+MAX_FLAGGED_ROWS = 0
 
 
 def enforce_all_constraints(
     df: pd.DataFrame,
     config: GeneratorConfig,
 ) -> tuple[pd.DataFrame, list[dict]]:
-    """Run all constraint checks and corrections on the full DataFrame.
-
-    Args:
-        df: Generated DataFrame (all layers complete).
-        config: Loaded generator config.
-
-    Returns:
-        Tuple of (corrected DataFrame, list of correction log entries).
-
-    Raises:
-        ValueError: If any row cannot be corrected (logical contradiction).
-    """
+    """Run all constraint checks and corrections on the full DataFrame."""
     corrections: list[dict] = []
     out = df.copy()
     reference_ts = reference_timestamp(config.generation)
@@ -113,7 +58,6 @@ def enforce_all_constraints(
 
 
 def _enforce_temperature_triplet(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
-    """Ensure min <= op_temp <= max. Returns (df, n_corrections)."""
     n = 0
     result = df.copy()
     for i in result.index:
@@ -134,7 +78,6 @@ def _enforce_temperature_triplet(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
 
 
 def _enforce_wall_thickness(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
-    """Ensure last_inspection_thickness <= furnished_thickness >= 1.0."""
     n = 0
     result = df.copy()
     for i in result.index:
@@ -150,16 +93,20 @@ def _enforce_wall_thickness(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
 def _enforce_date_chain(
     df: pd.DataFrame, reference_date: pd.Timestamp
 ) -> tuple[pd.DataFrame, int]:
-    """Ensure all dates within valid range relative to asset_age."""
     n = 0
     result = df.copy()
     ref_n = reference_date.normalize()
 
     for i in result.index:
-        asset_age = int(result.at[i, "asset_age"])
-        commissioning = commissioning_timestamp(ref_n, asset_age)
+        commissioning = parse_commissioning_timestamp(
+            result.at[i, "asset_commissioning_date"]
+        )
 
-        for col in ("insulation_install_date", "coating_application_date", "inspection_record_dates"):
+        for col in (
+            "insulation_install_date",
+            "coating_application_date",
+            "latest_inspection_date",
+        ):
             ts = pd.Timestamp(str(result.at[i, col])).normalize()
             if ts > ref_n:
                 n += 1
@@ -170,10 +117,14 @@ def _enforce_date_chain(
                 result.at[i, col] = commissioning.date().isoformat()
 
         ins_ts = pd.Timestamp(str(result.at[i, "insulation_install_date"])).normalize()
-        insp_ts = pd.Timestamp(str(result.at[i, "inspection_record_dates"])).normalize()
+        insp_ts = pd.Timestamp(str(result.at[i, "latest_inspection_date"])).normalize()
         if insp_ts < ins_ts:
             n += 1
-            result.at[i, "inspection_record_dates"] = ins_ts.date().isoformat()
+            result.at[i, "latest_inspection_date"] = ins_ts.date().isoformat()
+
+        if commissioning > ref_n:
+            n += 1
+            result.at[i, "asset_commissioning_date"] = ref_n.date().isoformat()
 
     return result, n
 
@@ -181,7 +132,6 @@ def _enforce_date_chain(
 def _clamp_and_round_numerics(
     df: pd.DataFrame, config: GeneratorConfig
 ) -> tuple[pd.DataFrame, int]:
-    """Clamp all numeric fields to schema range and round to schema decimals."""
     n = 0
     result = df.copy()
     variables = config.schema.get("variables")
@@ -230,7 +180,6 @@ def _collect_unrecoverable_rows(
     config: GeneratorConfig,
     reference_date: pd.Timestamp,
 ) -> list[dict[str, Any]]:
-    """Rows that still violate hard constraints after correction attempts."""
     flagged: list[dict[str, Any]] = []
     ref_n = reference_date.normalize()
     variables = config.schema.get("variables", {})
@@ -249,25 +198,29 @@ def _collect_unrecoverable_rows(
         if last > furnished or last < 1.0:
             reasons.append("last_thickness_bounds")
 
-        asset_age = int(df.at[i, "asset_age"])
-        commissioning = commissioning_timestamp(ref_n, asset_age)
+        commissioning = parse_commissioning_timestamp(
+            df.at[i, "asset_commissioning_date"]
+        )
         ins_ts = pd.Timestamp(str(df.at[i, "insulation_install_date"]))
         coat_ts = pd.Timestamp(str(df.at[i, "coating_application_date"]))
         if ins_ts < commissioning or ins_ts > ref_n:
             reasons.append("insulation_date_window")
         if coat_ts < commissioning or coat_ts > ref_n:
             reasons.append("coating_date_window")
+        if commissioning > ref_n:
+            reasons.append("commissioning_after_reference")
 
-        insp_ts = pd.Timestamp(str(df.at[i, "inspection_record_dates"]))
+        insp_ts = pd.Timestamp(str(df.at[i, "latest_inspection_date"]))
         if insp_ts.normalize() < ins_ts.normalize():
             reasons.append("inspection_before_insulation")
 
+        asset_life_years = asset_age_years_at_reference(ref_n, commissioning)
         ins_age = years_between_timestamps(ins_ts, ref_n)
         coat_age = years_between_timestamps(coat_ts, ref_n)
-        if ins_age > float(asset_age) + 1.0:
-            reasons.append("insulation_age_vs_asset_age")
-        if coat_age > float(asset_age) + 1.0:
-            reasons.append("coating_age_vs_asset_age")
+        if ins_age > asset_life_years + 1.0:
+            reasons.append("insulation_age_vs_commissioning")
+        if coat_age > asset_life_years + 1.0:
+            reasons.append("coating_age_vs_commissioning")
 
         for var_name, spec in variables.items():
             if var_name not in df.columns or not isinstance(spec, dict):

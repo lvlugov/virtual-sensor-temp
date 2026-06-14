@@ -9,7 +9,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from generation_helpers import years_between_timestamps
+from generation_helpers import parse_commissioning_timestamp, years_between_timestamps
 
 
 def _reference_ts(gen_config: dict) -> pd.Timestamp:
@@ -56,30 +56,25 @@ def test_chloride_auto_flag(df, gen_config):
         assert flagged.astype(bool).all(), "Tier-1 chloride auto-flag not satisfied"
 
 
-def test_coating_auto_downgrade(df, gen_config):
-    """Interim Option B rewrite (layer 4): no row has coating_age > 10y and undegraded epoxy.
-
-    Asserts current Python behaviour in ``generate_dates``, not SME-reviewed
-    downstream semantics for ``R-COAT-DEFER-01`` (see ``docs/downstream_product_semantics.md``).
-    """
+def test_coating_system_allowed_values(df, schema):
+    """coating_system uses only data-dictionary allowed values (no EPOXY_AGED)."""
     if df is None:
         pytest.skip("No dataset provided")
-    ref = _reference_ts(gen_config)
-    coat_ages = df["coating_application_date"].map(
-        lambda s: years_between_timestamps(pd.Timestamp(str(s)).normalize(), ref)
-    )
-    violates = (coat_ages > 10.0) & df["coating_system"].isin(["EPOXY_HT_MULTI", "EPOXY_HT_SINGLE"])
-    assert not violates.any(), "Tier-1 coating downgrade not applied"
+    allowed = set(schema["variables"]["coating_system"]["allowed_values"])
+    assert set(df["coating_system"].unique()).issubset(allowed)
 
 
 def test_geometry_class_per_asset_class(df, asset_config):
-    """geometry_class is within the allowed subset for each asset_class."""
+    """most_prevalent_geometry_class is within the allowed subset for each asset_class."""
     if df is None:
         pytest.skip("No dataset provided")
     for _, row in df.iterrows():
         ac = str(row["asset_class"])
         allowed = set(asset_config[ac]["geometry_class_allowed"])
-        assert row["geometry_class"] in allowed, (ac, row["geometry_class"])
+        assert row["most_prevalent_geometry_class"] in allowed, (
+            ac,
+            row["most_prevalent_geometry_class"],
+        )
 
 
 def test_component_diameter_per_asset_class(df, asset_config):
@@ -91,3 +86,10 @@ def test_component_diameter_per_asset_class(df, asset_config):
         bounds = asset_config[ac]["component_diameter"]
         diameter = float(row["component_diameter"])
         assert float(bounds["min"]) <= diameter <= float(bounds["max"])
+
+
+def test_inspection_ever_done_when_inspection_date_present(df):
+    """Synthetic rows with latest_inspection_date always have inspection_ever_done true."""
+    if df is None:
+        pytest.skip("No dataset provided")
+    assert df["inspection_ever_done"].astype(bool).all()

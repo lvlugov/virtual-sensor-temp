@@ -18,8 +18,9 @@ import pandas as pd
 
 from generation_helpers import (
     apply_deterministic_field_value,
-    commissioning_timestamp,
+    asset_age_years_at_reference,
     conditional_weights_block,
+    parse_commissioning_timestamp,
     random_lookback_timestamp,
     random_timestamp_uniform_between,
     reference_timestamp,
@@ -42,7 +43,7 @@ def generate_anchors(
 ) -> pd.DataFrame:
     """
     DAG layer 1 — independent anchors: ``asset_class``, ``exposure_zone``,
-    ``metallurgy_family``, ``asset_age`` (methodology §4).
+    ``metallurgy_family``, ``asset_commissioning_date`` (methodology §4).
     """
     result = dataframe.copy()
     generation_yaml = config.generation
@@ -94,8 +95,15 @@ def generate_anchors(
         )
     result["metallurgy_family"] = metallurgy_series
 
-    age_low, age_high = schema_integer_range_bounds(config.schema, "asset_age")
-    result["asset_age"] = rng.integers(age_low, age_high + 1, size=row_count)
+    reference_ts = reference_timestamp(generation_yaml)
+    earliest_commissioning = reference_ts - pd.DateOffset(years=80)
+    commissioning_dates: list[str] = []
+    for _ in range(row_count):
+        commissioning_ts = random_timestamp_uniform_between(
+            rng, earliest_commissioning, reference_ts
+        )
+        commissioning_dates.append(commissioning_ts.date().isoformat())
+    result["asset_commissioning_date"] = commissioning_dates
 
     return result
 
@@ -106,7 +114,7 @@ def generate_geometry(
     rng: np.random.Generator,
 ) -> pd.DataFrame:
     """
-    DAG layer 2 — ``geometry_class``, ``geometry_complexity``, ``orientation``,
+    DAG layer 2 — ``most_prevalent_geometry_class``, ``geometry_complexity``, ``orientation``,
     ``shelter_flag`` (methodology §4).
     """
     result = dataframe.copy()
@@ -132,7 +140,7 @@ def generate_geometry(
         orientations.append(sample_weighted_category(rng, class_config["orientation_weights"]))
         shelter_flags.append(str(rng.choice(shelter_choices)))
 
-    result["geometry_class"] = geometry_classes
+    result["most_prevalent_geometry_class"] = geometry_classes
     result["geometry_complexity"] = geometry_complexities
     result["orientation"] = orientations
     result["shelter_flag"] = shelter_flags
@@ -216,9 +224,8 @@ def generate_dates(
     rng: np.random.Generator,
 ) -> pd.DataFrame:
     """
-    DAG layer 4 — insulation / coating / inspection dates and ``coating_system``
-    (methodology §4). Interim Option B epoxy rewrite when coating age > 10 years
-    (pending ``R-COAT-DEFER-01``; see ``docs/downstream_product_semantics.md``).
+    DAG layer 4 — insulation / coating / inspection dates, ``coating_system``,
+    ``latest_inspection_date``, and ``inspection_ever_done`` (methodology §4).
     """
     result = dataframe.copy()
     generation_yaml = config.generation
@@ -237,10 +244,13 @@ def generate_dates(
     coating_dates: list[str] = []
     inspection_dates: list[str] = []
     coating_systems: list[str] = []
+    inspection_ever_done_flags: list[bool] = []
 
     for row_index in range(row_count):
-        asset_age_years = int(result.at[row_index, "asset_age"])
-        commissioning_ts = commissioning_timestamp(reference_ts, asset_age_years)
+        commissioning_ts = parse_commissioning_timestamp(
+            result.at[row_index, "asset_commissioning_date"]
+        )
+        asset_age_years = asset_age_years_at_reference(reference_ts, commissioning_ts)
 
         insulation_ts = random_timestamp_uniform_between(
             rng, commissioning_ts, reference_ts
@@ -264,26 +274,22 @@ def generate_dates(
         inspection_dates.append(inspection_ts.date().isoformat())
 
         row_context_for_coating = {
-            "asset_age": asset_age_years,
+            "asset_age_years": asset_age_years,
+            "reference_date": reference_ts.date().isoformat(),
+            "asset_commissioning_date": commissioning_ts.date().isoformat(),
             "exposure_zone": result.at[row_index, "exposure_zone"],
         }
         coating_system = sample_first_matching_weighted_rule(
             coating_rules, row_context_for_coating, rng
         )
-
-        coating_age_years = years_between_timestamps(coating_ts, reference_ts)
-        if coating_age_years > 10.0 and coating_system in (
-            "EPOXY_HT_MULTI",
-            "EPOXY_HT_SINGLE",
-        ):
-            coating_system = "EPOXY_AGED"
-
         coating_systems.append(coating_system)
+        inspection_ever_done_flags.append(True)
 
     result["insulation_install_date"] = insulation_dates
     result["coating_application_date"] = coating_dates
     result["coating_system"] = coating_systems
-    result["inspection_record_dates"] = inspection_dates
+    result["latest_inspection_date"] = inspection_dates
+    result["inspection_ever_done"] = inspection_ever_done_flags
 
     return result
 
@@ -414,7 +420,10 @@ def generate_insulation_flags(
         insulation_age_years = years_between_timestamps(insulation_ts, reference_ts)
         exposure_zone = str(result.at[row_index, "exposure_zone"])
         insulation_material = str(result.at[row_index, "insulation_material"])
-        asset_age_years = int(result.at[row_index, "asset_age"])
+        commissioning_ts = parse_commissioning_timestamp(
+            result.at[row_index, "asset_commissioning_date"]
+        )
+        asset_age_years = asset_age_years_at_reference(reference_ts, commissioning_ts)
 
         row_ctx_chloride = {
             "exposure_zone": exposure_zone,
@@ -435,7 +444,7 @@ def generate_insulation_flags(
         row_ctx_insulation = {
             "insulation_age_years": insulation_age_years,
             "exposure_zone": exposure_zone,
-            "asset_age": asset_age_years,
+            "asset_age_years": asset_age_years,
         }
         insulation_conditions.append(
             sample_first_matching_weighted_rule(
@@ -443,7 +452,11 @@ def generate_insulation_flags(
             )
         )
 
-        row_ctx_cladding = {"asset_age": asset_age_years}
+        row_ctx_cladding = {
+            "asset_age_years": asset_age_years,
+            "reference_date": reference_ts.date().isoformat(),
+            "asset_commissioning_date": commissioning_ts.date().isoformat(),
+        }
         cladding_integrities.append(
             sample_first_matching_weighted_rule(cladding_rules, row_ctx_cladding, rng)
         )

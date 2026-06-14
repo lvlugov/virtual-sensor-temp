@@ -23,14 +23,14 @@ All static and quasi-static input variables to the CUI model:
 
 | Group | Variables |
 |---|---|
-| Asset Identification | asset_class, asset_age, component_diameter, furnished_thickness, last_inspection_thickness |
+| Asset Identification | asset_class, asset_commissioning_date, component_diameter, furnished_thickness, last_inspection_thickness |
 | Material & Metallurgy | metallurgy_family |
-| Geometry | geometry_class, geometry_complexity, orientation |
-| Environment & Exposure | exposure_zone, shelter_flag |
+| Geometry | most_prevalent_geometry_class, geometry_complexity, orientation |
+| Environment & Exposure | exposure_zone, shelter_flag, sweating_asset |
 | Process Conditions | operating_temperature, min/max_operating_temperature, avg_cycles_per_quarter, operation_vs_shutdown_fraction, tracing_system |
 | Insulation | insulation_material, insulation_thickness, insulation_install_date, insulation_condition, cladding_integrity, insulation_chloride_flag |
 | Coating | coating_system, coating_application_date |
-| Inspection & Maintenance | inspection_record_dates, washdown_records |
+| Inspection & Maintenance | latest_inspection_date, inspection_ever_done, washdown_records |
 
 ### What is explicitly excluded
 
@@ -39,6 +39,7 @@ All static and quasi-static input variables to the CUI model:
 | `T_ambient(t)`, `RH(t)`, `rainfall(t)`, `T_process(t)` | Hourly time-series. Generated separately in the temperature/weather module, which is out of scope for this dataset. |
 | `Risk` | Output label. Assigned separately after the CUI model is applied. Not an input. |
 | `Asset` (tag/ID) | Generated as sequential synthetic ID (`SYNTH-0001` etc.) in the pipeline directly. |
+| `tracing_active` | Pending data dictionary definition — see `local_reference/clarify_with_Angel.md`. |
 
 ---
 
@@ -49,7 +50,7 @@ The generation system has four config files and a Python pipeline under **`lean_
 ```
 lean_virtual_sensor/inputs_generation/
   config/
-    schema.yaml             ← Master variable registry (types, ranges, allowed values, constraints)
+    schema.yaml             ← Variable registry aligned to product data dictionary
     asset_class_config.yaml ← Per-class physical constraints and probability weights
     conditional_rules.yaml  ← Conditional generation rules (deterministic + reasoned weights)
     generation_config.yaml  ← Run parameters (seed, n_rows, proportions)
@@ -83,12 +84,12 @@ The dependencies come directly from the data dictionary's **Constraint** and **L
 ### Layer 1 — Independent anchors
 No dependencies on other generated variables. Drawn first.
 
-`asset_class`, `exposure_zone`, `metallurgy_family`, `asset_age`
+`asset_class`, `exposure_zone`, `metallurgy_family`, `asset_commissioning_date`
 
 ### Layer 2 — Depend on asset_class
 Per-class probability weights and allowed value subsets are defined in `asset_class_config.yaml`.
 
-`geometry_class`, `geometry_complexity`, `orientation`, `shelter_flag`
+`most_prevalent_geometry_class`, `geometry_complexity`, `orientation`, `shelter_flag`
 
 ### Layer 3 — Depend on asset_class + component geometry
 Numeric ranges vary by asset class. `component_diameter` is drawn first in this layer; `furnished_thickness` and `insulation_thickness` drawn after.
@@ -96,11 +97,11 @@ Numeric ranges vary by asset class. `component_diameter` is drawn first in this 
 `component_diameter`, `furnished_thickness`, `insulation_material`, `insulation_thickness`
 
 ### Layer 4 — Date / age chain
-All dates are bounded by: `(reference_date − asset_age)` ≤ date ≤ `reference_date`. Coating system is generated here because the auto-downgrade rule requires knowing the coating age immediately.
+All dates are bounded by: `asset_commissioning_date` ≤ date ≤ `reference_date`.
 
-`insulation_install_date` is drawn before `inspection_record_dates`. The last inspection must be on or after the insulation install date (`insulation_install_date ≤ inspection_record_dates`), so inspection never predates the current insulation system.
+`insulation_install_date` is drawn before `latest_inspection_date`. The last inspection must be on or after the insulation install date.
 
-`insulation_install_date`, `coating_application_date`, `coating_system`, `inspection_record_dates`
+`insulation_install_date`, `coating_application_date`, `coating_system`, `latest_inspection_date`, `inspection_ever_done`
 
 ### Layer 5 — Temperature triplet + process parameters
 `operating_temperature` is drawn first; `min` and `max` are then drawn as offsets relative to it, enforcing min ≤ op_temp ≤ max exactly.
@@ -126,13 +127,12 @@ Generated after `exposure_zone`, `insulation_material`, and dates are known — 
 | Asset Class | Count | % | Rationale |
 |---|---|---|---|
 | PIPE | 380 | 38% | Dominant class, dialled back from real-world ~60% for ML diversity |
-| PRESSURE_VESSEL | 170 | 17% | Second most common insulated class in O&G |
-| HEAT_EXCHANGER | 140 | 14% | Common in processing; distinct nozzle-heavy CUI profile |
-| COLUMN | 100 | 10% | Distinct risk class: tall, vertical, complex, MARINE-exposed |
-| STORAGE_TANK | 70 | 7% | Lower CUI priority but present on all sites |
-| AIR_COOLER | 65 | 6.5% | Separate from HEAT_EXCHANGER per API 583 Table 4.1 |
-| REACTOR | 45 | 4.5% | Thick-walled, high-consequence; small population |
-| OTHER | 30 | 3% | Catch-all for miscellaneous insulated equipment |
+| PRESSURE_VESSEL | 175 | 17.5% | Second most common insulated class in O&G |
+| HEAT_EXCHANGER | 145 | 14.5% | Common in processing; distinct nozzle-heavy CUI profile |
+| COLUMN | 105 | 10.5% | Distinct risk class: tall, vertical, complex, MARINE-exposed |
+| STORAGE_TANK | 75 | 7.5% | Lower CUI priority but present on all sites |
+| AIR_COOLER | 70 | 7% | Separate from HEAT_EXCHANGER per API 583 Table 4.1 |
+| REACTOR | 50 | 5% | Thick-walled, high-consequence; small population |
 
 ### Basis and references
 
@@ -160,11 +160,9 @@ These rules are explicitly stated in the data dictionary or directly derivable f
 |---|---|---|
 | `R-CHLORIDE-01` | Executed from YAML at DAG layer 6 only; asserted by `test_chloride_auto_flag` | `citations_audit.md` rows 1, 36, 42 |
 
-### Coating age — deferred (technical debt)
+### Current generator behaviour (aligned to data dictionary)
 
-**Rule ID:** `R-COAT-DEFER-01` (see `docs/downstream_product_semantics.md`)
-
-Product semantics for old organic epoxy (age > 10 yr) are **undecided** (`R-COAT-DEFER-01`). The generator **currently** applies an interim **Option B** rewrite (`EPOXY_HT_MULTI` / `EPOXY_HT_SINGLE` → `EPOXY_AGED`) in `layer_generators.py` (DAG layer 4) only — hardcoded Python, not YAML. SME review favoured downstream degradation without changing stored metadata; that rule was removed from generator config in Phase 1 restructuring. Contract test: `test_coating_auto_downgrade` (asserts interim rewrite, not downstream semantics). CSV behaviour is unchanged until Option A or B is chosen.
+The synthetic generator stores `coating_system` as recorded metadata (`EPOXY_HT_*` is not rewritten to a derived state). Coating age degradation is applied downstream in the CUI model — see `docs/downstream_product_semantics.md`.
 
 ### Tier 2 — Physically reasoned (`[ENGINEERING_JUDGEMENT]`)
 
@@ -175,7 +173,7 @@ Every Tier 2 value is tagged `[ENGINEERING_JUDGEMENT]` in `conditional_rules.yam
 | Rule ID | Variable | Summary |
 |---|---|---|
 | `R-INSMAT-W-01` | `insulation_material` | Weights by exposure zone (FOAMGLASS preference in MARINE) |
-| `R-COAT-W-01` | `coating_system` | Weights by asset age and exposure zone |
+| `R-COAT-W-01` | `coating_system` | Weights by years since commissioning and exposure zone |
 | `R-INSCOND-W-01` | `insulation_condition` | Degradation with insulation age / marine exposure |
 | `R-CLAD-W-01` | `cladding_integrity` | Degradation with asset age |
 | `R-TRACE-W-01` | `tracing_system` | Prevalence by operating temperature |
@@ -277,7 +275,7 @@ Run from the **repository root**, with a path to the CSV (example synthetic outp
 
 3. **Correlated operating temperature and asset class**: No explicit conditioning of operating_temperature on asset_class. In practice, REACTORs and COLUMNs tend to run hotter than STORAGE_TANKs. This could be added as a Tier 2 rule.
 
-4. **Inspection interval realism**: `inspection_record_dates` currently drawn uniformly within `[0.5, 10]` years from today. Real inspection intervals cluster around regulatory and risk-based inspection (RBI) schedules (typically 4–5 years for standard assets; 6 months for critical). A mixture distribution would be more realistic.
+4. **Inspection interval realism**: `latest_inspection_date` currently drawn uniformly within `[0.5, 10]` years from today.
 
 5. **Risk labels**: Not generated here. Will be assigned separately using the CUI model.
 
