@@ -175,7 +175,7 @@ def _validate_deterministic_rules(conditional_rules: dict[str, Any]) -> None:
             raise ValueError(
                 f"deterministic_rules.{rule_name}.applies_at must be 'generation' "
                 f"(got {applies_at!r}). Downstream rules belong in "
-                "docs/downstream_product_semantics.md, not conditional_rules.yaml."
+                "docs/synthetic_inputs_methodology.md §6, not conditional_rules.yaml."
             )
         rules = block.get("rules")
         if not isinstance(rules, list) or not rules:

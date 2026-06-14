@@ -1,19 +1,18 @@
 # Conditional rules — SME review pack
 
 **Review id:** `2026-05-29-sme-draft-6`  
-**Source file:** `lean_virtual_sensor/inputs_generation/config/conditional_rules.yaml`
-
-> **Phase 1 note (2026-06):** `coating_system_age_degradation` was relocated to `docs/downstream_product_semantics.md` (`R-COAT-DEFER-01`). This pack remains a historical SME snapshot; Tier 1 coating text below is retained for audit trail.
+**Source file:** `lean_virtual_sensor/inputs_generation/config/conditional_rules.yaml`  
+**Status:** Tier 2 weights **approved** by SME (`2026-05-29-sme-draft-6`). Weight tables below were synced to post–dictionary-alignment terminology and YAML on **2026-06-14** (enum renames only; probabilities unchanged except `R-INSMAT-W-01` ASBESTOS at 0.01–0.04).
 
 ## How to use this document
 
+- **Approval record** — SME feedback table at the end records sign-off from May 2026.
 - Tier 2 rules are evaluated **in order**; the **first matching** condition applies.
-- **`[ENGINEERING_JUDGEMENT]`** — numeric weights are assumptions for SME review.
-- **`[CITATION_TBC]`** — standard reference not yet verified.
-- **Rule IDs** — stable identifiers in `conditional_rules.yaml` (`R-CHLORIDE-01`, `R-INSMAT-W-01`, …). Weight tables below; full YAML is authoritative.
-- **Downstream product semantics** — deferred rules (e.g. `R-COAT-DEFER-01`); see `docs/downstream_product_semantics.md`.
-
-Please review **conditions, rationale, and weight tables**. Optional feedback table at the end.
+- **`[ENGINEERING_JUDGEMENT]`** — numeric weights are assumptions; approved in principle by SME.
+- **`[CITATION_TBC]`** — standard reference not yet verified (see `citations_audit.md`).
+- **Rule IDs** — stable identifiers in `conditional_rules.yaml`. Weight tables below mirror YAML; YAML is authoritative if they diverge.
+- **Downstream rules** — not in generator config (e.g. `R-COAT-DEFER-01`); documented in this pack and `docs/synthetic_inputs_methodology.md` §6.
+- **Age predicates** — `asset_age_lte` / `asset_age_gt` in YAML mean years since `asset_commissioning_date` (derived at evaluation time).
 
 ---
 
@@ -29,13 +28,13 @@ Please review **conditions, rationale, and weight tables**. Optional feedback ta
 
 ---
 
-### `R-COAT-DEFER-01` — coating age (relocated — historical SME text)
+### `R-COAT-DEFER-01` — coating age (downstream only)
 
-**Current location:** `docs/downstream_product_semantics.md` (`R-COAT-DEFER-01`). No longer in generator config.
+**Not in generator config** — see `docs/synthetic_inputs_methodology.md` §6 and SME feedback below.
 
 **Source:** Data dictionary — `coating_system` constraints; API 583 coating age rule `[CITATION_TBC]`
 
-`EPOXY_AGED` is **not** a generated coating type. Do not store it in `coating_system`. Apply degraded susceptibility downstream when age > 10 yr and type is `EPOXY_HT_MULTI` or `EPOXY_HT_SINGLE`.
+`EPOXY_AGED` is **not** a generated coating type. Apply degraded susceptibility downstream when age > 10 yr and type is `EPOXY_HT_MULTI` or `EPOXY_HT_SINGLE`.
 
 | Condition | Action |
 |-----------|--------|
@@ -49,12 +48,14 @@ Please review **conditions, rationale, and weight tables**. Optional feedback ta
 
 **Source:** API 583 Table 4.3 `[CITATION_TBC]`; NACE SP0198-2010 Table 1 `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
 
-| # | Condition | FOAMGLASS | MINERAL_WOOL | FIBERGLASS | CALCIUM_SILICATE | PEARLITE | UNKNOWN |
-|---|-----------|-----------|--------------|------------|------------------|----------|---------|
-| 1 | MARINE | 0.40 | 0.30 | 0.10 | 0.10 | 0.05 | 0.05 |
-| 2 | ARID_DRY | 0.15 | 0.35 | 0.15 | 0.25 | 0.05 | 0.05 |
-| 3 | SEVERE | 0.30 | 0.35 | 0.15 | 0.10 | 0.05 | 0.05 |
-| 4 | Default | 0.25 | 0.40 | 0.15 | 0.12 | 0.04 | 0.04 |
+| # | Condition | FOAMGLASS | MINERAL_WOOL | FIBERGLASS | CALCIUM_SILICATE | PERLITE | UNKNOWN | ASBESTOS |
+|---|-----------|-----------|--------------|------------|------------------|---------|---------|----------|
+| 1 | MARINE | 0.40 | 0.30 | 0.10 | 0.10 | 0.05 | 0.04 | 0.01 |
+| 2 | ARID_DRY | 0.15 | 0.35 | 0.15 | 0.24 | 0.05 | 0.04 | 0.01 |
+| 3 | SEVERE | 0.30 | 0.35 | 0.15 | 0.09 | 0.05 | 0.04 | 0.01 |
+| 4 | Default | 0.25 | 0.40 | 0.15 | 0.11 | 0.04 | 0.03 | 0.01 |
+
+*ASBESTOS column added June 2026 for dictionary alignment (near-zero legacy prevalence).*
 
 ---
 
@@ -66,10 +67,10 @@ Allowed generated types: **TSA, IOZ, EPOXY_HT_MULTI, EPOXY_HT_SINGLE, BARE, UNKN
 
 | # | Condition | TSA | IOZ | EPOXY_HT_MULTI | EPOXY_HT_SINGLE | BARE | UNKNOWN |
 |---|-----------|-----|-----|----------------|-----------------|------|---------|
-| 1 | `asset_age` ≤ 10, MARINE | 0.25 | 0.25 | 0.30 | 0.15 | 0.03 | 0.02 |
-| 2 | `asset_age` > 25, MARINE | 0.10 | 0.10 | 0.05 | 0.05 | 0.65 | 0.05 |
-| 3 | `asset_age` ≤ 10 | 0.15 | 0.20 | 0.30 | 0.30 | 0.03 | 0.02 |
-| 4 | `asset_age` > 25 | 0.05 | 0.08 | 0.05 | 0.07 | 0.70 | 0.05 |
+| 1 | years since commissioning ≤ 10, MARINE | 0.25 | 0.25 | 0.30 | 0.15 | 0.03 | 0.02 |
+| 2 | years since commissioning > 25, MARINE | 0.10 | 0.10 | 0.05 | 0.05 | 0.65 | 0.05 |
+| 3 | years since commissioning ≤ 10 | 0.15 | 0.20 | 0.30 | 0.30 | 0.03 | 0.02 |
+| 4 | years since commissioning > 25 | 0.05 | 0.08 | 0.05 | 0.07 | 0.70 | 0.05 |
 | 5 | Default | 0.10 | 0.15 | 0.20 | 0.20 | 0.30 | 0.05 |
 
 ---
@@ -78,8 +79,8 @@ Allowed generated types: **TSA, IOZ, EPOXY_HT_MULTI, EPOXY_HT_SINGLE, BARE, UNKN
 
 **Source:** API 583 Section 5.3 `[CITATION_TBC]`; API 581 insulation age modifier `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
 
-| # | Condition | GOOD | AVERAGE | POOR |
-|---|-----------|------|---------|------|
+| # | Condition | ABOVE_AVERAGE | AVERAGE | BELOW_AVERAGE |
+|---|-----------|---------------|---------|---------------|
 | 1 | `insulation_age_years` ≤ 5 | 0.65 | 0.30 | 0.05 |
 | 2 | `insulation_age_years` > 15, MARINE | 0.10 | 0.35 | 0.55 |
 | 3 | `insulation_age_years` > 15 | 0.15 | 0.45 | 0.40 |
@@ -92,10 +93,10 @@ Allowed generated types: **TSA, IOZ, EPOXY_HT_MULTI, EPOXY_HT_SINGLE, BARE, UNKN
 
 **Source:** API 583 Section 5.3 `[CITATION_TBC]`; `[ENGINEERING_JUDGEMENT]` weights
 
-| # | Condition | GOOD | AVERAGE | POOR |
-|---|-----------|------|---------|------|
-| 1 | `asset_age` ≤ 10 | 0.60 | 0.35 | 0.05 |
-| 2 | `asset_age` > 20 | 0.15 | 0.45 | 0.40 |
+| # | Condition | ABOVE_AVERAGE | AVERAGE | BELOW_AVERAGE |
+|---|-----------|---------------|---------|---------------|
+| 1 | years since commissioning ≤ 10 | 0.60 | 0.35 | 0.05 |
+| 2 | years since commissioning > 20 | 0.15 | 0.45 | 0.40 |
 | 3 | Default | 0.30 | 0.50 | 0.20 |
 
 ---
@@ -124,7 +125,7 @@ Boolean **`true`** / **`false`**. Drawn after `operating_temperature` is known (
 |---|-----------|------|-------|------|
 | 1 | `operating_temperature` < 10 °C | 0.35 | 0.65 | Cold service |
 | 2 | `operating_temperature` ≥ 60 °C | 0.05 | 0.95 | Hot service |
-| 3 | Default | 0.15 | 0.85 | SME to calibrate |
+| 3 | Default | 0.15 | 0.85 | |
 
 ---
 
@@ -146,7 +147,7 @@ Allowed: **CARBON_STEEL**, **LOW_ALLOY_STEEL**, **AUSTENITIC_SS**, **DUPLEX_SS**
 | Rule ID | Reference to verify |
 |---------|---------------------|
 | `R-CHLORIDE-01` | NACE SP0198-2010 §5.4; API 583 Table 4.2 |
-| `R-COAT-DEFER-01` | API 583 coating age rule → `docs/downstream_product_semantics.md` |
+| `R-COAT-DEFER-01` | API 583 coating age rule → `docs/synthetic_inputs_methodology.md` §6 |
 | `R-SWEAT-W-01` | Data dictionary |
 | `R-INSMAT-W-01` | API 583 Table 4.3; NACE SP0198-2010 Table 1 |
 | `R-COAT-W-01` | API 583 Table 4.4; API 581 coating modifier |
@@ -158,26 +159,32 @@ Allowed: **CARBON_STEEL**, **LOW_ALLOY_STEEL**, **AUSTENITIC_SS**, **DUPLEX_SS**
 
 ---
 
-## Implementation backlog (not in this rules commit)
+## Dictionary alignment (2026-06) — completed
 
-| PR topic | Where it will be changed |
-|----------|--------------------------|
-| Remove `OTHER` asset class | `schema.yaml`, `generation_config.yaml`, `asset_class_config.yaml` |
-| Standard DN / wall thickness sampling | `asset_class_config.yaml`, `layer_generators.py` |
-| Stop rewriting `coating_system` in CSV | `layer_generators.py`, `constraints.py`, tests |
-| Add `sweating_asset` bool | `schema.yaml`, `layer_generators.py`, tests, CSV |
-| Remove `EPOXY_AGED` from `coating_system` | `schema.yaml`, `conditional_rules` (done), generators, constraints, tests, CSV |
-| `tracing_system` six allowed values | `schema.yaml`, `conditional_rules` (done), generators, tests, CSV |
-| Remove `NICKEL_ALLOY` / `OTHER` from `metallurgy_family` | `schema.yaml`, `conditional_rules` (done), `generation_config` op-temp ranges, tests, CSV |
+The following items from the pre-alignment backlog are **done** in config, code, and tests:
+
+| Topic | Status |
+|-------|--------|
+| Remove `OTHER` asset class | Done |
+| Remove `NICKEL_ALLOY` / `OTHER` metallurgy | Done |
+| Stop rewriting `coating_system` to `EPOXY_AGED` | Done — downstream rule only |
+| `sweating_asset` bool in generator | Done |
+| `tracing_system` six allowed values | Done |
+| `PERLITE` spelling; `BELOW_AVERAGE` / `ABOVE_AVERAGE` condition enums | Done |
+| `asset_commissioning_date`; `inspection_ever_done` | Done |
+| Per-class diameter bands (dictionary) | Done |
+| `SPHERICAL_SHELL` on `PRESSURE_VESSEL` | Done |
+
+**Still open (not SME review):** `R-PIPE-NPS-01` NPS sampling; `tracing_active` (pending product definition); regenerate committed sample CSV.
 
 ---
 
-## SME feedback (optional)
+## SME feedback
 
 | Section | Approved? | Comments |
 |---------|-------------|----------|
 | `R-CHLORIDE-01` | Approved | |
-| `R-COAT-DEFER-01` | Approved| Some concerns regarding the Unknown option, if Unknown the value should not be close to the wrost case possible? Same coment for the remain. |
+| `R-COAT-DEFER-01` | Approved | Some concerns regarding the Unknown option — if Unknown, the value should not be close to the worst case possible? Same comment for the remainder. |
 | `R-INSMAT-W-01` | Approved | |
 | `R-COAT-W-01` | Approved | |
 | `R-INSCOND-W-01` | Approved | |

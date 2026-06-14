@@ -307,7 +307,7 @@ variables:
       m_coat range: TSA=0.4 (best, galvanic) → IOZ=0.5 → EPOXY_HT_MULTI=0.6 →
       EPOXY_HT_SINGLE=0.9 → BARE=2.5 (worst). Distinguish BARE (never coated)
       from UNKNOWN (coated but type not recorded). Age-based degradation is a
-      downstream model rule — see docs/downstream_product_semantics.md.
+      downstream model rule — see docs/synthetic_inputs_methodology.md §6.
     standards: "API 583 Table 4.4; NACE SP0198-2010 Section 5.5; API 581"
 
   latest_inspection_date:
@@ -540,4 +540,4 @@ excluded_variables:
     type: bool
     reason: >
       Companion to tracing_system — pending data dictionary definition.
-      See local_reference/clarify_with_Angel.md.
+      See docs/temp/clarify_with_Angel.md.

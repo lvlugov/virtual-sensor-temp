@@ -14,13 +14,14 @@
 #     Hard rules from the data dictionary (and standards where cited). Each block
 #     must have applies_at: generation. Wired rules run via
 #     apply_deterministic_field_value() in layer_generators (see R-CHLORIDE-01).
-#     Downstream / product-only semantics live in docs/downstream_product_semantics.md.
+#     Downstream / product-only semantics belong in docs/synthetic_inputs_methodology.md §6.
 #
 #   TIER 2 — PHYSICALLY REASONED
 #     Conditional probability weights that follow from engineering physics or
 #     well-established industry practice. The *direction* of the effect is
 #     defensible; the *specific numbers* are [ENGINEERING_JUDGEMENT] and should
 #     be reviewed by a CUI/corrosion domain expert before production use.
+#     SME approved 2026-05-29-sme-draft-6 (see docs/conditional_rules_sme_review.md).
 #
 # WHAT THIS FILE IS NOT
 # ---------------------
@@ -59,7 +60,7 @@
 #   Tier 1 deterministic block:  R-{TOPIC}-01
 #   Tier 2 conditional_weights:  R-{TOPIC}-W-01
 #   Geometry specification:      R-{TOPIC}-01
-# Downstream / deferred rules: docs/downstream_product_semantics.md (e.g. R-COAT-DEFER-01)
+# Downstream rules (not in generator): docs/synthetic_inputs_methodology.md §6 (e.g. R-COAT-DEFER-01)
 # =============================================================================
 
 
@@ -86,7 +87,7 @@ deterministic_rules:
 
 # ── TIER 2: PHYSICALLY REASONED WEIGHTS ───────────────────────────────────────
 # Direction of effect is defensible from engineering principles.
-# Specific probability values are [ENGINEERING_JUDGEMENT] — review recommended.
+# Specific probability values are [ENGINEERING_JUDGEMENT] — SME approved 2026-05-29-sme-draft-6.
 
 conditional_weights:
 
@@ -156,7 +157,7 @@ conditional_weights:
       Coating system type. Tier 2 weights draw TSA, IOZ, EPOXY_HT_MULTI,
       EPOXY_HT_SINGLE, BARE, UNKNOWN. Coating age degradation is applied
       downstream in the CUI model — stored metadata is not rewritten at
-      generation time (see docs/downstream_product_semantics.md). Selection is
+      generation time (see docs/synthetic_inputs_methodology.md §6). Selection is
       influenced by years since commissioning and exposure zone.
     source: >
       API 583 Table 4.4 m_coat values [CITATION_TBC]; API 581 coating modifier [CITATION_TBC];

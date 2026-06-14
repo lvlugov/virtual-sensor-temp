@@ -15,7 +15,7 @@ If the same table or section appears on several rows, verify it once and reuse t
 | # | File | Where | Cited as | Exists? | What it actually says | Verdict | Action |
 |---|------|-------|----------|---------|----------------------|---------|--------|
 | 1 | `conditional_rules.yaml` | `R-CHLORIDE-01` source | Data dictionary; NACE SP0198 §5.4; API 583 Table 4.2 | | | `pending` | |
-| 2 | `docs/downstream_product_semantics.md` | `R-COAT-DEFER-01` source | Data dictionary; API 583 coating age rule | | | `pending` | |
+| 2 | `synthetic_inputs_methodology.md` | §6 `R-COAT-DEFER-01` | Data dictionary; API 583 coating age rule | | | `pending` | |
 | 3 | `conditional_rules.yaml` | `R-INSMAT-W-01` source | API 583 Table 4.3; NACE SP0198 Table 1 | | | `pending` | |
 | 4 | `conditional_rules.yaml` | `R-INSMAT-W-01` description | FOAMGLASS preferred in MARINE (closed cell) | | | `pending` | |
 | 5 | `conditional_rules.yaml` | `R-COAT-W-01` source | API 583 Table 4.4; API 581 coating modifier | | | `pending` | |
@@ -56,7 +56,7 @@ If the same table or section appears on several rows, verify it once and reuse t
 | 40 | `schema.yaml` | `washdown_records` standards | API 583 §5.2 | | | `pending` | |
 | 41 | `synthetic_inputs_methodology.md` | §5 asset proportions | HOIS surveys; API 583 Table 4.1; ISO 14224 Table A.4 | | | `pending` | |
 | 42 | `synthetic_inputs_methodology.md` | §6 `R-CHLORIDE-01` | NACE §5.4; API 583 Table 4.2; data dictionary | | | `pending` | |
-| 43 | `docs/downstream_product_semantics.md` | R-COAT-DEFER-01; methodology §6 coating defer | API 583 coating age; EPOXY_AGED generation debt | | | `pending` | |
+| 43 | `synthetic_inputs_methodology.md` | §6 `R-COAT-DEFER-01` | API 583 coating age; downstream degraded susceptibility | | | `pending` | |
 | 44 | `synthetic_inputs_methodology.md` | §6 Tier 2 rule IDs | Directional effects — see R-INSMAT-W-01 … R-METAL-W-01 | | | `pending` | |
 | 45 | `conditional_rules_sme_review.md` | Rule IDs R-CHLORIDE-01 … R-PIPE-NPS-01 | Same sources as rows 1–12 above | | | `pending` | |
 

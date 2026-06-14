@@ -7,7 +7,7 @@
 This document records every decision made in the design of the synthetic input dataset for the CUI lean virtual sensor model. It exists so that:
 
 - Any team member can understand *why* a parameter has a particular value
-- Reviewers can identify which decisions need domain expert sign-off
+- Reviewers can see which decisions are SME-approved vs citation backlog vs open product questions
 - Future versions can be diffed against this baseline
 - The generation is reproducible and auditable
 
@@ -39,7 +39,7 @@ All static and quasi-static input variables to the CUI model:
 | `T_ambient(t)`, `RH(t)`, `rainfall(t)`, `T_process(t)` | Hourly time-series. Generated separately in the temperature/weather module, which is out of scope for this dataset. |
 | `Risk` | Output label. Assigned separately after the CUI model is applied. Not an input. |
 | `Asset` (tag/ID) | Generated as sequential synthetic ID (`SYNTH-0001` etc.) in the pipeline directly. |
-| `tracing_active` | Pending data dictionary definition — see `local_reference/clarify_with_Angel.md`. |
+| `tracing_active` | Pending data dictionary definition — see `docs/temp/clarify_with_Angel.md`. |
 
 ---
 
@@ -160,15 +160,34 @@ These rules are explicitly stated in the data dictionary or directly derivable f
 |---|---|---|
 | `R-CHLORIDE-01` | Executed from YAML at DAG layer 6 only; asserted by `test_chloride_auto_flag` | `citations_audit.md` rows 1, 36, 42 |
 
-### Current generator behaviour (aligned to data dictionary)
+### Downstream rules (not in generator)
 
-The synthetic generator stores `coating_system` as recorded metadata (`EPOXY_HT_*` is not rewritten to a derived state). Coating age degradation is applied downstream in the CUI model — see `docs/downstream_product_semantics.md`.
+Rules that affect how the **CUI model** and product layer interpret stored metadata — but are **not** executed by the synthetic inputs generator. They must not be added to `conditional_rules.yaml` (`schema_loader` enforces `applies_at: generation` only). SME approval record: `docs/conditional_rules_sme_review.md` → `R-COAT-DEFER-01`.
+
+#### `R-COAT-DEFER-01` — coating age and degraded susceptibility
+
+**SME review:** approved (`2026-05-29-sme-draft-6`)  
+**Citations log:** rows 2, 43 in `citations_audit.md`
+
+When `coating_age_years` > 10 and `coating_system` is `EPOXY_HT_MULTI` or `EPOXY_HT_SINGLE`, downstream product logic (CUI model and SME assessment) should treat the coating as **degraded for susceptibility** (elevated `m_coat`) **without** requiring the stored metadata value to change.
+
+`EPOXY_AGED` is **not** an installed coating type in the asset register sense. It represents a derived degraded state and is **not** in the data dictionary allowed values.
+
+| Condition | Intended downstream action |
+|-----------|---------------------------|
+| `coating_age_years` > 10 AND `coating_system` in {EPOXY_HT_MULTI, EPOXY_HT_SINGLE} | Apply degraded coating susceptibility downstream; preserve `EPOXY_HT_*` in stored metadata |
+
+**Source:** data dictionary — `coating_system` constraints; API 583 coating age rule `[CITATION_TBC]`
+
+**Generator behaviour:** the synthetic generator **does not rewrite** old organic epoxy to `EPOXY_AGED`. Stored `coating_system` values remain `EPOXY_HT_MULTI` or `EPOXY_HT_SINGLE` as drawn. Degradation is a downstream model rule only.
+
+**Contract test:** `test_coating_system_allowed_values` in `test_constraints.py` asserts no `EPOXY_AGED` in generated CSV output.
 
 ### Tier 2 — Physically reasoned (`[ENGINEERING_JUDGEMENT]`)
 
 The *direction* of these effects is defensible from engineering physics and industry practice. The *specific probability values* are assumptions that have not been calibrated to a dataset.
 
-Every Tier 2 value is tagged `[ENGINEERING_JUDGEMENT]` in `conditional_rules.yaml`. **A CUI/corrosion domain expert should review and adjust these values before the dataset is used in production model training.**
+Every Tier 2 value is tagged `[ENGINEERING_JUDGEMENT]` in `conditional_rules.yaml`. Weights were **reviewed and approved** by SME (`2026-05-29-sme-draft-6`; see `docs/conditional_rules_sme_review.md`). Recalibration against real register data remains optional future work.
 
 | Rule ID | Variable | Summary |
 |---|---|---|
@@ -269,15 +288,17 @@ Run from the **repository root**, with a path to the CSV (example synthetic outp
 
 ## 12. Known Limitations and Future Work
 
-1. **Tier 2 rule calibration**: All `[ENGINEERING_JUDGEMENT]` values in `conditional_rules.yaml` need domain expert review before production use.
+1. **Tier 2 rule calibration**: SME approved Tier 2 weights (`2026-05-29-sme-draft-6`). Optional future pass: calibrate against real inspection / register data.
 
-2. **Asset class diameter distributions**: Currently drawn uniformly within `[min, max]` from `asset_class_config.yaml`. Real diameter distributions are not uniform (piping clusters around standard nominal bore sizes: DN50, DN100, DN150, DN200, DN300, DN600). A discrete or log-normal distribution over standard sizes would be more realistic.
+2. **`tracing_active`**: Not generated — pending data dictionary definition.
 
-3. **Correlated operating temperature and asset class**: No explicit conditioning of operating_temperature on asset_class. In practice, REACTORs and COLUMNs tend to run hotter than STORAGE_TANKs. This could be added as a Tier 2 rule.
+3. **Asset class diameter distributions**: Currently drawn uniformly within `[min, max]` from `asset_class_config.yaml`. Real diameter distributions are not uniform (piping clusters around standard nominal bore sizes: DN50, DN100, DN150, DN200, DN300, DN600). A discrete or log-normal distribution over standard sizes would be more realistic.
 
-4. **Inspection interval realism**: `latest_inspection_date` currently drawn uniformly within `[0.5, 10]` years from today.
+4. **Correlated operating temperature and asset class**: No explicit conditioning of operating_temperature on asset_class. In practice, REACTORs and COLUMNs tend to run hotter than STORAGE_TANKs. This could be added as a Tier 2 rule.
 
-5. **Risk labels**: Not generated here. Will be assigned separately using the CUI model.
+5. **Inspection interval realism**: `latest_inspection_date` currently drawn uniformly within `[0.5, 10]` years from today.
+
+6. **Risk labels**: Not generated here. Will be assigned separately using the CUI model.
 
 ---
 

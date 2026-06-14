@@ -2,7 +2,7 @@
 
 What **actually justifies** each generation rule or design choice — not what we **cited** in a footnote. For standard names and PDF checks, use **`citations_audit.md`**.
 
-Rule definitions live in **`conditional_rules.yaml`** (and `docs/downstream_product_semantics.md` for deferred product semantics). This table references **rule IDs** only — not duplicated rule text.
+Rule definitions live in **`conditional_rules.yaml`**. Downstream-only rules (e.g. `R-COAT-DEFER-01`) are in **`docs/synthetic_inputs_methodology.md`** §6 and the SME pack. This table references **rule IDs** only — not duplicated rule text.
 
 **Authority (pick one per row):**
 
@@ -23,7 +23,7 @@ Rule definitions live in **`conditional_rules.yaml`** (and `docs/downstream_prod
 
 | # | Rule ID | Claim | Authority | Evidence | Citations log | SME OK? |
 |---|---------|-------|-----------|----------|---------------|---------|
-| P-01 | `R-CHLORIDE-01` | MARINE + CALCIUM_SILICATE + insulation age > 5 yr → flag true | | | 1, 36 | `pending` |
+| P-01 | `R-CHLORIDE-01` | MARINE + CALCIUM_SILICATE + insulation age > 5 yr → flag true | `data_dictionary` | Dictionary edge cases | 1, 36 | `yes` |
 
 ---
 
@@ -31,9 +31,9 @@ Rule definitions live in **`conditional_rules.yaml`** (and `docs/downstream_prod
 
 | # | Rule ID | Claim | Authority | Evidence | Citations log | SME OK? |
 |---|---------|-------|-----------|----------|---------------|---------|
-| P-02 | `R-COAT-DEFER-01` | Epoxy types + coating age > 10 yr → degraded susceptibility; CSV semantics undecided | | | 2, 43 | `pending` |
+| P-02 | `R-COAT-DEFER-01` | Epoxy types + coating age > 10 yr → degraded susceptibility downstream; generator stores `EPOXY_HT_*` as drawn | `data_dictionary` | `docs/synthetic_inputs_methodology.md` §6 | 2, 43 | `yes` |
 
-Documented in **`docs/downstream_product_semantics.md`**.
+Documented in **`docs/synthetic_inputs_methodology.md`** §6 and SME pack.
 
 ---
 
@@ -43,13 +43,13 @@ Weights are **`engineering_judgement`** unless you record otherwise. Directional
 
 | # | Rule ID | Variable | Claim (direction, not numbers) | Authority | Evidence | Citations log | SME OK? |
 |---|---------|----------|-------------------------------|-----------|----------|---------------|---------|
-| P-03 | `R-INSMAT-W-01` | `insulation_material` | Material mix varies by exposure zone | | | 3, 4, 24 | `pending` |
-| P-04 | `R-COAT-W-01` | `coating_system` | Coating type mix varies by asset age and exposure | | | 5, 28 | `pending` |
-| P-05 | `R-INSCOND-W-01` | `insulation_condition` | Condition worsens with insulation age / marine exposure | | | 6, 7, 37 | `pending` |
-| P-06 | `R-CLAD-W-01` | `cladding_integrity` | Cladding worsens with asset age | | | 8, 38 | `pending` |
-| P-07 | `R-TRACE-W-01` | `tracing_system` | Tracing more likely on cold service; rare on hot | | | 9, 21 | `pending` |
-| P-08 | `R-SWEAT-W-01` | `sweating_asset` | Sweating more likely on cold service | | | 10 | `pending` |
-| P-09 | `R-METAL-W-01` | `metallurgy_family` | CS dominant; more SS in severe exposure | | | 11, 15 | `pending` |
+| P-03 | `R-INSMAT-W-01` | `insulation_material` | Material mix varies by exposure zone | `engineering_judgement` | SME pack `2026-05-29-sme-draft-6` | 3, 4, 24 | `yes` |
+| P-04 | `R-COAT-W-01` | `coating_system` | Coating type mix varies by asset age and exposure | `engineering_judgement` | SME pack `2026-05-29-sme-draft-6` | 5, 28 | `yes` |
+| P-05 | `R-INSCOND-W-01` | `insulation_condition` | Condition worsens with insulation age / marine exposure | `engineering_judgement` | SME pack `2026-05-29-sme-draft-6` | 6, 7, 37 | `yes` |
+| P-06 | `R-CLAD-W-01` | `cladding_integrity` | Cladding worsens with asset age | `engineering_judgement` | SME pack `2026-05-29-sme-draft-6` | 8, 38 | `yes` |
+| P-07 | `R-TRACE-W-01` | `tracing_system` | Tracing more likely on cold service; rare on hot | `engineering_judgement` | SME pack `2026-05-29-sme-draft-6` | 9, 21 | `yes` |
+| P-08 | `R-SWEAT-W-01` | `sweating_asset` | Sweating more likely on cold service | `engineering_judgement` | SME pack `2026-05-29-sme-draft-6` | 10 | `yes` |
+| P-09 | `R-METAL-W-01` | `metallurgy_family` | CS dominant; more SS in severe exposure | `engineering_judgement` | SME pack `2026-05-29-sme-draft-6` | 11, 15 | `yes` |
 
 ---
 
@@ -68,7 +68,7 @@ Weights are **`engineering_judgement`** unless you record otherwise. Directional
 | P-11 | Date chain | All dates within asset lifetime; install ≤ inspection | `product_logic` | `schema.yaml` layer 4 | — | `pending` |
 | P-12 | Temperature triplet | min ≤ operating ≤ max | `product_logic` | `schema.yaml` layer 5 | — | `pending` |
 | P-13 | Wall thickness | last_inspection_thickness ≤ furnished_thickness ≥ 1.0 | `product_logic` | `schema.yaml` | — | `pending` |
-| P-14 | Age chain | asset_age ≥ insulation and coating ages | `product_logic` | `schema.yaml` | — | `pending` |
+| P-14 | Age chain | Years since commissioning ≥ insulation and coating ages | `product_logic` | `schema.yaml`; `asset_commissioning_date` | — | `yes` |
 | P-15 | `coating_system` notes | Numeric m_coat ladder (0.4 … 2.5) | | | 29 | `pending` |
 
 ---
@@ -99,5 +99,5 @@ Weights are **`engineering_judgement`** unless you record otherwise. Directional
 
 | # | Topic | Claim | Authority | Evidence | Citations log | SME OK? |
 |---|-------|-------|-----------|----------|---------------|---------|
-| P-24 | Methodology §6 vs coating semantics | Coating deferred; generator Python vs product doc aligned in prose | | | 43 | `pending` |
-| P-25 | SME pack vs conditional rules | Same rule IDs and sources as YAML | | | 45 | `pending` |
+| P-24 | Methodology §6 vs coating semantics | Generator stores coating as recorded; degradation downstream only | `product_logic` | `docs/synthetic_inputs_methodology.md` §6 | 43 | `yes` |
+| P-25 | SME pack vs conditional rules | Same rule IDs and sources as YAML; synced 2026-06-14 | `product_logic` | `docs/conditional_rules_sme_review.md` | 45 | `yes` |
