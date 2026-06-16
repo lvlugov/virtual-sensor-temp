@@ -116,12 +116,6 @@ def _enforce_date_chain(
                 n += 1
                 result.at[i, col] = commissioning.date().isoformat()
 
-        ins_ts = pd.Timestamp(str(result.at[i, "insulation_install_date"])).normalize()
-        insp_ts = pd.Timestamp(str(result.at[i, "latest_inspection_date"])).normalize()
-        if insp_ts < ins_ts:
-            n += 1
-            result.at[i, "latest_inspection_date"] = ins_ts.date().isoformat()
-
         if commissioning > ref_n:
             n += 1
             result.at[i, "asset_commissioning_date"] = ref_n.date().isoformat()
@@ -211,8 +205,8 @@ def _collect_unrecoverable_rows(
             reasons.append("commissioning_after_reference")
 
         insp_ts = pd.Timestamp(str(df.at[i, "latest_inspection_date"]))
-        if insp_ts.normalize() < ins_ts.normalize():
-            reasons.append("inspection_before_insulation")
+        if insp_ts.normalize() > ref_n or insp_ts.normalize() < commissioning.normalize():
+            reasons.append("inspection_date_window")
 
         asset_life_years = asset_age_years_at_reference(ref_n, commissioning)
         ins_age = years_between_timestamps(ins_ts, ref_n)

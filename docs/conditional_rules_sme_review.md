@@ -175,7 +175,7 @@ The following items from the pre-alignment backlog are **done** in config, code,
 | Per-class diameter bands (dictionary) | Done |
 | `SPHERICAL_SHELL` on `PRESSURE_VESSEL` | Done |
 
-**Still open (not SME review):** `R-PIPE-NPS-01` NPS sampling; `tracing_active` (pending product definition); regenerate committed sample CSV.
+**Still open (not SME review):** regenerate committed sample CSV.
 
 ---
 

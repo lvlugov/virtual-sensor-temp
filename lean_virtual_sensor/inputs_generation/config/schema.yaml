@@ -268,7 +268,6 @@ variables:
     constraints:
       - "insulation_install_date <= reference_date"
       - "insulation_install_date >= asset_commissioning_date"
-      - "insulation_install_date <= latest_inspection_date"
     notes: >
       Date of most recent full insulation installation or replacement. Drives
       insulation_age_years. For CUI, the oldest section is most relevant — partial
@@ -318,7 +317,6 @@ variables:
     format: "YYYY-MM-DD"
     constraints:
       - "latest_inspection_date <= reference_date"
-      - "latest_inspection_date >= insulation_install_date"
     notes: >
       Most recent inspection date. Synthetic rows always populated (no nulls).
       Drives time_since_last_inspection and evidence composite decay function.
@@ -535,9 +533,3 @@ excluded_variables:
     reason: >
       Synthetic asset tag (e.g. SYNTH-0001). Generated in pipeline.py for ML
       row identity; not a data dictionary variable.
-
-  - name: "tracing_active"
-    type: bool
-    reason: >
-      Companion to tracing_system — pending data dictionary definition.
-      See docs/temp/clarify_with_Angel.md.

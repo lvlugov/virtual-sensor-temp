@@ -39,7 +39,6 @@ All static and quasi-static input variables to the CUI model:
 | `T_ambient(t)`, `RH(t)`, `rainfall(t)`, `T_process(t)` | Hourly time-series. Generated separately in the temperature/weather module, which is out of scope for this dataset. |
 | `Risk` | Output label. Assigned separately after the CUI model is applied. Not an input. |
 | `Asset` (tag/ID) | Generated as sequential synthetic ID (`SYNTH-0001` etc.) in the pipeline directly. |
-| `tracing_active` | Pending data dictionary definition — see `docs/temp/clarify_with_Angel.md`. |
 
 ---
 
@@ -99,7 +98,7 @@ Numeric ranges vary by asset class. `component_diameter` is drawn first in this 
 ### Layer 4 — Date / age chain
 All dates are bounded by: `asset_commissioning_date` ≤ date ≤ `reference_date`.
 
-`insulation_install_date` is drawn before `latest_inspection_date`. The last inspection must be on or after the insulation install date.
+`insulation_install_date`, `coating_application_date`, and `latest_inspection_date` are drawn independently within that window (inspection and insulation are not ordered relative to each other).
 
 `insulation_install_date`, `coating_application_date`, `coating_system`, `latest_inspection_date`, `inspection_ever_done`
 
@@ -276,7 +275,7 @@ The test suite under **`tests/`** (see Section 3) validates any CSV against the 
 |---|---|
 | `test_schema_compliance.py` | All categorical values within allowed sets; all numerics within range; correct types |
 | `test_constraints.py` | Inter-variable rules: min ≤ op_temp ≤ max, last_inspection ≤ furnished_thickness, chloride auto-flag |
-| `test_date_chain.py` | Date ordering: install/application dates within asset lifetime; inspection dates ≤ today; inspection ≥ insulation install |
+| `test_date_chain.py` | Date ordering: install/application dates within asset lifetime; inspection dates ≤ reference |
 | `test_completeness.py` | No nulls in fields defined as nullable=false in schema.yaml |
 | `test_distributions.py` | Asset class counts within ±5% of targets; no degenerate distributions |
 
@@ -290,15 +289,11 @@ Run from the **repository root**, with a path to the CSV (example synthetic outp
 
 1. **Tier 2 rule calibration**: SME approved Tier 2 weights (`2026-05-29-sme-draft-6`). Optional future pass: calibrate against real inspection / register data.
 
-2. **`tracing_active`**: Not generated — pending data dictionary definition.
+2. **Correlated operating temperature and asset class**: No explicit conditioning of operating_temperature on asset_class. In practice, REACTORs and COLUMNs tend to run hotter than STORAGE_TANKs. This could be added as a Tier 2 rule.
 
-3. **Asset class diameter distributions**: Implemented per [component geometry sizing](component_geometry_sizing.md) — NPS catalog for PIPE (`R-PIPE-NPS-01`), triangular diameter plus coupled wall for other classes.
+3. **Inspection interval realism**: `latest_inspection_date` currently drawn uniformly within `[0.5, 10]` years from today.
 
-4. **Correlated operating temperature and asset class**: No explicit conditioning of operating_temperature on asset_class. In practice, REACTORs and COLUMNs tend to run hotter than STORAGE_TANKs. This could be added as a Tier 2 rule.
-
-5. **Inspection interval realism**: `latest_inspection_date` currently drawn uniformly within `[0.5, 10]` years from today.
-
-6. **Risk labels**: Not generated here. Will be assigned separately using the CUI model.
+4. **Risk labels**: Not generated here. Will be assigned separately using the CUI model.
 
 ---
 

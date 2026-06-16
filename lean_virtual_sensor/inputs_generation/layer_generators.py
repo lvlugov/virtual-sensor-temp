@@ -260,16 +260,12 @@ def generate_dates(
         coating_ts = random_timestamp_uniform_between(rng, commissioning_ts, reference_ts)
         coating_dates.append(coating_ts.date().isoformat())
 
-        inspection_earliest = max(
-            commissioning_ts.normalize(),
-            insulation_ts.normalize(),
-        )
         inspection_ts = random_lookback_timestamp(
             rng,
             reference_ts,
             inspection_years_min,
             inspection_years_max,
-            inspection_earliest,
+            commissioning_ts,
         )
         inspection_dates.append(inspection_ts.date().isoformat())
 

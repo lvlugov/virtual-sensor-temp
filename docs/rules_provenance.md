@@ -65,7 +65,7 @@ Weights are **`engineering_judgement`** unless you record otherwise. Directional
 
 | # | Constraint | Claim | Authority | Evidence | Citations log | SME OK? |
 |---|------------|-------|-----------|----------|---------------|---------|
-| P-11 | Date chain | All dates within asset lifetime; install ≤ inspection | `product_logic` | `schema.yaml` layer 4 | — | `pending` |
+| P-11 | Date chain | All dates within asset lifetime | `product_logic` | `schema.yaml` layer 4 | — | `pending` |
 | P-12 | Temperature triplet | min ≤ operating ≤ max | `product_logic` | `schema.yaml` layer 5 | — | `pending` |
 | P-13 | Wall thickness | last_inspection_thickness ≤ furnished_thickness ≥ 1.0 | `product_logic` | `schema.yaml` | — | `pending` |
 | P-14 | Age chain | Years since commissioning ≥ insulation and coating ages | `product_logic` | `schema.yaml`; `asset_commissioning_date` | — | `yes` |

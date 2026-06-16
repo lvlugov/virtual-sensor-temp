@@ -64,13 +64,14 @@ def test_inspection_date_not_future(df, gen_config):
     assert (ins <= ref).all()
 
 
-def test_inspection_date_not_before_insulation_install(df):
-    """latest_inspection_date >= insulation_install_date for every row."""
+def test_inspection_date_within_asset_lifetime(df, gen_config):
+    """latest_inspection_date >= asset_commissioning_date."""
     if df is None:
         pytest.skip("No dataset provided")
-    install = pd.to_datetime(df["insulation_install_date"])
-    inspection = pd.to_datetime(df["latest_inspection_date"])
-    assert (inspection >= install).all()
+    for _, row in df.iterrows():
+        commissioning = parse_commissioning_timestamp(row["asset_commissioning_date"])
+        inspection = pd.Timestamp(row["latest_inspection_date"]).normalize()
+        assert inspection >= commissioning.normalize()
 
 
 def test_commissioning_covers_insulation_and_coating_ages(df, gen_config):
