@@ -9,7 +9,6 @@ import pandas as pd
 import pytest
 
 from lean_virtual_sensor.feature_engineering.asset_temperature import (
-    AssetSpec,
     compute_ach,
     compute_ach_for_asset,
     compute_f_closed,
@@ -21,14 +20,15 @@ from lean_virtual_sensor.feature_engineering.asset_temperature import (
     compute_wetness,
 )
 
-ASSET = AssetSpec(
-    insulation_type="MINERAL_WOOL",
-    insulation_thickness_mm=50,
-    pipe_diameter_mm=100,
-    wall_thickness_mm=5,
-    insulation_condition="GOOD",
-    cladding_integrity="GOOD",
-)
+# The standard test asset, as individual fields — the feature functions take
+# separate scalar args (no dataclass/dict), so each field is passed explicitly
+# at every call site below.
+INSULATION_MATERIAL = "MINERAL_WOOL"
+INSULATION_THICKNESS = 50
+COMPONENT_DIAMETER = 100
+FURNISHED_THICKNESS = 5
+INSULATION_CONDITION = "GOOD"
+CLADDING_INTEGRITY = "GOOD"
 
 # Fixed reference dates so every test's window placement is deterministic.
 # LAST_INSPECTION is well before TODAY - 90 days, so the ACH window is the
@@ -228,17 +228,16 @@ def test_compute_ach_sums_per_hour_scores():
 # ====================================== Pipeline: tie Steps 1-5 together ======================================
 
 
-def test_asset_spec_is_frozen():
-    # AssetSpec is immutable so a single spec can be passed around safely.
-    with pytest.raises(Exception):  # FrozenInstanceError, a subclass of AttributeError
-        ASSET.insulation_thickness_mm = 999  # type: ignore[misc]
-
-
 def test_compute_ach_for_asset_dry_hot_is_zero():
     # Hot process + warm dry air → T_skin sits far above T_dew + band, so
     # wetness = 0 every hour → ACH = 0.
     ach = compute_ach_for_asset(
-        ASSET,
+        INSULATION_MATERIAL,
+        INSULATION_THICKNESS,
+        COMPONENT_DIAMETER,
+        FURNISHED_THICKNESS,
+        INSULATION_CONDITION,
+        CLADDING_INTEGRITY,
         _weather_df(temp=30, humidity=20),
         _process_df(t_process=100),
         LAST_INSPECTION,
@@ -251,7 +250,12 @@ def test_compute_ach_for_asset_wet_warm_is_positive():
     # Modest process temp with cool wet ambient → T_skin lands inside the
     # wetness transition band → both f and w positive → ACH > 0.
     ach = compute_ach_for_asset(
-        ASSET,
+        INSULATION_MATERIAL,
+        INSULATION_THICKNESS,
+        COMPONENT_DIAMETER,
+        FURNISHED_THICKNESS,
+        INSULATION_CONDITION,
+        CLADDING_INTEGRITY,
         _weather_df(temp=15, humidity=95),
         _process_df(t_process=20),
         LAST_INSPECTION,
@@ -264,26 +268,32 @@ def test_compute_ach_for_asset_open_vs_closed_differs():
     # Same geometry; differ only on condition strings. Both GOOD → closed
     # (uses compute_f_closed); cladding POOR → open (uses compute_f_open).
     # At low T_skin those two curves disagree, so ACH differs.
-    asset_closed = AssetSpec(
-        insulation_type="MINERAL_WOOL",
-        insulation_thickness_mm=50,
-        pipe_diameter_mm=100,
-        wall_thickness_mm=5,
-        insulation_condition="GOOD",
-        cladding_integrity="GOOD",
-    )
-    asset_open = AssetSpec(
-        insulation_type="MINERAL_WOOL",
-        insulation_thickness_mm=50,
-        pipe_diameter_mm=100,
-        wall_thickness_mm=5,
-        insulation_condition="GOOD",
-        cladding_integrity="POOR",
-    )
     weather = _weather_df(temp=15, humidity=95, n_hours=24)
     process = _process_df(t_process=20, n_hours=24)
-    ach_closed = compute_ach_for_asset(asset_closed, weather, process, LAST_INSPECTION, TODAY)
-    ach_open = compute_ach_for_asset(asset_open, weather, process, LAST_INSPECTION, TODAY)
+    ach_closed = compute_ach_for_asset(
+        INSULATION_MATERIAL,
+        INSULATION_THICKNESS,
+        COMPONENT_DIAMETER,
+        FURNISHED_THICKNESS,
+        "GOOD",
+        "GOOD",
+        weather,
+        process,
+        LAST_INSPECTION,
+        TODAY,
+    )
+    ach_open = compute_ach_for_asset(
+        INSULATION_MATERIAL,
+        INSULATION_THICKNESS,
+        COMPONENT_DIAMETER,
+        FURNISHED_THICKNESS,
+        "GOOD",
+        "POOR",
+        weather,
+        process,
+        LAST_INSPECTION,
+        TODAY,
+    )
     assert ach_closed != ach_open
 
 
@@ -292,7 +302,12 @@ def test_compute_ach_for_asset_inspection_in_or_after_today_is_zero():
     # to empty — no trailing period exists to summarise. Symmetric with
     # compute_wet_load's behaviour for the pre-ACH window.
     ach = compute_ach_for_asset(
-        ASSET,
+        INSULATION_MATERIAL,
+        INSULATION_THICKNESS,
+        COMPONENT_DIAMETER,
+        FURNISHED_THICKNESS,
+        INSULATION_CONDITION,
+        CLADDING_INTEGRITY,
         _weather_df(temp=15, humidity=95),
         _process_df(t_process=20),
         TODAY,  # inspection == today
@@ -306,7 +321,12 @@ def test_compute_ach_for_asset_empty_frames_is_zero():
     empty_weather = pd.DataFrame(columns=["datetime", "temp", "humidity"])
     empty_process = pd.DataFrame(columns=["datetime", "process_temperature_c"])
     ach = compute_ach_for_asset(
-        ASSET,
+        INSULATION_MATERIAL,
+        INSULATION_THICKNESS,
+        COMPONENT_DIAMETER,
+        FURNISHED_THICKNESS,
+        INSULATION_CONDITION,
+        CLADDING_INTEGRITY,
         empty_weather,
         empty_process,
         LAST_INSPECTION,
@@ -316,19 +336,16 @@ def test_compute_ach_for_asset_empty_frames_is_zero():
 
 
 def test_compute_ach_for_asset_propagates_bad_geometry():
-    # AssetSpec doesn't validate at construction; the bad value surfaces from
+    # Geometry is validated at point of use; a bad value surfaces from
     # compute_k when the pipeline runs.
-    bad_asset = AssetSpec(
-        insulation_type="MINERAL_WOOL",
-        insulation_thickness_mm=-50,
-        pipe_diameter_mm=100,
-        wall_thickness_mm=5,
-        insulation_condition="GOOD",
-        cladding_integrity="GOOD",
-    )
     with pytest.raises(ValueError):
         compute_ach_for_asset(
-            bad_asset,
+            INSULATION_MATERIAL,
+            -50,  # insulation_thickness — invalid
+            COMPONENT_DIAMETER,
+            FURNISHED_THICKNESS,
+            INSULATION_CONDITION,
+            CLADDING_INTEGRITY,
             _weather_df(temp=15, humidity=95, n_hours=1),
             _process_df(t_process=20, n_hours=1),
             LAST_INSPECTION,
@@ -339,7 +356,12 @@ def test_compute_ach_for_asset_propagates_bad_geometry():
 def test_compute_ach_for_asset_propagates_bad_rh():
     with pytest.raises(ValueError):
         compute_ach_for_asset(
-            ASSET,
+            INSULATION_MATERIAL,
+            INSULATION_THICKNESS,
+            COMPONENT_DIAMETER,
+            FURNISHED_THICKNESS,
+            INSULATION_CONDITION,
+            CLADDING_INTEGRITY,
             _weather_df(temp=15, humidity=150, n_hours=1),
             _process_df(t_process=20, n_hours=1),
             LAST_INSPECTION,
@@ -363,9 +385,27 @@ def test_compute_ach_for_asset_resamples_subhourly_process_data_to_hourly():
     )
     weather = _weather_df(temp=15, humidity=95, n_hours=n_hours)
     ach_subhourly = compute_ach_for_asset(
-        ASSET, weather, process_subhourly, LAST_INSPECTION, TODAY,
+        INSULATION_MATERIAL,
+        INSULATION_THICKNESS,
+        COMPONENT_DIAMETER,
+        FURNISHED_THICKNESS,
+        INSULATION_CONDITION,
+        CLADDING_INTEGRITY,
+        weather,
+        process_subhourly,
+        LAST_INSPECTION,
+        TODAY,
     )
     ach_hourly = compute_ach_for_asset(
-        ASSET, weather, _process_df(t_process=20, n_hours=n_hours), LAST_INSPECTION, TODAY,
+        INSULATION_MATERIAL,
+        INSULATION_THICKNESS,
+        COMPONENT_DIAMETER,
+        FURNISHED_THICKNESS,
+        INSULATION_CONDITION,
+        CLADDING_INTEGRITY,
+        weather,
+        _process_df(t_process=20, n_hours=n_hours),
+        LAST_INSPECTION,
+        TODAY,
     )
     assert ach_subhourly == pytest.approx(ach_hourly)

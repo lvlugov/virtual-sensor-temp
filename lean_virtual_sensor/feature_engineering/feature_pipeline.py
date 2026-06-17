@@ -31,7 +31,6 @@ import pandas as pd
 
 from lean_virtual_sensor.feature_engineering.age_features import compute_age_years
 from lean_virtual_sensor.feature_engineering.asset_temperature import (
-    AssetSpec,
     compute_ach_for_asset,
 )
 from lean_virtual_sensor.feature_engineering.cycle_features import (
@@ -97,23 +96,23 @@ def compute_features_for_asset(
         asset_inventory["cladding_integrity"],
     )
 
-    asset_spec = AssetSpec(
-        insulation_type=asset_inventory["insulation_material"],
-        insulation_thickness_mm=asset_inventory["insulation_thickness"],
-        pipe_diameter_mm=asset_inventory["component_diameter"],
-        wall_thickness_mm=asset_inventory["furnished_thickness"],
-        insulation_condition=asset_inventory["insulation_condition"],
-        cladding_integrity=asset_inventory["cladding_integrity"],
-    )
     ach_90d = compute_ach_for_asset(
-        asset_spec,
+        asset_inventory["insulation_material"],
+        asset_inventory["insulation_thickness"],
+        asset_inventory["component_diameter"],
+        asset_inventory["furnished_thickness"],
+        asset_inventory["insulation_condition"],
+        asset_inventory["cladding_integrity"],
         weather_df,
         process_history_df,
         last_inspection_date,
         today,
     )
     cycle_count = compute_cycles_for_asset(
-        asset_spec,
+        asset_inventory["insulation_material"],
+        asset_inventory["insulation_thickness"],
+        asset_inventory["component_diameter"],
+        asset_inventory["furnished_thickness"],
         weather_df,
         process_history_df,
         last_inspection_date,

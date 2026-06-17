@@ -30,8 +30,9 @@ Per-asset CUI feature pipeline in five steps, plus an end-to-end driver:
             Window length comes from ``asset_temperature.ach_window_days``
             in config (default 90).
 
-End-to-end entry point :func:`compute_ach_for_asset` takes an :class:`AssetSpec`,
-an hourly ``weather_df``, an hourly ``process_history_df``, and two dates;
+End-to-end entry point :func:`compute_ach_for_asset` takes an asset mapping
+(the raw inventory row, synthetic-data field names), an hourly ``weather_df``,
+an hourly ``process_history_df``, and two dates;
 it slices both DataFrames to the trailing ACH window itself, joins on
 ``datetime``, and chains Steps 1-5 to one ACH value.
 
@@ -44,7 +45,6 @@ from the ``asset_temperature`` section of ``config.yaml`` via
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 from typing import Iterable
 
 import numpy as np
@@ -54,47 +54,6 @@ from scipy.interpolate import PchipInterpolator
 from lean_virtual_sensor.config import load_section
 from lean_virtual_sensor.feature_engineering.system_flag_feature import is_open_system
 
-
-@dataclass(frozen=True, kw_only=True)
-class AssetSpec:
-    """Static asset configuration: geometry, materials, service overrides.
-
-    Bundles the seven parameters that describe one insulated pipe so the
-    orchestrator does not need an eight-deep keyword-only argument list.
-    Frozen so a single ``AssetSpec`` instance can be safely passed across
-    a pipeline without risk of mid-flight mutation; kw-only so call sites
-    are self-documenting.
-
-    Fields are not validated at construction — :func:`compute_k`,
-    :func:`compute_t_dew`, and :func:`is_open_system` validate them at the
-    point of use, so a typo surfaces with a clear error from the function
-    that actually depends on the constraint.
-
-    Attributes:
-        insulation_type: Material key into ``insulation_lambda_w_per_mk``
-            (case-insensitive).
-        insulation_thickness_mm: Insulation jacket thickness, mm. Must be > 0.
-        pipe_diameter_mm: Pipe outer diameter, mm. Must be > 0.
-        wall_thickness_mm: Original/furnished metal wall thickness, mm.
-            Must satisfy 0 < wall_thickness < pipe_diameter / 2.
-        insulation_condition: ``"GOOD"``, ``"AVERAGE"``, or ``"POOR"`` —
-            consumed by :func:`is_open_system` together with
-            ``cladding_integrity`` to derive the NACE open/closed flag.
-        cladding_integrity: ``"GOOD"``, ``"AVERAGE"``, or ``"POOR"``.
-        h_internal: Internal film coefficient override, W/m²·K. ``None``
-            falls back to ``default_h_internal_w_per_m2k`` in config.
-        h_external: External film coefficient override, W/m²·K. ``None``
-            falls back to ``default_h_external_w_per_m2k`` in config.
-    """
-
-    insulation_type: str
-    insulation_thickness_mm: float
-    pipe_diameter_mm: float
-    wall_thickness_mm: float
-    insulation_condition: str
-    cladding_integrity: str
-    h_internal: float | None = None
-    h_external: float | None = None
 
 CONFIG_SECTION = "asset_temperature"
 REQUIRED_KEYS = (
@@ -410,11 +369,18 @@ def compute_ach(hour_scores: Iterable[float]) -> float:
 
 
 def compute_ach_for_asset(
-    asset: AssetSpec,
+    insulation_material: str,
+    insulation_thickness: float,
+    component_diameter: float,
+    furnished_thickness: float,
+    insulation_condition: str,
+    cladding_integrity: str,
     weather_df: pd.DataFrame,
     process_history_df: pd.DataFrame,
     last_inspection_date: pd.Timestamp,
     today: pd.Timestamp,
+    h_internal: float | None = None,
+    h_external: float | None = None,
 ) -> float:
     """Run Steps 1-5 end-to-end for one asset over its trailing ACH window.
 
@@ -443,11 +409,14 @@ def compute_ach_for_asset(
     irregular) without the inner merge silently dropping every row.
 
     Args:
-        asset: Static asset configuration (geometry, materials, insulation
-            and cladding condition, optional film-coefficient overrides).
-            See :class:`AssetSpec`. The NACE open/closed flag is derived
-            from ``asset.insulation_condition`` and ``asset.cladding_integrity``
+        insulation_material: Material key into ``insulation_lambda_w_per_mk``.
+        insulation_thickness: Insulation jacket thickness, mm (> 0).
+        component_diameter: Pipe outer diameter, mm (> 0).
+        furnished_thickness: Original/furnished metal wall thickness, mm.
+        insulation_condition: ``"GOOD"``/``"AVERAGE"``/``"POOR"`` — combined
+            with ``cladding_integrity`` to derive the NACE open/closed flag
             via :func:`is_open_system`.
+        cladding_integrity: ``"GOOD"``/``"AVERAGE"``/``"POOR"``.
         weather_df: Hourly DataFrame from the weather cache. Columns
             ``datetime``, ``temp`` (ambient °C), ``dew`` (°C),
             ``humidity`` (% in (0, 100]), ``precip`` (mm). This function
@@ -475,12 +444,21 @@ def compute_ach_for_asset(
             string), or :func:`compute_t_dew` (RH out of range).
     """
     window = prepare_hourly_window(
-        asset, weather_df, process_history_df, last_inspection_date, today,
+        insulation_material,
+        insulation_thickness,
+        component_diameter,
+        furnished_thickness,
+        weather_df,
+        process_history_df,
+        last_inspection_date,
+        today,
+        h_internal=h_internal,
+        h_external=h_external,
     )
     if window.empty:
         return 0.0
 
-    open_system = is_open_system(asset.insulation_condition, asset.cladding_integrity)
+    open_system = is_open_system(insulation_condition, cladding_integrity)
     f = compute_f_open if open_system else compute_f_closed
 
     hour_scores: list[float] = []
@@ -498,11 +476,16 @@ def compute_ach_for_asset(
 
 
 def prepare_hourly_window(
-    asset: AssetSpec,
+    insulation_material: str,
+    insulation_thickness: float,
+    component_diameter: float,
+    furnished_thickness: float,
     weather_df: pd.DataFrame,
     process_history_df: pd.DataFrame,
     last_inspection_date: pd.Timestamp,
     today: pd.Timestamp,
+    h_internal: float | None = None,
+    h_external: float | None = None,
 ) -> pd.DataFrame:
     """Slice → resample → merge → add T_skin: the hourly window for Steps 2–5.
 
@@ -567,12 +550,12 @@ def prepare_hourly_window(
         return empty
 
     k = compute_k(
-        asset.insulation_type,
-        asset.insulation_thickness_mm,
-        asset.pipe_diameter_mm,
-        asset.wall_thickness_mm,
-        h_internal=asset.h_internal,
-        h_external=asset.h_external,
+        insulation_material,
+        insulation_thickness,
+        component_diameter,
+        furnished_thickness,
+        h_internal=h_internal,
+        h_external=h_external,
     )
     return window.assign(
         t_skin=[

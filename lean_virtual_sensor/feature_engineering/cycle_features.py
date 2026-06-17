@@ -29,7 +29,6 @@ from scipy.signal import find_peaks
 
 from lean_virtual_sensor.config import load_section
 from lean_virtual_sensor.feature_engineering.asset_temperature import (
-    AssetSpec,
     prepare_hourly_window,
 )
 
@@ -82,11 +81,16 @@ def compute_cycle_count(
 
 
 def compute_cycles_for_asset(
-    asset: AssetSpec,
+    insulation_material: str,
+    insulation_thickness: float,
+    component_diameter: float,
+    furnished_thickness: float,
     weather_df: pd.DataFrame,
     process_history_df: pd.DataFrame,
     last_inspection_date: pd.Timestamp,
     today: pd.Timestamp,
+    h_internal: float | None = None,
+    h_external: float | None = None,
 ) -> int:
     """Count T_skin cooldown cycles over the trailing ACH window.
 
@@ -98,8 +102,10 @@ def compute_cycles_for_asset(
     gap) all come from the ``asset_temperature`` config block.
 
     Args:
-        asset: Static asset configuration. See
-            :class:`...asset_temperature.AssetSpec`.
+        insulation_material: Material key into ``insulation_lambda_w_per_mk``.
+        insulation_thickness: Insulation jacket thickness, mm (> 0).
+        component_diameter: Pipe outer diameter, mm (> 0).
+        furnished_thickness: Original/furnished metal wall thickness, mm.
         weather_df: Hourly weather DataFrame. See
             :func:`...asset_temperature.compute_ach_for_asset` for the
             column contract.
@@ -107,6 +113,10 @@ def compute_cycles_for_asset(
         last_inspection_date: Earliest date the window may extend back
             to (mirrors :func:`...asset_temperature.compute_ach_for_asset`).
         today: Reference date; window ends here.
+        h_internal: Internal film coefficient override, W/m²·K (``None`` →
+            config default).
+        h_external: External film coefficient override, W/m²·K (``None`` →
+            config default).
 
     Returns:
         Integer cooldown count for the window. Returns ``0`` for an
@@ -114,7 +124,16 @@ def compute_cycles_for_asset(
     """
     cfg = load_section(CONFIG_SECTION, REQUIRED_KEYS)
     window = prepare_hourly_window(
-        asset, weather_df, process_history_df, last_inspection_date, today,
+        insulation_material,
+        insulation_thickness,
+        component_diameter,
+        furnished_thickness,
+        weather_df,
+        process_history_df,
+        last_inspection_date,
+        today,
+        h_internal=h_internal,
+        h_external=h_external,
     )
     if window.empty:
         return 0

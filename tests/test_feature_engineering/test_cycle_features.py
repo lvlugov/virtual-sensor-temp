@@ -10,20 +10,18 @@ expected cooldown count.
 import pandas as pd
 import pytest
 
-from lean_virtual_sensor.feature_engineering.asset_temperature import AssetSpec
 from lean_virtual_sensor.feature_engineering.cycle_features import (
     compute_cycle_count,
     compute_cycles_for_asset,
 )
 
-ASSET = AssetSpec(
-    insulation_type="MINERAL_WOOL",
-    insulation_thickness_mm=50,
-    pipe_diameter_mm=100,
-    wall_thickness_mm=5,
-    insulation_condition="GOOD",
-    cladding_integrity="GOOD",
-)
+# Asset geometry/material as individual fields — compute_cycles_for_asset takes
+# separate scalar args (no dataclass/dict). It needs only the four thermal
+# fields (the condition strings drive the open/closed flag, which cycles ignore).
+INSULATION_MATERIAL = "MINERAL_WOOL"
+INSULATION_THICKNESS = 50
+COMPONENT_DIAMETER = 100
+FURNISHED_THICKNESS = 5
 
 # Fixed reference dates so windowing is deterministic across tests.
 TODAY = pd.Timestamp("2026-05-26")
@@ -118,7 +116,10 @@ def test_compute_cycle_count_interpolates_short_gaps():
 
 def test_compute_cycles_for_asset_inspection_in_or_after_today_is_zero():
     cycles = compute_cycles_for_asset(
-        ASSET,
+        INSULATION_MATERIAL,
+        INSULATION_THICKNESS,
+        COMPONENT_DIAMETER,
+        FURNISHED_THICKNESS,
         _weather_df(temp=15, humidity=95),
         _process_df(t_process=20),
         TODAY,  # inspection == today → empty window
@@ -132,7 +133,14 @@ def test_compute_cycles_for_asset_empty_frames_is_zero():
     empty_process = pd.DataFrame(columns=["datetime", "process_temperature_c"])
     assert (
         compute_cycles_for_asset(
-            ASSET, empty_weather, empty_process, LAST_INSPECTION, TODAY,
+            INSULATION_MATERIAL,
+            INSULATION_THICKNESS,
+            COMPONENT_DIAMETER,
+            FURNISHED_THICKNESS,
+            empty_weather,
+            empty_process,
+            LAST_INSPECTION,
+            TODAY,
         )
         == 0
     )
@@ -158,6 +166,13 @@ def test_compute_cycles_for_asset_finds_cooldowns_in_process_swings():
         }
     )
     cycles = compute_cycles_for_asset(
-        ASSET, weather, process, LAST_INSPECTION, TODAY,
+        INSULATION_MATERIAL,
+        INSULATION_THICKNESS,
+        COMPONENT_DIAMETER,
+        FURNISHED_THICKNESS,
+        weather,
+        process,
+        LAST_INSPECTION,
+        TODAY,
     )
     assert cycles == 3
