@@ -6,10 +6,32 @@ Inter-variable constraints from schema.yaml and methodology §4.
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
 import pytest
 
+from constraints import _clamp_and_round_numerics, _enforce_temperature_triplet
 from generation_helpers import parse_commissioning_timestamp, years_between_timestamps
+from layer_generators import (
+    generate_anchors,
+    generate_dates,
+    generate_geometry,
+    generate_operating,
+    generate_wall_insulation,
+)
+from pipeline import _assign_asset_ids, _build_empty_dataframe
+from schema_loader import load_all_configs
+
+
+def _config_dir() -> Path:
+    return (
+        Path(__file__).resolve().parents[3]
+        / "lean_virtual_sensor"
+        / "inputs_generation"
+        / "config"
+    )
 
 
 def _reference_ts(gen_config: dict) -> pd.Timestamp:
@@ -22,6 +44,45 @@ def test_temperature_triplet_ordering(df):
         pytest.skip("No dataset provided")
     assert (df["min_operating_temperature"] <= df["operating_temperature"]).all()
     assert (df["operating_temperature"] <= df["max_operating_temperature"]).all()
+
+
+def test_enforce_constraints_on_operating_layer_output():
+    """Temperature triplet repair and numeric clamp on layer 5 output."""
+    cfg = load_all_configs(_config_dir())
+    rng = np.random.default_rng(99)
+    n_rows = 200
+    dataframe = _build_empty_dataframe(n_rows, cfg, rng)
+    dataframe = _assign_asset_ids(dataframe)
+    dataframe = generate_anchors(dataframe, cfg, rng)
+    dataframe = generate_geometry(dataframe, cfg, rng)
+    dataframe = generate_wall_insulation(dataframe, cfg, rng)
+    dataframe = generate_dates(dataframe, cfg, rng)
+    dataframe = generate_operating(dataframe, cfg, rng)
+
+    corrected, _triplet_fixes = _enforce_temperature_triplet(dataframe)
+    corrected, _clamp_fixes = _clamp_and_round_numerics(corrected, cfg)
+
+    assert (
+        corrected["min_operating_temperature"] <= corrected["operating_temperature"]
+    ).all()
+    assert (
+        corrected["operating_temperature"] <= corrected["max_operating_temperature"]
+    ).all()
+    op_lo, op_hi = cfg.schema["variables"]["operating_temperature"]["range"]
+    for column in (
+        "operating_temperature",
+        "min_operating_temperature",
+        "max_operating_temperature",
+    ):
+        series = pd.to_numeric(corrected[column], errors="coerce")
+        assert series.between(float(op_lo), float(op_hi)).all(), column
+    frac_decimals = int(
+        cfg.schema["variables"]["operation_vs_shutdown_fraction"]["decimals"]
+    )
+    frac_series = pd.to_numeric(
+        corrected["operation_vs_shutdown_fraction"], errors="coerce"
+    )
+    assert frac_series.eq(frac_series.round(frac_decimals)).all()
 
 
 def test_wall_thickness_ordering(df):

@@ -79,19 +79,48 @@ def test_operating_temperature_triplet_and_schema_bounds(cfg):
         assert t_min <= op <= t_max
 
 
-def test_operating_temperature_within_metallurgy_yaml_range(cfg):
-    dataframe = _dataframe_through_layer5(cfg)
-    ranges = cfg.generation["operating_temperature_ranges"]["by_metallurgy"]
-    op_lo, op_hi = cfg.schema["variables"]["operating_temperature"]["range"]
-    op_lo, op_hi = float(op_lo), float(op_hi)
+def _is_wide_swing_row(row: pd.Series) -> bool:
+    """Wide-swing table row: hot operating ~250 °C with sub-ambient min."""
+    op = float(row["operating_temperature"])
+    t_min = float(row["min_operating_temperature"])
+    return 245.0 <= op <= 255.0 and t_min <= -5.0
 
-    for _, row in dataframe.iterrows():
-        metallurgy = str(row["metallurgy_family"])
-        raw_lo, raw_hi = ranges[metallurgy]
-        allowed_lo = max(op_lo, float(raw_lo))
-        allowed_hi = min(op_hi, float(raw_hi))
-        op = float(row["operating_temperature"])
-        assert allowed_lo <= op <= allowed_hi
+
+def test_cold_service_identified_by_negative_operating_temperature(cfg):
+    dataframe = _dataframe_through_layer5(cfg, n_rows=1000, seed=42)
+    cold_eligible = {"PIPE", "PRESSURE_VESSEL", "STORAGE_TANK"}
+    cold_rows = dataframe[
+        (dataframe["operating_temperature"] < 0)
+        & (~dataframe.apply(_is_wide_swing_row, axis=1))
+    ]
+    assert not cold_rows.empty
+    assert set(cold_rows["asset_class"]).issubset(cold_eligible)
+
+
+def test_wide_swing_fraction_near_five_percent(cfg):
+    dataframe = _dataframe_through_layer5(cfg, n_rows=1000, seed=42)
+    wide_count = int(dataframe.apply(_is_wide_swing_row, axis=1).sum())
+    assert 40 <= wide_count <= 60
+
+
+def test_reactor_on_stream_fraction_below_pipe(cfg):
+    dataframe = _dataframe_through_layer5(cfg, n_rows=1000, seed=42)
+    reactor_median = float(
+        dataframe.loc[dataframe["asset_class"] == "REACTOR", "operation_vs_shutdown_fraction"].median()
+    )
+    pipe_median = float(
+        dataframe.loc[dataframe["asset_class"] == "PIPE", "operation_vs_shutdown_fraction"].median()
+    )
+    assert reactor_median < pipe_median
+
+
+def test_storage_tank_cycles_mostly_low(cfg):
+    dataframe = _dataframe_through_layer5(cfg, n_rows=1000, seed=42)
+    tank_cycles = dataframe.loc[
+        dataframe["asset_class"] == "STORAGE_TANK", "avg_cycles_per_quarter"
+    ]
+    assert not tank_cycles.empty
+    assert float(tank_cycles.median()) <= 2.0
 
 
 def test_avg_cycles_within_schema_and_tracing_is_allowed_value(cfg):

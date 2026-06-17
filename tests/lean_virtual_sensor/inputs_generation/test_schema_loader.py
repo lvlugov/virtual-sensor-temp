@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,20 @@ def _repo_root() -> Path:
 
 CONFIG_DIR = _repo_root() / "lean_virtual_sensor" / "inputs_generation" / "config"
 
+_CONFIG_FILENAMES = (
+    "schema.yaml",
+    "asset_class_config.yaml",
+    "conditional_rules.yaml",
+    "generation_config.yaml",
+    "operating_temperature_config.yaml",
+)
+
+
+def _copy_repo_configs(dest_dir: Path) -> None:
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    for name in _CONFIG_FILENAMES:
+        shutil.copy(CONFIG_DIR / name, dest_dir / name)
+
 
 def test_load_all_configs_default_generation_path() -> None:
     cfg = load_all_configs(CONFIG_DIR)
@@ -27,6 +42,9 @@ def test_load_all_configs_default_generation_path() -> None:
     assert "PIPE" in cfg.asset_class
     assert "conditional_weights" in cfg.conditional_rules
     assert cfg.generation["run"]["n_rows"] == 1000
+    assert cfg.operating_temperature["wide_swing_fraction"] == 0.05
+    assert "PIPE" in cfg.operating_temperature["profiles"]
+    assert cfg.operating_temperature["asset_class_default_profile"]["REACTOR"] == "REACTOR"
 
 
 def test_load_all_configs_explicit_generation_path() -> None:
@@ -52,15 +70,12 @@ asset_class_proportions:
 """,
         encoding="utf-8",
     )
-    # copy minimal slices — test only needs generation file + dir for others
-    import shutil
-
     d = tmp_path / "cfg"
-    d.mkdir()
-    shutil.copy(CONFIG_DIR / "schema.yaml", d / "schema.yaml")
-    shutil.copy(CONFIG_DIR / "asset_class_config.yaml", d / "asset_class_config.yaml")
-    shutil.copy(CONFIG_DIR / "conditional_rules.yaml", d / "conditional_rules.yaml")
-    shutil.copy(bad, d / "generation_config.yaml")
+    _copy_repo_configs(d)
+    (d / "generation_config.yaml").write_text(
+        bad.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
 
     with pytest.raises(ValueError, match="asset_class_proportions sum"):
         load_all_configs(d)
@@ -68,16 +83,10 @@ asset_class_proportions:
 
 def test_deterministic_rules_must_be_generation_scoped(tmp_path: Path) -> None:
     """Downstream-only rules must not live under deterministic_rules in YAML."""
-    import shutil
-
     d = tmp_path / "cfg"
-    d.mkdir()
-    shutil.copy(CONFIG_DIR / "schema.yaml", d / "schema.yaml")
-    shutil.copy(CONFIG_DIR / "asset_class_config.yaml", d / "asset_class_config.yaml")
-    shutil.copy(CONFIG_DIR / "generation_config.yaml", d / "generation_config.yaml")
+    _copy_repo_configs(d)
 
-    bad_rules = CONFIG_DIR / "conditional_rules.yaml"
-    text = bad_rules.read_text(encoding="utf-8")
+    text = (CONFIG_DIR / "conditional_rules.yaml").read_text(encoding="utf-8")
     text = text.replace(
         "    id: R-CHLORIDE-01\n    applies_at: generation",
         "    id: R-CHLORIDE-01\n    applies_at: downstream",
@@ -115,17 +124,48 @@ def test_repo_conditional_rules_rule_ids_are_unique() -> None:
 
 
 def test_missing_rule_id_raises(tmp_path: Path) -> None:
-    import shutil
-
     d = tmp_path / "cfg"
-    d.mkdir()
-    shutil.copy(CONFIG_DIR / "schema.yaml", d / "schema.yaml")
-    shutil.copy(CONFIG_DIR / "asset_class_config.yaml", d / "asset_class_config.yaml")
-    shutil.copy(CONFIG_DIR / "generation_config.yaml", d / "generation_config.yaml")
+    _copy_repo_configs(d)
 
     text = (CONFIG_DIR / "conditional_rules.yaml").read_text(encoding="utf-8")
     text = text.replace("    id: R-CHLORIDE-01\n", "")
     (d / "conditional_rules.yaml").write_text(text, encoding="utf-8")
 
     with pytest.raises(ValueError, match="missing required id"):
+        load_all_configs(d)
+
+
+def test_operating_temperature_triangular_mode_out_of_range_raises(tmp_path: Path) -> None:
+    d = tmp_path / "cfg"
+    _copy_repo_configs(d)
+
+    text = (CONFIG_DIR / "operating_temperature_config.yaml").read_text(encoding="utf-8")
+    text = text.replace("mode: 100", "mode: 500", 1)
+    (d / "operating_temperature_config.yaml").write_text(text, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="min <= mode <= max"):
+        load_all_configs(d)
+
+
+def test_operating_temperature_unknown_default_profile_raises(tmp_path: Path) -> None:
+    d = tmp_path / "cfg"
+    _copy_repo_configs(d)
+
+    text = (CONFIG_DIR / "operating_temperature_config.yaml").read_text(encoding="utf-8")
+    text = text.replace("PIPE: PIPE", "PIPE: NOT_A_PROFILE")
+    (d / "operating_temperature_config.yaml").write_text(text, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unknown profile"):
+        load_all_configs(d)
+
+
+def test_operating_temperature_wide_swing_fraction_out_of_range_raises(tmp_path: Path) -> None:
+    d = tmp_path / "cfg"
+    _copy_repo_configs(d)
+
+    text = (CONFIG_DIR / "operating_temperature_config.yaml").read_text(encoding="utf-8")
+    text = text.replace("wide_swing_fraction: 0.05", "wide_swing_fraction: 1.5")
+    (d / "operating_temperature_config.yaml").write_text(text, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="wide_swing_fraction"):
         load_all_configs(d)

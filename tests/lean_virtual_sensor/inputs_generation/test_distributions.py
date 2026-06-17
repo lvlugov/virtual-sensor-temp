@@ -7,13 +7,26 @@ Aggregate sanity checks on the synthetic dataset (methodology / Part 2).
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from schema_loader import load_all_configs
+from temperature_population_checks import assert_temperature_population_acceptance
+
 
 ASSET_CLASS_TOLERANCE = 0.05
+
+
+def _config_dir() -> Path:
+    return (
+        Path(__file__).resolve().parents[3]
+        / "lean_virtual_sensor"
+        / "inputs_generation"
+        / "config"
+    )
 
 
 def test_asset_class_counts_within_tolerance(df, gen_config):
@@ -84,3 +97,11 @@ def test_wall_loss_distribution_is_right_skewed(df):
     furnished = pd.to_numeric(df["furnished_thickness"], errors="coerce")
     frac = 1.0 - (last / furnished)
     assert frac.mean() > frac.median(), "expected right-skewed wall loss fraction"
+
+
+def test_temperature_population_acceptance(df, gen_config):
+    """Static temperature fields match Section 2 population targets."""
+    if df is None or gen_config is None:
+        pytest.skip("Requires synthetic dataset with generation_config")
+    cfg = load_all_configs(_config_dir())
+    assert_temperature_population_acceptance(df, cfg.operating_temperature)

@@ -1,0 +1,103 @@
+# =============================================================================
+# operating_temperature_config.yaml
+# Section 2 table from Synthetic_Asset_Temperature_Generation_final.md
+# (static fields only). Sampling rules are implemented in generation_helpers.py.
+# =============================================================================
+
+wide_swing_fraction: 0.05
+max_excursion_fraction: 0.10
+
+# Share of eligible rows using the cold-service table row (spec does not fix this;
+# tunable fleet mix — [ENGINEERING_JUDGEMENT]).
+cold_service_fraction:
+  PIPE: 0.08
+  PRESSURE_VESSEL: 0.05
+  STORAGE_TANK: 0.03
+
+asset_class_default_profile:
+  PIPE: PIPE
+  PRESSURE_VESSEL: PRESSURE_VESSEL
+  HEAT_EXCHANGER: HEAT_EXCHANGER
+  AIR_COOLER: AIR_COOLER
+  STORAGE_TANK: STORAGE_TANK
+  COLUMN: COLUMN
+  REACTOR: REACTOR
+
+profiles:
+
+  PIPE:
+    operating_temperature: { min: 40, mode: 100, max: 300 }
+    min_operating_temperature: { min: 0, max: 10 }
+    max_operating_temperature: { min: 45, max: 330 }
+    avg_cycles_per_quarter: { min: 2, max: 12 }
+    operation_vs_shutdown_fraction: { min: 0.92, max: 0.96 }
+
+  PRESSURE_VESSEL:
+    operating_temperature: { min: 40, mode: 120, max: 250 }
+    min_operating_temperature: { min: 0, max: 10 }
+    max_operating_temperature: { min: 45, max: 275 }
+    avg_cycles_per_quarter: { min: 2, max: 8 }
+    operation_vs_shutdown_fraction: { min: 0.92, max: 0.95 }
+
+  HEAT_EXCHANGER:
+    operating_temperature: { min: 60, mode: 120, max: 250 }
+    min_operating_temperature: { min: 0, max: 10 }
+    max_operating_temperature: { min: 65, max: 275 }
+    avg_cycles_per_quarter: { min: 8, max: 20 }
+    operation_vs_shutdown_fraction: { min: 0.88, max: 0.92 }
+
+  AIR_COOLER:
+    operating_temperature: { min: 40, mode: 70, max: 120 }
+    min_operating_temperature: { min: 0, max: 10 }
+    max_operating_temperature: { min: 45, max: 130 }
+    avg_cycles_per_quarter: { min: 4, max: 10 }
+    operation_vs_shutdown_fraction: { min: 0.88, max: 0.94 }
+
+  STORAGE_TANK:
+    operating_temperature: { min: 20, mode: 40, max: 90 }
+    min_operating_temperature: { min: 0, max: 10 }
+    max_operating_temperature: { min: 25, max: 100 }
+    avg_cycles_per_quarter: { min: 0, max: 2 }
+    operation_vs_shutdown_fraction: { min: 0.96, max: 0.99 }
+
+  COLUMN:
+    operating_temperature: { min: 120, mode: 200, max: 350 }
+    min_operating_temperature: { min: 0, max: 10 }
+    max_operating_temperature: { min: 130, max: 385 }
+    avg_cycles_per_quarter: { min: 1, max: 4 }
+    operation_vs_shutdown_fraction: { min: 0.95, max: 0.98 }
+
+  REACTOR:
+    operating_temperature: { min: 150, mode: 250, max: 350 }
+    min_operating_temperature: { min: 0, max: 10 }
+    max_operating_temperature: { min: 165, max: 385 }
+    avg_cycles_per_quarter: { min: 20, max: 40 }
+    operation_vs_shutdown_fraction: { min: 0.55, max: 0.70 }
+
+  PIPE_COLD_SERVICE:
+    operating_temperature: { min: -50, mode: -40, max: -10 }
+    min_operating_temperature: { min: -60, max: -15 }
+    max_operating_temperature: { min: 10, max: 25 }
+    avg_cycles_per_quarter: { min: 6, max: 12 }
+    operation_vs_shutdown_fraction: { min: 0.90, max: 0.94 }
+
+  PRESSURE_VESSEL_COLD_SERVICE:
+    operating_temperature: { min: -45, mode: -30, max: -15 }
+    min_operating_temperature: { min: -55, max: -20 }
+    max_operating_temperature: { min: 10, max: 25 }
+    avg_cycles_per_quarter: { min: 4, max: 8 }
+    operation_vs_shutdown_fraction: { min: 0.91, max: 0.95 }
+
+  STORAGE_TANK_REFRIGERATED:
+    operating_temperature: { min: -55, mode: -45, max: -30 }
+    min_operating_temperature: { min: -60, max: -35 }
+    max_operating_temperature: { min: 0, max: 10 }
+    avg_cycles_per_quarter: { min: 0, max: 1 }
+    operation_vs_shutdown_fraction: { min: 0.97, max: 0.99 }
+
+  WIDE_SWING:
+    operating_temperature: { min: 245, mode: 250, max: 255 }
+    min_operating_temperature: { min: -15, max: -5 }
+    max_operating_temperature: { min: 245, max: 255 }
+    avg_cycles_per_quarter: { min: 10, max: 14 }
+    operation_vs_shutdown_fraction: { min: 0.80, max: 0.85 }

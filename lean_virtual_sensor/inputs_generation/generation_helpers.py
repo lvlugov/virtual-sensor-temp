@@ -427,6 +427,206 @@ def sample_component_geometry(
     return round(diameter, 1), round(wall, 2)
 
 
+# --- operating temperature static fields (layer 5) -----------------------------
+
+_COLD_SERVICE_PROFILE_BY_CLASS: dict[str, str] = {
+    "PIPE": "PIPE_COLD_SERVICE",
+    "PRESSURE_VESSEL": "PRESSURE_VESSEL_COLD_SERVICE",
+    "STORAGE_TANK": "STORAGE_TANK_REFRIGERATED",
+}
+_COLD_SERVICE_MIN_OFFSET = (5.0, 10.0)
+
+
+def _profile_is_cold_service(profile: Mapping[str, Any]) -> bool:
+    """Cold-service table rows have sub-ambient operating temperature ranges."""
+    op_block = profile["operating_temperature"]
+    return float(op_block["max"]) < 0.0
+
+
+def resolve_operating_temperature_profile(
+    asset_class: str,
+    operating_temperature_config: Mapping[str, Any],
+    rng: np.random.Generator,
+) -> str:
+    """
+    Choose the Section 2 table row (profile key) for one asset.
+
+    Eligible classes may use their cold-service row; wide-swing reassignment
+    is applied separately via ``apply_wide_swing_temperature_assignments``.
+    """
+    default_profiles = operating_temperature_config["asset_class_default_profile"]
+    if asset_class not in default_profiles:
+        raise KeyError(
+            f"No asset_class_default_profile entry for asset class {asset_class!r}"
+        )
+
+    if asset_class in _COLD_SERVICE_PROFILE_BY_CLASS:
+        cold_fracs = operating_temperature_config["cold_service_fraction"]
+        fraction = float(cold_fracs[asset_class])
+        if rng.random() < fraction:
+            return _COLD_SERVICE_PROFILE_BY_CLASS[asset_class]
+
+    return str(default_profiles[asset_class])
+
+
+def sample_operating_temperature_fields(
+    profile_key: str,
+    operating_temperature_config: Mapping[str, Any],
+    rng: np.random.Generator,
+) -> dict[str, float | int]:
+    """
+    Draw the five static temperature fields for one sampling profile.
+
+    Profile selection (asset_class, cold-service, wide-swing) is handled by the
+    caller; this function only samples from ``profiles[profile_key]``.
+    """
+    profiles = operating_temperature_config.get("profiles")
+    if not isinstance(profiles, dict):
+        raise ValueError("operating_temperature_config must define 'profiles'")
+    profile = profiles.get(profile_key)
+    if not isinstance(profile, dict):
+        raise ValueError(f"Unknown operating temperature profile {profile_key!r}")
+
+    max_excursion_fraction = float(operating_temperature_config["max_excursion_fraction"])
+
+    op_block = profile["operating_temperature"]
+    operating_temp = round(
+        float(
+            rng.triangular(
+                float(op_block["min"]),
+                float(op_block["mode"]),
+                float(op_block["max"]),
+            )
+        ),
+        1,
+    )
+
+    min_temp = _sample_min_operating_temperature(profile, operating_temp, rng)
+    max_temp = _sample_max_operating_temperature(
+        profile, operating_temp, max_excursion_fraction, rng
+    )
+
+    cycles_block = profile["avg_cycles_per_quarter"]
+    cycles = int(
+        rng.integers(int(cycles_block["min"]), int(cycles_block["max"]) + 1)
+    )
+
+    fraction_block = profile["operation_vs_shutdown_fraction"]
+    on_stream = round(
+        float(
+            rng.uniform(
+                float(fraction_block["min"]),
+                float(fraction_block["max"]),
+            )
+        ),
+        3,
+    )
+
+    min_temp, max_temp = _repair_temperature_triplet(operating_temp, min_temp, max_temp)
+
+    return {
+        "operating_temperature": operating_temp,
+        "min_operating_temperature": min_temp,
+        "max_operating_temperature": max_temp,
+        "avg_cycles_per_quarter": cycles,
+        "operation_vs_shutdown_fraction": on_stream,
+    }
+
+
+def apply_wide_swing_temperature_assignments(
+    dataframe: pd.DataFrame,
+    operating_temperature_config: Mapping[str, Any],
+    rng: np.random.Generator,
+) -> pd.DataFrame:
+    """
+    Reassign a random share of rows to the wide-swing Section 2 table row.
+
+    Spec: 5% of assets, any ``asset_class``; all five static fields overwritten.
+    """
+    result = dataframe.copy()
+    row_count = len(result)
+    if row_count == 0:
+        return result
+
+    wide_fraction = float(operating_temperature_config["wide_swing_fraction"])
+    wide_count = int(round(wide_fraction * row_count))
+    if wide_count <= 0:
+        return result
+
+    wide_indices = rng.choice(row_count, size=wide_count, replace=False)
+    field_names = (
+        "operating_temperature",
+        "min_operating_temperature",
+        "max_operating_temperature",
+        "avg_cycles_per_quarter",
+        "operation_vs_shutdown_fraction",
+    )
+    for row_index in wide_indices:
+        fields = sample_operating_temperature_fields(
+            "WIDE_SWING", operating_temperature_config, rng
+        )
+        for field_name in field_names:
+            result.at[row_index, field_name] = fields[field_name]
+
+    return result
+
+
+def _sample_min_operating_temperature(
+    profile: Mapping[str, Any],
+    operating_temp: float,
+    rng: np.random.Generator,
+) -> float:
+    min_block = profile["min_operating_temperature"]
+    envelope_lo = float(min_block["min"])
+    envelope_hi = float(min_block["max"])
+
+    if _profile_is_cold_service(profile):
+        offset = float(rng.uniform(*_COLD_SERVICE_MIN_OFFSET))
+        drawn = operating_temp - offset
+        drawn = max(envelope_lo, min(drawn, envelope_hi))
+    else:
+        drawn = float(rng.uniform(envelope_lo, envelope_hi))
+
+    drawn = min(drawn, operating_temp)
+    return round(drawn, 1)
+
+
+def _sample_max_operating_temperature(
+    profile: Mapping[str, Any],
+    operating_temp: float,
+    max_excursion_fraction: float,
+    rng: np.random.Generator,
+) -> float:
+    max_block = profile["max_operating_temperature"]
+    envelope_lo = float(max_block["min"])
+    envelope_hi = float(max_block["max"])
+
+    if _profile_is_cold_service(profile):
+        # Cold-service max is the table warm-up ceiling (10–25 °C or 0–10 °C).
+        drawn = float(rng.uniform(envelope_lo, envelope_hi))
+    else:
+        # Hot / wide-swing: operating + ~10%, clamped to the table max envelope.
+        derived = operating_temp * (1.0 + max_excursion_fraction)
+        drawn = min(derived, envelope_hi)
+
+    drawn = max(drawn, operating_temp, envelope_lo)
+    drawn = min(drawn, envelope_hi)
+    return round(drawn, 1)
+
+
+def _repair_temperature_triplet(
+    operating_temp: float,
+    min_temp: float,
+    max_temp: float,
+) -> tuple[float, float]:
+    """Ensure min <= operating <= max after rounding and clamping."""
+    if min_temp > operating_temp:
+        min_temp = operating_temp
+    if max_temp < operating_temp:
+        max_temp = operating_temp
+    return round(min_temp, 1), round(max_temp, 1)
+
+
 # --- calendar / reference timeline -------------------------------------------
 
 

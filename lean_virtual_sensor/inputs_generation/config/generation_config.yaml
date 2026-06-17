@@ -63,23 +63,6 @@ exposure_zone_weights:
   SEVERE: 0.10
 
 
-# ── OPERATING TEMPERATURE DISTRIBUTIONS ──────────────────────────────────────
-# Temperature ranges per metallurgy family and asset class context.
-# Used in Layer 5 generation (operating_temperature drawn from these ranges).
-#
-# Ranges reflect typical process operating windows in O&G / refining.
-# [ENGINEERING_JUDGEMENT] — review with process engineering team.
-#
-# Format: [min, max] in °C. Draws are uniform within range.
-
-operating_temperature_ranges:
-  by_metallurgy:
-    CARBON_STEEL:     [-30, 300]   # Includes NGL / cold service and hot refinery service
-    LOW_ALLOY_STEEL:  [100, 400]   # Typically elevated temperature service
-    AUSTENITIC_SS:    [50, 400]    # Corrosive / high-temp service
-    DUPLEX_SS:        [0, 250]     # Moderate temperature, corrosive service
-
-
 # ── DATE GENERATION PARAMETERS ────────────────────────────────────────────────
 # Controls how dates are drawn relative to asset_commissioning_date and reference_date.
 # All values in years unless stated.
@@ -98,25 +81,6 @@ date_generation:
   # API 581 / ISO 14224 recommend 4-5 year intervals; critical assets 6 months
   inspection_age_min_years: 0.5    # most recent inspection at least 6 months ago
   inspection_age_max_years: 10     # data dictionary max default: 10 years (never inspected)
-
-
-# ── CYCLING PARAMETERS ────────────────────────────────────────────────────────
-# avg_cycles_per_quarter drawn from these ranges.
-# Cycling grade thresholds (API 583 / NACE SP0198):
-#   Steady:  < 20 cycles/quarter
-#   Routine: 20–100 cycles/quarter
-#   Heavy:   > 100 cycles/quarter
-
-cycling_grade_weights:
-  steady:   0.55    # < 20 cycles/quarter  — most continuous process assets
-  routine:  0.35    # 20–100 cycles/quarter — batch / swing service
-  heavy:    0.10    # > 100 cycles/quarter  — highly intermittent
-  # [ENGINEERING_JUDGEMENT]
-
-cycling_grade_ranges:
-  steady:  [0, 19]
-  routine: [20, 100]
-  heavy:   [101, 200]
 
 
 # ── WALL LOSS PARAMETERS ──────────────────────────────────────────────────────

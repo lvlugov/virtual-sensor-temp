@@ -79,10 +79,21 @@ Weights are **`engineering_judgement`** unless you record otherwise. Directional
 |---|-----------|-------|-----------|----------|---------------|---------|
 | P-16 | `asset_class_proportions` | Class counts (PIPE 38%, etc.) for ML diversity | | | 41 | `pending` |
 | P-17 | `exposure_zone_weights` | Zone mix for synthetic portfolio | `engineering_judgement` | Comment in YAML | — | `pending` |
-| P-18 | `operating_temperature_ranges` | °C ranges by metallurgy | `engineering_judgement` | Comment in YAML | 31–33 | `pending` |
+| P-18 | `operating_temperature_config.yaml` | Static temperature fields per asset-class profile (Section 2 table); triangular operating temp; ~10% max excursion | `engineering_judgement` | `local_reference/Synthetic_Asset_Temperature_Generation_final.md` §2; YAML table | 31–33 | `pending` |
 | P-19 | `date_generation` | Inspection / insulation / coating date draw bounds | `engineering_judgement` | Comment in YAML | — | `pending` |
 | P-20 | Wall loss Beta | last_inspection_thickness from Beta(1.5, 8) | `engineering_judgement` | Methodology §9 | — | `pending` |
 | P-21 | No nulls | Synthetic rows fully populated | `product_logic` | Methodology §7 | — | `pending` |
+
+---
+
+## Operating temperature config (`operating_temperature_config.yaml`)
+
+| # | Parameter | Claim | Authority | Evidence | Citations log | SME OK? |
+|---|-----------|-------|-----------|----------|---------------|---------|
+| P-26 | Section 2 profiles | Five static fields drawn per profile row in temperature spec | `engineering_judgement` | `Synthetic_Asset_Temperature_Generation_final.md` §2 | 31–33 | `pending` |
+| P-27 | `wide_swing_fraction` | 5% of fleet assigned wide-swing table row | `engineering_judgement` | Temperature spec §2 note | — | `pending` |
+| P-28 | `cold_service_fraction` | Fleet share of cold-service rows for PIPE / PV / tank | `engineering_judgement` | Not in spec table; YAML default | — | `pending` |
+| P-29 | `max_excursion_fraction` | max_operating ≈ operating × 1.10 (hot / wide-swing) | `engineering_judgement` | Temperature spec §2 sampling | — | `pending` |
 
 ---
 

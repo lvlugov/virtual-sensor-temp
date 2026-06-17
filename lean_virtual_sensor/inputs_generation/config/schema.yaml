@@ -396,7 +396,7 @@ variables:
     type: float
     layer: 5
     nullable: false
-    decimals: 2
+    decimals: 3
     range: [0.0, 1.0]
     default: 1.0
     notes: >

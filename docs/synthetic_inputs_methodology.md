@@ -44,20 +44,22 @@ All static and quasi-static input variables to the CUI model:
 
 ## 3. Architecture Overview
 
-The generation system has four config files and a Python pipeline under **`lean_virtual_sensor/inputs_generation/`**. Validation tests live under the repository **`tests/`** tree (shared `tests/conftest.py`, test modules under `tests/lean_virtual_sensor/inputs_generation/`).
+The generation system has five config files and a Python pipeline under **`lean_virtual_sensor/inputs_generation/`**. Validation tests live under the repository **`tests/`** tree (shared `tests/conftest.py`, test modules under `tests/lean_virtual_sensor/inputs_generation/`).
 
 ```
 lean_virtual_sensor/inputs_generation/
   config/
-    schema.yaml             ← Variable registry aligned to product data dictionary
-    asset_class_config.yaml ← Per-class physical constraints and probability weights
-    conditional_rules.yaml  ← Conditional generation rules (deterministic + reasoned weights)
-    generation_config.yaml  ← Run parameters (seed, n_rows, proportions)
+    schema.yaml                        ← Variable registry aligned to product data dictionary
+    asset_class_config.yaml            ← Per-class physical constraints and probability weights
+    conditional_rules.yaml             ← Conditional generation rules (deterministic + reasoned weights)
+    operating_temperature_config.yaml  ← Section 2 table: static temperature field sampling
+    generation_config.yaml             ← Run parameters (seed, n_rows, proportions)
 
   pipeline.py               ← Orchestrates the full generation run
   layer_generators.py       ← One function per DAG layer
+  generation_helpers.py     ← Sampling helpers (temperature profiles, geometry, dates)
   constraints.py            ← Post-generation structural repair (dates, ordering, clamps)
-  schema_loader.py          ← Parses config files into Python objects
+  schema_loader.py            ← Parses config files into Python objects
   generate.py               ← CLI entry point
 
 tests/
@@ -68,9 +70,11 @@ tests/
     test_date_chain.py
     test_completeness.py
     test_distributions.py
+    test_operating_temperature_sampling.py
+    test_operating_temperature_distributions.py
 ```
 
-The pipeline reads all four config files, generates 1,000 rows in DAG layer order, runs the full test suite, and only writes output if all tests pass.
+The pipeline reads all five config files, generates 1,000 rows in DAG layer order, runs the full test suite, and only writes output if all tests pass.
 
 ---
 
@@ -103,7 +107,17 @@ All dates are bounded by: `asset_commissioning_date` ≤ date ≤ `reference_dat
 `insulation_install_date`, `coating_application_date`, `coating_system`, `latest_inspection_date`, `inspection_ever_done`
 
 ### Layer 5 — Temperature triplet + process parameters
-`operating_temperature` is drawn first; `min` and `max` are then drawn as offsets relative to it, enforcing min ≤ op_temp ≤ max exactly.
+
+Static temperature fields follow **`local_reference/Synthetic_Asset_Temperature_Generation_final.md`** Section 2 (source table in `operating_temperature_config.yaml`).
+
+Per row:
+
+1. Choose a **profile** from `asset_class` (hot-service table row, or cold-service variant for PIPE / PRESSURE_VESSEL / STORAGE_TANK).
+2. Draw all five fields from that profile: triangular `operating_temperature` (mode = spec peak); `min_operating_temperature` (uniform 0–10 °C for hot service, `operating − 5–10 °C` for cold); `max_operating_temperature` (~10% above operating, clamped to table envelope; cold-service max from table warm-up ceiling); integer-uniform `avg_cycles_per_quarter`; uniform `operation_vs_shutdown_fraction`.
+3. Reassign ~5% of rows to the **wide-swing** profile (all five fields overwritten; `asset_class` unchanged).
+4. Draw `tracing_system` and `sweating_asset` from conditional rules using the final `operating_temperature`.
+
+Cold-service assets are identified by **negative `operating_temperature`** — there is no separate product flag.
 
 `operating_temperature`, `min_operating_temperature`, `max_operating_temperature`, `avg_cycles_per_quarter`, `operation_vs_shutdown_fraction`, `tracing_system`, `sweating_asset`
 
@@ -223,18 +237,32 @@ The test suite `test_completeness.py` enforces no-null rules on the synthetic da
 
 ---
 
-## 8. Temperature Operating Ranges
+## 8. Static temperature fields (operating layer)
 
-Operating temperature ranges per metallurgy family are defined in `generation_config.yaml` under `operating_temperature_ranges`. These are drawn uniformly within the stated range.
+**Source of truth:** `local_reference/Synthetic_Asset_Temperature_Generation_final.md` Section 2 (+ Section 2a for on-stream fraction rationale).
 
-The ranges reflect typical process service windows in O&G / refining:
-- Carbon steel cryogenic (NGL) service: as low as −30°C
-- Carbon steel hot refinery service: up to 300°C
-- Austenitic SS and nickel alloys: elevated temperature / corrosive service
+**Config:** `lean_virtual_sensor/inputs_generation/config/operating_temperature_config.yaml` — the eleven profile rows from the spec table (seven hot classes, three cold-service variants, wide-swing), plus `wide_swing_fraction` (0.05) and `max_excursion_fraction` (0.10).
 
-These ranges are `[ENGINEERING_JUDGEMENT]` and should be reviewed with a process engineering team.
+**Sampling summary:**
 
-The CUI active envelope for carbon steel (−4 to 175°C) and austenitic SS (50–175°C, peak ~120°C) is not enforced at generation time — assets outside this envelope are valid records (the CUI model would treat them as low susceptibility, which is useful training signal).
+| Field | Rule |
+|---|---|
+| `operating_temperature` | Triangular over class range; bracketed value is the **mode** (most likely), not a ceiling |
+| `min_operating_temperature` | Hot: uniform 0–10 °C. Cold: `operating − 5–10 °C`, clamped to table envelope |
+| `max_operating_temperature` | Hot / wide-swing: `operating × 1.10`, clamped to table `max_op` envelope. Cold: uniform within table warm-up ceiling |
+| `avg_cycles_per_quarter` | Integer uniform within class range |
+| `operation_vs_shutdown_fraction` | Uniform within class range (on-stream factor; see spec Section 2a) |
+
+**Sub-populations:**
+
+- **Cold service** — eligible classes may use the cold-service table row; fleet share set by `cold_service_fraction` in YAML (`[ENGINEERING_JUDGEMENT]`, not fixed in spec).
+- **Wide-swing** — 5% of all rows, any `asset_class`; values from the wide-swing table row only.
+
+The hourly `T_process(t)` generator reads these five fields from the static CSV and does not re-derive them.
+
+The CUI active envelope for carbon steel (−4 to 175°C) is not enforced at static generation time — assets outside this envelope are valid (the CUI model treats them accordingly, which is useful training signal).
+
+**Known simplifications** (flagged in temperature spec for SME awareness): heated-bitumen tank tail excluded; upper cycle counts on some continuous classes exceed literal trip rates; `tau` in the time-series PR ignores stored liquid inventory.
 
 ---
 
@@ -259,7 +287,7 @@ The Beta(1.5, 8.0) distribution is right-skewed — most assets have minor wall 
 |---|---|
 | Deterministic output | Fixed `random_seed` in `generation_config.yaml` |
 | Versioned output | Filename includes version and seed: `synthetic_v1.0_seed42.csv` |
-| Config stability | All four config files are version-controlled. Changes require a version bump. |
+| Config stability | All five config files are version-controlled. Changes require a version bump. |
 | Library versions | `pyproject.toml` declares dependencies; `uv.lock` pins resolved versions (sync via `uv sync` / project `make sync` in Docker) |
 | Quality gate | Output is only written if all pytest tests pass |
 
@@ -277,7 +305,9 @@ The test suite under **`tests/`** (see Section 3) validates any CSV against the 
 | `test_constraints.py` | Inter-variable rules: min ≤ op_temp ≤ max, last_inspection ≤ furnished_thickness, chloride auto-flag |
 | `test_date_chain.py` | Date ordering: install/application dates within asset lifetime; inspection dates ≤ reference |
 | `test_completeness.py` | No nulls in fields defined as nullable=false in schema.yaml |
-| `test_distributions.py` | Asset class counts within ±5% of targets; no degenerate distributions |
+| `test_distributions.py` | Asset class counts within ±5% of targets; no degenerate distributions; temperature population acceptance (with `--dataset`) |
+| `test_operating_temperature_sampling.py` | Unit tests on per-profile field sampling |
+| `test_operating_temperature_distributions.py` | Full-pipeline temperature population acceptance |
 
 Run from the **repository root**, with a path to the CSV (example synthetic output):
 
@@ -289,7 +319,7 @@ Run from the **repository root**, with a path to the CSV (example synthetic outp
 
 1. **Tier 2 rule calibration**: SME approved Tier 2 weights (`2026-05-29-sme-draft-6`). Optional future pass: calibrate against real inspection / register data.
 
-2. **Correlated operating temperature and asset class**: No explicit conditioning of operating_temperature on asset_class. In practice, REACTORs and COLUMNs tend to run hotter than STORAGE_TANKs. This could be added as a Tier 2 rule.
+2. **`cold_service_fraction`**: Fleet share of cold-service table rows for PIPE / PRESSURE_VESSEL / STORAGE_TANK is `[ENGINEERING_JUDGEMENT]` in `operating_temperature_config.yaml` (not fixed in temperature spec Section 2). SME review pending.
 
 3. **Inspection interval realism**: `latest_inspection_date` currently drawn uniformly within `[0.5, 10]` years from today.
 
@@ -299,6 +329,7 @@ Run from the **repository root**, with a path to the CSV (example synthetic outp
 
 ## References
 
+- `local_reference/Synthetic_Asset_Temperature_Generation_final.md` — static temperature fields (Section 2) and hourly `T_process(t)` spec
 - API 581:2016 *Risk-Based Inspection Methodology*
 - API 583:2014 *Corrosion Under Insulation and Fireproofing*
 - ISO 14224:2016 *Collection and exchange of reliability and maintenance data for equipment*

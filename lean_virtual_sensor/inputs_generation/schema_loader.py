@@ -1,16 +1,17 @@
 """
 schema_loader.py
 ================
-Loads and validates all four config files into structured Python objects.
+Loads and validates all config files into structured Python objects.
 All other inputs_generation modules import from here — they never read YAML directly.
 
 Exposes:
     load_all_configs(config_dir, generation_config_path=...) -> GeneratorConfig
         Loads and cross-validates schema.yaml, asset_class_config.yaml,
-        conditional_rules.yaml, and generation_config.yaml.
+        conditional_rules.yaml, generation_config.yaml, and
+        operating_temperature_config.yaml.
 
     GeneratorConfig
-        Dataclass holding all four config namespaces as typed attributes.
+        Dataclass holding all config namespaces as typed attributes.
 
 Part 1 (step 3) implements a **minimal** validation set sufficient to run the
 pipeline; Part 2 expands checks to the full list in the original design (subset
@@ -27,6 +28,11 @@ import yaml
 
 
 _WEIGHT_SUM_TOLERANCE = 0.02
+_COLD_SERVICE_PROFILE_BY_CLASS = {
+    "PIPE": "PIPE_COLD_SERVICE",
+    "PRESSURE_VESSEL": "PRESSURE_VESSEL_COLD_SERVICE",
+    "STORAGE_TANK": "STORAGE_TANK_REFRIGERATED",
+}
 
 
 @dataclass
@@ -35,6 +41,7 @@ class GeneratorConfig:
     asset_class: dict[str, Any]
     conditional_rules: dict[str, Any]
     generation: dict[str, Any]
+    operating_temperature: dict[str, Any]
 
 
 def load_all_configs(
@@ -42,16 +49,16 @@ def load_all_configs(
     *,
     generation_config_path: Path | None = None,
 ) -> GeneratorConfig:
-    """Load and cross-validate all four config files.
+    """Load and cross-validate all config files.
 
     Args:
         config_dir: Directory containing ``schema.yaml``, ``asset_class_config.yaml``,
-            and ``conditional_rules.yaml``.
+            ``conditional_rules.yaml``, and ``operating_temperature_config.yaml``.
         generation_config_path: Path to ``generation_config.yaml``. Defaults to
             ``config_dir / "generation_config.yaml"``.
 
     Returns:
-        GeneratorConfig with all four configs loaded and validated.
+        GeneratorConfig with all configs loaded and validated.
 
     Raises:
         ValueError: If any cross-validation check fails.
@@ -67,6 +74,7 @@ def load_all_configs(
         "asset_class": config_dir / "asset_class_config.yaml",
         "conditional_rules": config_dir / "conditional_rules.yaml",
         "generation": gen_path,
+        "operating_temperature": config_dir / "operating_temperature_config.yaml",
     }
     for label, path in paths.items():
         if not path.is_file():
@@ -77,6 +85,7 @@ def load_all_configs(
         asset_class=_load_yaml(paths["asset_class"]),
         conditional_rules=_load_yaml(paths["conditional_rules"]),
         generation=_load_yaml(paths["generation"]),
+        operating_temperature=_load_yaml(paths["operating_temperature"]),
     )
     _validate_configs(config)
     return config
@@ -123,10 +132,6 @@ def _validate_configs(config: GeneratorConfig) -> None:
     if isinstance(ez, dict) and ez:
         _assert_weights_sum("exposure_zone_weights", ez, _WEIGHT_SUM_TOLERANCE)
 
-    cg = gen.get("cycling_grade_weights")
-    if isinstance(cg, dict) and cg:
-        _assert_weights_sum("cycling_grade_weights", cg, _WEIGHT_SUM_TOLERANCE)
-
     cw = config.conditional_rules.get("conditional_weights")
     if isinstance(cw, dict):
         for var_name in cw:
@@ -153,6 +158,7 @@ def _validate_configs(config: GeneratorConfig) -> None:
 
     _validate_conditional_rules(config.conditional_rules)
     _validate_geometry_config(config)
+    _validate_operating_temperature_config(config)
 
 
 def _validate_geometry_config(config: GeneratorConfig) -> None:
@@ -346,6 +352,160 @@ def _validate_rule_ids(conditional_rules: dict[str, Any]) -> None:
             if not isinstance(block, dict):
                 raise ValueError(f"{location} must be a mapping, got {type(block).__name__}")
             register(block.get("id"), location)
+
+
+def _validate_operating_temperature_config(config: GeneratorConfig) -> None:
+    """Validate operating_temperature_config.yaml structure and cross-references."""
+    ot_cfg = config.operating_temperature
+    if not isinstance(ot_cfg, dict):
+        raise ValueError("operating_temperature_config.yaml root must be a mapping")
+
+    wide_frac = float(ot_cfg.get("wide_swing_fraction", -1))
+    if not (0.0 <= wide_frac <= 1.0):
+        raise ValueError(
+            f"operating_temperature_config.wide_swing_fraction must be in [0, 1] "
+            f"(got {wide_frac})"
+        )
+
+    max_excursion = float(ot_cfg.get("max_excursion_fraction", -1))
+    if max_excursion < 0:
+        raise ValueError(
+            "operating_temperature_config.max_excursion_fraction must be non-negative"
+        )
+
+    cold_fracs = ot_cfg.get("cold_service_fraction")
+    if not isinstance(cold_fracs, dict) or not cold_fracs:
+        raise ValueError(
+            "operating_temperature_config.yaml must define 'cold_service_fraction'"
+        )
+    for class_name, fraction in cold_fracs.items():
+        if class_name not in _COLD_SERVICE_PROFILE_BY_CLASS:
+            raise ValueError(
+                f"cold_service_fraction key {class_name!r} is not an eligible cold-service class"
+            )
+        if class_name not in config.asset_class:
+            raise ValueError(
+                f"cold_service_fraction key {class_name!r} has no entry in asset_class_config.yaml"
+            )
+        frac = float(fraction)
+        if not (0.0 <= frac <= 1.0):
+            raise ValueError(
+                f"cold_service_fraction[{class_name!r}] must be in [0, 1] (got {frac})"
+            )
+
+    default_profiles = ot_cfg.get("asset_class_default_profile")
+    if not isinstance(default_profiles, dict) or not default_profiles:
+        raise ValueError(
+            "operating_temperature_config.yaml must define 'asset_class_default_profile'"
+        )
+
+    profiles = ot_cfg.get("profiles")
+    if not isinstance(profiles, dict) or not profiles:
+        raise ValueError("operating_temperature_config.yaml must define 'profiles'")
+
+    if "WIDE_SWING" not in profiles:
+        raise ValueError("operating_temperature_config.profiles must include WIDE_SWING")
+
+    for class_name in config.asset_class:
+        if class_name not in default_profiles:
+            raise ValueError(
+                f"asset_class_default_profile missing key for asset class {class_name!r}"
+            )
+
+    for class_name, profile_key in default_profiles.items():
+        if class_name not in config.asset_class:
+            raise ValueError(
+                f"asset_class_default_profile key {class_name!r} is not in asset_class_config.yaml"
+            )
+        if profile_key not in profiles:
+            raise ValueError(
+                f"asset_class_default_profile[{class_name!r}] references unknown profile "
+                f"{profile_key!r}"
+            )
+
+    for class_name, profile_key in _COLD_SERVICE_PROFILE_BY_CLASS.items():
+        if profile_key not in profiles:
+            raise ValueError(
+                f"operating_temperature_config.profiles must include {profile_key!r} "
+                f"for cold-service class {class_name!r}"
+            )
+
+    for profile_key, profile in profiles.items():
+        _validate_temperature_profile_block(profile_key, profile)
+
+
+def _validate_temperature_profile_block(profile_key: str, profile: Any) -> None:
+    if not isinstance(profile, dict):
+        raise ValueError(f"profiles[{profile_key!r}] must be a mapping")
+
+    op_block = profile.get("operating_temperature")
+    if not isinstance(op_block, dict):
+        raise ValueError(f"profiles[{profile_key!r}].operating_temperature is required")
+    _validate_triangular_block(f"profiles[{profile_key!r}].operating_temperature", op_block)
+
+    min_block = profile.get("min_operating_temperature")
+    if not isinstance(min_block, dict):
+        raise ValueError(f"profiles[{profile_key!r}].min_operating_temperature is required")
+    _validate_min_max_block(
+        f"profiles[{profile_key!r}].min_operating_temperature", min_block
+    )
+
+    max_block = profile.get("max_operating_temperature")
+    if not isinstance(max_block, dict):
+        raise ValueError(f"profiles[{profile_key!r}].max_operating_temperature is required")
+    _validate_min_max_block(
+        f"profiles[{profile_key!r}].max_operating_temperature", max_block
+    )
+
+    cycles_block = profile.get("avg_cycles_per_quarter")
+    if not isinstance(cycles_block, dict):
+        raise ValueError(f"profiles[{profile_key!r}].avg_cycles_per_quarter is required")
+    _validate_integer_min_max_block(
+        f"profiles[{profile_key!r}].avg_cycles_per_quarter", cycles_block
+    )
+
+    fraction_block = profile.get("operation_vs_shutdown_fraction")
+    if not isinstance(fraction_block, dict):
+        raise ValueError(
+            f"profiles[{profile_key!r}].operation_vs_shutdown_fraction is required"
+        )
+    lo, hi = _validate_min_max_block(
+        f"profiles[{profile_key!r}].operation_vs_shutdown_fraction", fraction_block
+    )
+    if lo < 0.0 or hi > 1.0:
+        raise ValueError(
+            f"profiles[{profile_key!r}].operation_vs_shutdown_fraction must lie in [0, 1]"
+        )
+
+
+def _validate_triangular_block(label: str, block: dict[str, Any]) -> None:
+    for key in ("min", "mode", "max"):
+        if key not in block:
+            raise ValueError(f"{label} missing {key!r}")
+    low = float(block["min"])
+    mode = float(block["mode"])
+    high = float(block["max"])
+    if not (low <= mode <= high):
+        raise ValueError(
+            f"{label} requires min <= mode <= max (got min={low}, mode={mode}, max={high})"
+        )
+
+
+def _validate_min_max_block(label: str, block: dict[str, Any]) -> tuple[float, float]:
+    for key in ("min", "max"):
+        if key not in block:
+            raise ValueError(f"{label} missing {key!r}")
+    low = float(block["min"])
+    high = float(block["max"])
+    if low > high:
+        raise ValueError(f"{label} requires min <= max (got min={low}, max={high})")
+    return low, high
+
+
+def _validate_integer_min_max_block(label: str, block: dict[str, Any]) -> None:
+    low, high = _validate_min_max_block(label, block)
+    if int(low) != low or int(high) != high:
+        raise ValueError(f"{label} min and max must be integers (got {low}, {high})")
 
 
 def _assert_weights_sum(label: str, weights: dict[str, Any], tol: float) -> None:

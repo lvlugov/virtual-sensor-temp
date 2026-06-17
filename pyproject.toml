@@ -24,7 +24,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".", "lean_virtual_sensor/inputs_generation"]
+pythonpath = [".", "lean_virtual_sensor/inputs_generation", "tests/lean_virtual_sensor/inputs_generation"]
 addopts = "-q"
 
 [tool.ruff]

@@ -24,9 +24,12 @@ from generation_helpers import (
     random_lookback_timestamp,
     random_timestamp_uniform_between,
     reference_timestamp,
+    resolve_operating_temperature_profile,
     sample_component_geometry,
     sample_first_matching_weighted_rule,
     sample_geometry_class_for_asset_class,
+    sample_operating_temperature_fields,
+    apply_wide_swing_temperature_assignments,
     sample_weighted_category,
     sample_weighted_category_column,
     schema_categorical_choices,
@@ -301,10 +304,7 @@ def generate_operating(
     ``operating_temperature``).
     """
     result = dataframe.copy()
-    generation_yaml = config.generation
-    metallurgy_ranges = generation_yaml["operating_temperature_ranges"]["by_metallurgy"]
-    cycling_weights = generation_yaml["cycling_grade_weights"]
-    cycling_ranges = generation_yaml["cycling_grade_ranges"]
+    ot_config = config.operating_temperature
 
     tracing_block = conditional_weights_block(config, "tracing_system")
     if tracing_block is None:
@@ -316,49 +316,36 @@ def generate_operating(
         raise ValueError("conditional_rules.conditional_weights.sweating_asset is required")
     sweating_rules = sweating_block.get("rules", [])
 
-    schema_op_low, schema_op_high = schema_float_range_bounds(
-        config.schema, "operating_temperature"
-    )
-
     row_count = len(result)
     operating_temps: list[float] = []
     min_temps: list[float] = []
     max_temps: list[float] = []
     avg_cycles: list[int] = []
     op_vs_shutdown: list[float] = []
-    tracing_final: list[str] = []
-    sweating_flags: list[bool] = []
 
     for row_index in range(row_count):
-        metallurgy = str(result.at[row_index, "metallurgy_family"])
-        if metallurgy not in metallurgy_ranges:
-            raise KeyError(
-                "No operating_temperature_ranges.by_metallurgy entry for "
-                f"{metallurgy!r}"
-            )
-        raw_lo, raw_hi = metallurgy_ranges[metallurgy]
-        draw_lo = max(schema_op_low, float(raw_lo))
-        draw_hi = min(schema_op_high, float(raw_hi))
-        if draw_lo > draw_hi:
-            draw_lo, draw_hi = draw_hi, draw_lo
+        asset_class = str(result.at[row_index, "asset_class"])
+        profile_key = resolve_operating_temperature_profile(asset_class, ot_config, rng)
+        fields = sample_operating_temperature_fields(profile_key, ot_config, rng)
 
-        operating_temp = round(float(rng.uniform(draw_lo, draw_hi)), 1)
+        operating_temps.append(float(fields["operating_temperature"]))
+        min_temps.append(float(fields["min_operating_temperature"]))
+        max_temps.append(float(fields["max_operating_temperature"]))
+        avg_cycles.append(int(fields["avg_cycles_per_quarter"]))
+        op_vs_shutdown.append(float(fields["operation_vs_shutdown_fraction"]))
 
-        span_below = float(rng.uniform(5.0, 40.0))
-        span_above = float(rng.uniform(5.0, 40.0))
-        min_temp = round(max(schema_op_low, operating_temp - span_below), 1)
-        max_temp = round(min(schema_op_high, operating_temp + span_above), 1)
-        if min_temp > operating_temp:
-            min_temp = operating_temp
-        if max_temp < operating_temp:
-            max_temp = operating_temp
+    result["operating_temperature"] = operating_temps
+    result["min_operating_temperature"] = min_temps
+    result["max_operating_temperature"] = max_temps
+    result["avg_cycles_per_quarter"] = avg_cycles
+    result["operation_vs_shutdown_fraction"] = op_vs_shutdown
 
-        cycling_grade = sample_weighted_category(rng, cycling_weights)
-        cycle_lo, cycle_hi = cycling_ranges[cycling_grade]
-        avg_cycle_val = int(rng.integers(int(cycle_lo), int(cycle_hi) + 1))
+    result = apply_wide_swing_temperature_assignments(result, ot_config, rng)
 
-        onstream_fraction = round(float(rng.uniform(0.0, 1.0)), 2)
-
+    tracing_final: list[str] = []
+    sweating_flags: list[bool] = []
+    for row_index in range(row_count):
+        operating_temp = float(result.at[row_index, "operating_temperature"])
         row_context_for_tracing = {"operating_temperature": operating_temp}
         tracing_choice = sample_first_matching_weighted_rule(
             tracing_rules, row_context_for_tracing, rng
@@ -366,20 +353,9 @@ def generate_operating(
         sweating_draw = sample_first_matching_weighted_rule(
             sweating_rules, row_context_for_tracing, rng
         )
-
-        operating_temps.append(operating_temp)
-        min_temps.append(min_temp)
-        max_temps.append(max_temp)
-        avg_cycles.append(avg_cycle_val)
-        op_vs_shutdown.append(onstream_fraction)
         tracing_final.append(tracing_choice)
         sweating_flags.append(sweating_draw.lower() == "true")
 
-    result["operating_temperature"] = operating_temps
-    result["min_operating_temperature"] = min_temps
-    result["max_operating_temperature"] = max_temps
-    result["avg_cycles_per_quarter"] = avg_cycles
-    result["operation_vs_shutdown_fraction"] = op_vs_shutdown
     result["tracing_system"] = tracing_final
     result["sweating_asset"] = sweating_flags
 
