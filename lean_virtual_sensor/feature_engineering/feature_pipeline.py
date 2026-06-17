@@ -6,12 +6,11 @@ the model consumes as one row of its training / scoring DataFrame.
 Per model run, for each asset:
 
   1. Derive scalar ages from inventory dates    →  age_features.compute_age_years
-  2. Derive the most recent inspection date     →  max(inspection_record_dates)
-  3. Derive the open/closed system flag         →  system_flag_feature.is_open_system
-  4. Compute Active CUI Hours (last 90 days)    →  asset_temperature.compute_ach_for_asset
-  5. Count T_skin cooldown cycles (same window) →  asset_temperature.compute_cycles_for_asset
-  6. Compute historical wet load (pre-90-day)   →  historical_weather_feature.compute_wet_load
-  7. Combine raw inventory + derived features into one flat dict
+  2. Derive the open/closed system flag         →  system_flag_feature.is_open_system
+  3. Compute Active CUI Hours (last 90 days)    →  asset_temperature.compute_ach_for_asset
+  4. Count T_skin cooldown cycles (same window) →  asset_temperature.compute_cycles_for_asset
+  5. Compute historical wet load (pre-90-day)   →  historical_weather_feature.compute_wet_load
+  6. Combine raw inventory + derived features into one flat dict
 
 The orchestrator stays a pure transformation on its inputs: it does not
 fetch weather, does not write to disk, and does not score (the API 583
@@ -60,7 +59,7 @@ def compute_features_for_asset(
     insulation_install_date: pd.Timestamp,
     coating_application_date: pd.Timestamp,
     coating_system: str,
-    inspection_record_dates: list[pd.Timestamp],
+    last_inspection_date: pd.Timestamp,
     operating_temperature: float,
     min_operating_temperature: float,
     max_operating_temperature: float,
@@ -91,21 +90,16 @@ def compute_features_for_asset(
             derivation (ages, ACH window, wet-load window).
 
     Returns:
-        Flat dict combining every input field with seven derived features:
-        ``coating_age_years``, ``system_age_years``, ``last_inspection_date``,
-        ``open_system``, ``ach_90d``, ``cycle_count``, ``wet_load``.
+        Flat dict combining every input field with six derived features:
+        ``coating_age_years``, ``system_age_years``, ``open_system``,
+        ``ach_90d``, ``cycle_count``, ``wet_load``.
 
     Raises:
-        ValueError: If ``inspection_record_dates`` is empty, or propagated
-            from a downstream primitive (bad geometry, future-dated coating,
-            RH out of range, etc.).
+        ValueError: Propagated from a downstream primitive (bad geometry,
+            future-dated coating, RH out of range, etc.).
     """
     coating_age_years = compute_age_years(coating_application_date, today)
     system_age_years = compute_age_years(insulation_install_date, today)
-
-    if not inspection_record_dates:
-        raise ValueError("inspection_record_dates is empty")
-    last_inspection_date = max(inspection_record_dates)
 
     open_system = is_open_system(insulation_condition, cladding_integrity)
 
@@ -156,7 +150,7 @@ def compute_features_for_asset(
         "insulation_install_date": insulation_install_date,
         "coating_application_date": coating_application_date,
         "coating_system": coating_system,
-        "inspection_record_dates": inspection_record_dates,
+        "last_inspection_date": last_inspection_date,
         "operating_temperature": operating_temperature,
         "min_operating_temperature": min_operating_temperature,
         "max_operating_temperature": max_operating_temperature,
@@ -169,7 +163,6 @@ def compute_features_for_asset(
         "washdown_records": washdown_records,
         "coating_age_years": coating_age_years,
         "system_age_years": system_age_years,
-        "last_inspection_date": last_inspection_date,
         "open_system": open_system,
         "ach_90d": ach_90d,
         "cycle_count": cycle_count,
