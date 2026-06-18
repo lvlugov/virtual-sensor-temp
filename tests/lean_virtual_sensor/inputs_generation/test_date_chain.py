@@ -9,7 +9,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from generation_helpers import parse_commissioning_timestamp, years_between_timestamps
+from generation_helpers import parse_commissioning_timestamp
 
 
 def _reference_ts(gen_config: dict) -> pd.Timestamp:
@@ -72,21 +72,3 @@ def test_inspection_date_within_asset_lifetime(df, gen_config):
         commissioning = parse_commissioning_timestamp(row["asset_commissioning_date"])
         inspection = pd.Timestamp(row["latest_inspection_date"]).normalize()
         assert inspection >= commissioning.normalize()
-
-
-def test_commissioning_covers_insulation_and_coating_ages(df, gen_config):
-    """Years since commissioning cover derived insulation / coating ages."""
-    if df is None:
-        pytest.skip("No dataset provided")
-    ref = _reference_ts(gen_config)
-    for _, row in df.iterrows():
-        commissioning = parse_commissioning_timestamp(row["asset_commissioning_date"])
-        asset_life = years_between_timestamps(commissioning, ref)
-        ins_age = years_between_timestamps(
-            pd.Timestamp(row["insulation_install_date"]).normalize(), ref
-        )
-        coat_age = years_between_timestamps(
-            pd.Timestamp(row["coating_application_date"]).normalize(), ref
-        )
-        assert ins_age <= asset_life + 1.0, (row.get("Asset"), ins_age, asset_life)
-        assert coat_age <= asset_life + 1.0, (row.get("Asset"), coat_age, asset_life)

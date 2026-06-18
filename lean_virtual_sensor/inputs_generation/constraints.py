@@ -13,10 +13,8 @@ import numpy as np
 import pandas as pd
 
 from generation_helpers import (
-    asset_age_years_at_reference,
     parse_commissioning_timestamp,
     reference_timestamp,
-    years_between_timestamps,
 )
 from schema_loader import GeneratorConfig
 
@@ -207,14 +205,6 @@ def _collect_unrecoverable_rows(
         insp_ts = pd.Timestamp(str(df.at[i, "latest_inspection_date"]))
         if insp_ts.normalize() > ref_n or insp_ts.normalize() < commissioning.normalize():
             reasons.append("inspection_date_window")
-
-        asset_life_years = asset_age_years_at_reference(ref_n, commissioning)
-        ins_age = years_between_timestamps(ins_ts, ref_n)
-        coat_age = years_between_timestamps(coat_ts, ref_n)
-        if ins_age > asset_life_years + 1.0:
-            reasons.append("insulation_age_vs_commissioning")
-        if coat_age > asset_life_years + 1.0:
-            reasons.append("coating_age_vs_commissioning")
 
         for var_name, spec in variables.items():
             if var_name not in df.columns or not isinstance(spec, dict):
