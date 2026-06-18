@@ -11,7 +11,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from generation_helpers import (
     parse_commissioning_timestamp,
     reference_timestamp,
@@ -88,17 +87,13 @@ def _enforce_wall_thickness(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     return result, n
 
 
-def _enforce_date_chain(
-    df: pd.DataFrame, reference_date: pd.Timestamp
-) -> tuple[pd.DataFrame, int]:
+def _enforce_date_chain(df: pd.DataFrame, reference_date: pd.Timestamp) -> tuple[pd.DataFrame, int]:
     n = 0
     result = df.copy()
     ref_n = reference_date.normalize()
 
     for i in result.index:
-        commissioning = parse_commissioning_timestamp(
-            result.at[i, "asset_commissioning_date"]
-        )
+        commissioning = parse_commissioning_timestamp(result.at[i, "asset_commissioning_date"])
 
         for col in (
             "insulation_install_date",
@@ -190,9 +185,7 @@ def _collect_unrecoverable_rows(
         if last > furnished or last < 1.0:
             reasons.append("last_thickness_bounds")
 
-        commissioning = parse_commissioning_timestamp(
-            df.at[i, "asset_commissioning_date"]
-        )
+        commissioning = parse_commissioning_timestamp(df.at[i, "asset_commissioning_date"])
         ins_ts = pd.Timestamp(str(df.at[i, "insulation_install_date"]))
         coat_ts = pd.Timestamp(str(df.at[i, "coating_application_date"]))
         if ins_ts < commissioning or ins_ts > ref_n:

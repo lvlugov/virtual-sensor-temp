@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
 from constraints import enforce_all_constraints
 from layer_generators import (
     generate_anchors,
@@ -61,17 +60,13 @@ def population_df(cfg):
 
 
 def test_temperature_population_acceptance_on_full_pipeline(population_df, cfg):
-    assert_temperature_population_acceptance(
-        population_df, cfg.operating_temperature
-    )
+    assert_temperature_population_acceptance(population_df, cfg.operating_temperature)
 
 
 def test_constraints_do_not_break_temperature_triplet(population_df):
     assert (
-        population_df["min_operating_temperature"]
-        <= population_df["operating_temperature"]
+        population_df["min_operating_temperature"] <= population_df["operating_temperature"]
     ).all()
     assert (
-        population_df["operating_temperature"]
-        <= population_df["max_operating_temperature"]
+        population_df["operating_temperature"] <= population_df["max_operating_temperature"]
     ).all()

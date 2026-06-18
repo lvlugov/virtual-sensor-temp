@@ -13,8 +13,9 @@ Scripts that need the whole document can use :func:`load_config` directly.
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import yaml
 

@@ -66,8 +66,8 @@ def test_boolean_values(df, schema):
             continue
         for value in df[name].dropna().unique():
             if isinstance(value, (bool, np.bool_)):
-                # Use equality: ``np.False_ is False`` is false (different objects).
-                assert value == True or value == False, name
+                # ``np.False_ is False`` is false; use membership, not identity.
+                assert value in (True, False), name
             else:
                 assert str(value).lower() in ("true", "false"), f"{name}: {value!r}"
 

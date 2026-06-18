@@ -7,7 +7,6 @@ wetness band). When those change, update the expected values here.
 
 import pandas as pd
 import pytest
-
 from lean_virtual_sensor.feature_engineering.asset_temperature import (
     compute_ach,
     compute_ach_for_asset,
@@ -59,11 +58,13 @@ def _process_df(t_process: float, n_hours: int = 3) -> pd.DataFrame:
     )
 
 
-# ====================================== Step 1: Surface temperature ======================================
+# --- Step 1: Surface temperature ---
 
 
 def test_compute_k_in_unit_interval():
-    k = compute_k("MINERAL_WOOL", insulation_thickness_mm=50, pipe_diameter_mm=100, wall_thickness_mm=5)
+    k = compute_k(
+        "MINERAL_WOOL", insulation_thickness_mm=50, pipe_diameter_mm=100, wall_thickness_mm=5
+    )
     assert 0 < k < 1
 
 
@@ -74,24 +75,32 @@ def test_compute_k_rejects_unknown_insulation():
 
 def test_compute_k_rejects_non_positive_insulation_thickness():
     with pytest.raises(ValueError):
-        compute_k("MINERAL_WOOL", insulation_thickness_mm=0, pipe_diameter_mm=100, wall_thickness_mm=5)
+        compute_k(
+            "MINERAL_WOOL", insulation_thickness_mm=0, pipe_diameter_mm=100, wall_thickness_mm=5
+        )
 
 
 def test_compute_k_rejects_non_positive_pipe_diameter():
     with pytest.raises(ValueError):
-        compute_k("MINERAL_WOOL", insulation_thickness_mm=50, pipe_diameter_mm=-10, wall_thickness_mm=5)
+        compute_k(
+            "MINERAL_WOOL", insulation_thickness_mm=50, pipe_diameter_mm=-10, wall_thickness_mm=5
+        )
 
 
 def test_compute_k_rejects_non_positive_wall_thickness():
     with pytest.raises(ValueError):
-        compute_k("MINERAL_WOOL", insulation_thickness_mm=50, pipe_diameter_mm=100, wall_thickness_mm=0)
+        compute_k(
+            "MINERAL_WOOL", insulation_thickness_mm=50, pipe_diameter_mm=100, wall_thickness_mm=0
+        )
 
 
 def test_compute_k_rejects_wall_thickness_leaving_no_bore():
     # wall_thickness >= pipe_diameter / 2 → bore radius ≤ 0 → division by zero
     # in the internal film resistance. Fail fast with a clear message instead.
     with pytest.raises(ValueError):
-        compute_k("MINERAL_WOOL", insulation_thickness_mm=50, pipe_diameter_mm=100, wall_thickness_mm=50)
+        compute_k(
+            "MINERAL_WOOL", insulation_thickness_mm=50, pipe_diameter_mm=100, wall_thickness_mm=50
+        )
 
 
 def test_compute_k_thicker_insulation_lowers_k():
@@ -120,7 +129,7 @@ def test_compute_t_skin_midpoint():
     assert compute_t_skin(t_process=100, t_ambient=0, k=0.5) == 50
 
 
-# ====================================== Step 2: NACE damage factor ======================================
+# --- Step 2: NACE damage factor ---
 
 
 def test_compute_f_closed_zero_below_band():
@@ -162,7 +171,7 @@ def test_compute_f_open_linear_extrapolates_above_highest_knot():
     assert compute_f_open(150) == pytest.approx(0.10)
 
 
-# ====================================== Step 3: Dew point and wetness ======================================
+# --- Step 3: Dew point and wetness ---
 
 
 def test_compute_t_dew_rejects_zero_humidity():
@@ -202,7 +211,7 @@ def test_compute_wetness_linear_inside_transition_band():
     assert compute_wetness(t_skin=15, t_dew=10) == pytest.approx(0.5)
 
 
-# ====================================== Step 4: Hourly damage score ======================================
+# --- Step 4: Hourly damage score ---
 
 
 def test_compute_hour_score_multiplies_factors():
@@ -214,7 +223,7 @@ def test_compute_hour_score_zero_when_either_factor_zero():
     assert compute_hour_score(0.0, 1.0) == 0.0
 
 
-# ====================================== Step 5: Active CUI Hours ======================================
+# --- Step 5: Active CUI Hours ---
 
 
 def test_compute_ach_empty_sequence_is_zero():
@@ -225,7 +234,7 @@ def test_compute_ach_sums_per_hour_scores():
     assert compute_ach([0.1, 0.2, 0.3]) == pytest.approx(0.6)
 
 
-# ====================================== Pipeline: tie Steps 1-5 together ======================================
+# --- Pipeline: tie Steps 1-5 together ---
 
 
 def test_compute_ach_for_asset_dry_hot_is_zero():

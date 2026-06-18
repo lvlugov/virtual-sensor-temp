@@ -8,8 +8,6 @@ expected cooldown count.
 """
 
 import pandas as pd
-import pytest
-
 from lean_virtual_sensor.feature_engineering.cycle_features import (
     compute_cycle_count,
     compute_cycles_for_asset,
@@ -97,21 +95,17 @@ def test_compute_cycle_count_single_cooldown_counts_as_one():
 
 def test_compute_cycle_count_multiple_cooldowns_all_counted():
     # Three pronounced troughs.
-    series = _t_skin_series(
-        [80, 80, 30, 80, 80, 30, 80, 80, 30, 80, 80]
-    )
+    series = _t_skin_series([80, 80, 30, 80, 80, 30, 80, 80, 30, 80, 80])
     assert compute_cycle_count(series, min_swing_c=20.0, max_gap_hours=6) == 3
 
 
 def test_compute_cycle_count_interpolates_short_gaps():
     # 2-hour NaN gap (≤ max_gap_hours=6) gets interpolated; the cycle survives.
-    series = _t_skin_series(
-        [80, 80, float("nan"), float("nan"), 30, 80, 80]
-    )
+    series = _t_skin_series([80, 80, float("nan"), float("nan"), 30, 80, 80])
     assert compute_cycle_count(series, min_swing_c=20.0, max_gap_hours=6) == 1
 
 
-# ====================================== Per-asset orchestrator ======================================
+# --- Per-asset orchestrator ---
 
 
 def test_compute_cycles_for_asset_inspection_in_or_after_today_is_zero():
@@ -152,12 +146,7 @@ def test_compute_cycles_for_asset_finds_cooldowns_in_process_swings():
     # and the test asset's geometry, T_skin will track process — three
     # cold spells in the window should register as three cooldown cycles.
     n_hours = 24
-    process_pattern = (
-        [100] * 4 + [20] * 2
-        + [100] * 4 + [20] * 2
-        + [100] * 4 + [20] * 2
-        + [100] * 6
-    )
+    process_pattern = [100] * 4 + [20] * 2 + [100] * 4 + [20] * 2 + [100] * 4 + [20] * 2 + [100] * 6
     weather = _weather_df(temp=15, humidity=60, n_hours=n_hours)
     process = pd.DataFrame(
         {

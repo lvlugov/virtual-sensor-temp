@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
-
 from generation_helpers import parse_commissioning_timestamp
 
 

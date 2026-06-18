@@ -45,7 +45,7 @@ from the ``asset_temperature`` section of ``config.yaml`` via
 from __future__ import annotations
 
 import math
-from typing import Iterable
+from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
@@ -53,7 +53,6 @@ from scipy.interpolate import PchipInterpolator
 
 from lean_virtual_sensor.config import load_section
 from lean_virtual_sensor.feature_engineering.system_flag_feature import is_open_system
-
 
 CONFIG_SECTION = "asset_temperature"
 REQUIRED_KEYS = (
@@ -71,7 +70,7 @@ REQUIRED_KEYS = (
     "ach_window_days",
 )
 
-# ====================================== Step 1: Surface temperature ======================================
+# --- Step 1: Surface temperature ---
 
 
 def _film_resistance(radius_m: float, h: float) -> float:
@@ -79,9 +78,7 @@ def _film_resistance(radius_m: float, h: float) -> float:
     return 1 / (2 * math.pi * radius_m * h)
 
 
-def _insulation_resistance(
-    r_inner_m: float, r_outer_m: float, lambda_w_per_mk: float
-) -> float:
+def _insulation_resistance(r_inner_m: float, r_outer_m: float, lambda_w_per_mk: float) -> float:
     """Radial conductive resistance of an insulation annulus per unit length:
     ln(r_outer / r_inner) / (2π·λ).
     """
@@ -137,9 +134,7 @@ def compute_k(
             leaves no bore (≥ ``pipe_diameter_mm / 2``).
     """
     if insulation_thickness_mm <= 0:
-        raise ValueError(
-            f"insulation_thickness_mm must be > 0, got {insulation_thickness_mm}"
-        )
+        raise ValueError(f"insulation_thickness_mm must be > 0, got {insulation_thickness_mm}")
     if pipe_diameter_mm <= 0:
         raise ValueError(f"pipe_diameter_mm must be > 0, got {pipe_diameter_mm}")
     if wall_thickness_mm <= 0:
@@ -160,8 +155,7 @@ def compute_k(
     key = insulation_type.upper()
     if key not in lambda_table:
         raise ValueError(
-            f"Unknown insulation type: {key!r}. "
-            f"Expected one of {sorted(lambda_table)}."
+            f"Unknown insulation type: {key!r}. Expected one of {sorted(lambda_table)}."
         )
     lambda_ins = float(lambda_table[key])
 
@@ -192,7 +186,7 @@ def compute_t_skin(t_process: float, t_ambient: float, k: float) -> float:
     return t_process - k * (t_process - t_ambient)
 
 
-# ====================================== Step 2: NACE SP0198 damage factor ======================================
+# --- Step 2: NACE SP0198 damage factor ---
 
 
 def compute_f_closed(t_skin: float) -> float:
@@ -255,7 +249,7 @@ def compute_f_open(t_skin: float) -> float:
     return float(PchipInterpolator(t_fit, r_fit)(t_skin))
 
 
-# ====================================== Step 3: Dew point, wetness factor ======================================
+# --- Step 3: Dew point, wetness factor ---
 
 
 def compute_t_dew(t_ambient: float, rh_percent: float) -> float:
@@ -278,9 +272,7 @@ def compute_t_dew(t_ambient: float, rh_percent: float) -> float:
             below 0 the Magnus log term is undefined.
     """
     if not 0 < rh_percent <= 100:
-        raise ValueError(
-            f"rh_percent must be in (0, 100], got {rh_percent}"
-        )
+        raise ValueError(f"rh_percent must be in (0, 100], got {rh_percent}")
     cfg = load_section(CONFIG_SECTION, REQUIRED_KEYS)
     a = float(cfg["magnus_a"])
     b = float(cfg["magnus_b"])
@@ -319,7 +311,7 @@ def compute_wetness(t_skin: float, t_dew: float) -> float:
     return (t_dew + band - t_skin) / band
 
 
-# ====================================== Step 4: Hourly damage score ======================================
+# --- Step 4: Hourly damage score ---
 
 
 def compute_hour_score(f_t_skin: float, wetness: float) -> float:
@@ -342,7 +334,7 @@ def compute_hour_score(f_t_skin: float, wetness: float) -> float:
     return f_t_skin * wetness
 
 
-# ====================================== Step 5: Active CUI Hours ======================================
+# --- Step 5: Active CUI Hours ---
 
 
 def compute_ach(hour_scores: Iterable[float]) -> float:
@@ -365,7 +357,7 @@ def compute_ach(hour_scores: Iterable[float]) -> float:
     return sum(hour_scores)
 
 
-# ====================================== Pipeline: tie Steps 1-5 together ======================================
+# --- Pipeline: tie Steps 1-5 together ---
 
 
 def compute_ach_for_asset(
@@ -463,12 +455,13 @@ def compute_ach_for_asset(
 
     hour_scores: list[float] = []
     for t_skin, t_ambient, rh in zip(
-        window["t_skin"], window["temp"], window["humidity"], strict=True,
+        window["t_skin"],
+        window["temp"],
+        window["humidity"],
+        strict=True,
     ):
         t_dew = compute_t_dew(t_ambient, rh)
-        hour_scores.append(
-            compute_hour_score(f(t_skin), compute_wetness(t_skin, t_dew))
-        )
+        hour_scores.append(compute_hour_score(f(t_skin), compute_wetness(t_skin, t_dew)))
     return compute_ach(hour_scores)
 
 
@@ -523,8 +516,7 @@ def prepare_hourly_window(
         (weather_df["datetime"] >= window_start) & (weather_df["datetime"] <= today)
     ]
     process_window = process_history_df[
-        (process_history_df["datetime"] >= window_start)
-        & (process_history_df["datetime"] <= today)
+        (process_history_df["datetime"] >= window_start) & (process_history_df["datetime"] <= today)
     ]
     if weather_window.empty or process_window.empty:
         return empty
@@ -561,7 +553,9 @@ def prepare_hourly_window(
         t_skin=[
             compute_t_skin(t_process, t_ambient, k)
             for t_process, t_ambient in zip(
-                window["process_temperature_c"], window["temp"], strict=True,
+                window["process_temperature_c"],
+                window["temp"],
+                strict=True,
             )
         ]
     )

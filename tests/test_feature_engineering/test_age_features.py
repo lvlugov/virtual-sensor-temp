@@ -6,11 +6,9 @@ future-date rejection.
 
 import pandas as pd
 import pytest
-
 from lean_virtual_sensor.feature_engineering.age_features import (
     compute_age_years,
 )
-
 
 TODAY = pd.Timestamp("2026-05-26")
 

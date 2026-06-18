@@ -1,7 +1,6 @@
 """Tests for lean_virtual_sensor.feature_engineering.system_flag_feature."""
 
 import pytest
-
 from lean_virtual_sensor.feature_engineering.system_flag_feature import is_open_system
 
 

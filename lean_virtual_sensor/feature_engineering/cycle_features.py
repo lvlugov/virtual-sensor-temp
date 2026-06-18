@@ -70,9 +70,7 @@ def compute_cycle_count(
     if t_skin_series.empty or t_skin_series.notna().sum() == 0:
         return 0
     cleaned = (
-        t_skin_series.astype(float)
-        .interpolate(limit=max_gap_hours, limit_area="inside")
-        .dropna()
+        t_skin_series.astype(float).interpolate(limit=max_gap_hours, limit_area="inside").dropna()
     )
     if len(cleaned) < 3:
         return 0

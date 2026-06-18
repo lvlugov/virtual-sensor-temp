@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
 from generation_helpers import sample_operating_temperature_fields
 from schema_loader import load_all_configs
 
@@ -35,10 +34,7 @@ def _sample_many(
     seed: int = 42,
 ) -> list[dict[str, float | int]]:
     rng = np.random.default_rng(seed)
-    return [
-        sample_operating_temperature_fields(profile_key, ot_config, rng)
-        for _ in range(n)
-    ]
+    return [sample_operating_temperature_fields(profile_key, ot_config, rng) for _ in range(n)]
 
 
 def test_pipe_operating_temperature_clusters_near_mode(cfg) -> None:

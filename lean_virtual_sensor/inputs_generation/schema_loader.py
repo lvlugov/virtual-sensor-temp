@@ -26,7 +26,6 @@ from typing import Any
 
 import yaml
 
-
 _WEIGHT_SUM_TOLERANCE = 0.02
 _COLD_SERVICE_PROFILE_BY_CLASS = {
     "PIPE": "PIPE_COLD_SERVICE",
@@ -118,9 +117,7 @@ def _validate_configs(config: GeneratorConfig) -> None:
         raise ValueError("generation_config.yaml must define 'asset_class_proportions'")
     total = sum(int(v) for v in props.values())
     if total != n_rows:
-        raise ValueError(
-            f"asset_class_proportions sum ({total}) must equal run.n_rows ({n_rows})"
-        )
+        raise ValueError(f"asset_class_proportions sum ({total}) must equal run.n_rows ({n_rows})")
 
     for ac in props:
         if ac not in config.asset_class:
@@ -278,9 +275,7 @@ def _validate_non_pipe_geometry_sampling(class_name: str, class_cfg: dict[str, A
         fixed_min = float(wall_cfg["min"])
         fixed_max = float(wall_cfg["max"])
         if fixed_min > fixed_max:
-            raise ValueError(
-                f"asset_class_config[{class_name}] fixed wall min must be <= max"
-            )
+            raise ValueError(f"asset_class_config[{class_name}] fixed wall min must be <= max")
         return
 
     raise ValueError(
@@ -325,9 +320,7 @@ def _validate_deterministic_rules(conditional_rules: dict[str, Any]) -> None:
                     f"deterministic_rules.{rule_name}.rules[{index}] action must be 'set_value'"
                 )
             if "value" not in rule:
-                raise ValueError(
-                    f"deterministic_rules.{rule_name}.rules[{index}] missing 'value'"
-                )
+                raise ValueError(f"deterministic_rules.{rule_name}.rules[{index}] missing 'value'")
 
 
 def _validate_rule_ids(conditional_rules: dict[str, Any]) -> None:
@@ -363,21 +356,16 @@ def _validate_operating_temperature_config(config: GeneratorConfig) -> None:
     wide_frac = float(ot_cfg.get("wide_swing_fraction", -1))
     if not (0.0 <= wide_frac <= 1.0):
         raise ValueError(
-            f"operating_temperature_config.wide_swing_fraction must be in [0, 1] "
-            f"(got {wide_frac})"
+            f"operating_temperature_config.wide_swing_fraction must be in [0, 1] (got {wide_frac})"
         )
 
     max_excursion = float(ot_cfg.get("max_excursion_fraction", -1))
     if max_excursion < 0:
-        raise ValueError(
-            "operating_temperature_config.max_excursion_fraction must be non-negative"
-        )
+        raise ValueError("operating_temperature_config.max_excursion_fraction must be non-negative")
 
     cold_fracs = ot_cfg.get("cold_service_fraction")
     if not isinstance(cold_fracs, dict) or not cold_fracs:
-        raise ValueError(
-            "operating_temperature_config.yaml must define 'cold_service_fraction'"
-        )
+        raise ValueError("operating_temperature_config.yaml must define 'cold_service_fraction'")
     for class_name, fraction in cold_fracs.items():
         if class_name not in _COLD_SERVICE_PROFILE_BY_CLASS:
             raise ValueError(
@@ -446,16 +434,12 @@ def _validate_temperature_profile_block(profile_key: str, profile: Any) -> None:
     min_block = profile.get("min_operating_temperature")
     if not isinstance(min_block, dict):
         raise ValueError(f"profiles[{profile_key!r}].min_operating_temperature is required")
-    _validate_min_max_block(
-        f"profiles[{profile_key!r}].min_operating_temperature", min_block
-    )
+    _validate_min_max_block(f"profiles[{profile_key!r}].min_operating_temperature", min_block)
 
     max_block = profile.get("max_operating_temperature")
     if not isinstance(max_block, dict):
         raise ValueError(f"profiles[{profile_key!r}].max_operating_temperature is required")
-    _validate_min_max_block(
-        f"profiles[{profile_key!r}].max_operating_temperature", max_block
-    )
+    _validate_min_max_block(f"profiles[{profile_key!r}].max_operating_temperature", max_block)
 
     cycles_block = profile.get("avg_cycles_per_quarter")
     if not isinstance(cycles_block, dict):
@@ -466,9 +450,7 @@ def _validate_temperature_profile_block(profile_key: str, profile: Any) -> None:
 
     fraction_block = profile.get("operation_vs_shutdown_fraction")
     if not isinstance(fraction_block, dict):
-        raise ValueError(
-            f"profiles[{profile_key!r}].operation_vs_shutdown_fraction is required"
-        )
+        raise ValueError(f"profiles[{profile_key!r}].operation_vs_shutdown_fraction is required")
     lo, hi = _validate_min_max_block(
         f"profiles[{profile_key!r}].operation_vs_shutdown_fraction", fraction_block
     )

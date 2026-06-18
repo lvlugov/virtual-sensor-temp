@@ -30,7 +30,10 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=None,
         metavar="PATH",
-        help="Path to generation_config.yaml (default: ./config/generation_config.yaml next to this script)",
+        help=(
+            "Path to generation_config.yaml "
+            "(default: ./config/generation_config.yaml next to this script)"
+        ),
     )
     parser.add_argument(
         "-v",

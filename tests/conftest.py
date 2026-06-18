@@ -4,7 +4,8 @@ Shared pytest fixtures for the synthetic dataset test suite.
 The test suite is designed to run against ANY dataset CSV, not just the
 synthetic one. Pass the target dataset via the --dataset CLI option::
 
-    pytest tests/ --dataset lean_virtual_sensor/inputs_generation/config/outputs/synthetic_v1.0_seed42.csv
+    pytest tests/ --dataset \\
+        lean_virtual_sensor/inputs_generation/config/outputs/synthetic_v1.0_seed42.csv
 
 Or generate a fresh dataset and run all tests without saving it::
 
@@ -24,7 +25,6 @@ Fixtures provided:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 import pytest
@@ -44,13 +44,13 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 @pytest.fixture(scope="session")
-def dataset_path(request: pytest.FixtureRequest) -> Optional[Path]:
+def dataset_path(request: pytest.FixtureRequest) -> Path | None:
     val = request.config.getoption("--dataset")
     return Path(val) if val else None
 
 
 @pytest.fixture(scope="session")
-def df(dataset_path: Optional[Path]) -> Optional[pd.DataFrame]:
+def df(dataset_path: Path | None) -> pd.DataFrame | None:
     if dataset_path is None:
         return None
     return pd.read_csv(dataset_path)
@@ -69,7 +69,7 @@ def asset_config() -> dict:
 
 
 @pytest.fixture(scope="session")
-def gen_config() -> Optional[dict]:
+def gen_config() -> dict | None:
     path = CONFIG_DIR / "generation_config.yaml"
     if not path.exists():
         return None

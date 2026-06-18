@@ -42,7 +42,5 @@ def compute_age_years(date: pd.Timestamp, today: pd.Timestamp) -> int:
             upstream, not a real signal worth propagating.
     """
     if date > today:
-        raise ValueError(
-            f"date {date} is later than today {today} — age would be negative"
-        )
+        raise ValueError(f"date {date} is later than today {today} — age would be negative")
     return (today - date).days // DAYS_PER_YEAR

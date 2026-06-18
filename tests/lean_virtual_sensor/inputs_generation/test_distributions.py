@@ -9,23 +9,17 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pytest
-
 from schema_loader import load_all_configs
 from temperature_population_checks import assert_temperature_population_acceptance
-
 
 ASSET_CLASS_TOLERANCE = 0.05
 
 
 def _config_dir() -> Path:
     return (
-        Path(__file__).resolve().parents[3]
-        / "lean_virtual_sensor"
-        / "inputs_generation"
-        / "config"
+        Path(__file__).resolve().parents[3] / "lean_virtual_sensor" / "inputs_generation" / "config"
     )
 
 
@@ -72,7 +66,9 @@ def test_no_degenerate_categorical_distributions(df, schema):
         counts = df[name].value_counts(normalize=False)
         if counts.empty:
             continue
-        assert counts.max() <= int(0.99 * n) + 1, f"{name}: degenerate distribution (max count {counts.max()})"
+        assert counts.max() <= int(0.99 * n) + 1, (
+            f"{name}: degenerate distribution (max count {counts.max()})"
+        )
 
 
 def test_numeric_columns_have_variance(df, schema):

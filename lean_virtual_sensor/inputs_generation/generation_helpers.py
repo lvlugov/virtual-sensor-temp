@@ -12,7 +12,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from schema_loader import GeneratorConfig
 
 
@@ -76,9 +75,7 @@ def apply_deterministic_field_value(
         if not rule_condition_matches(condition, row_context):
             continue
         if "value" not in rule:
-            raise ValueError(
-                f"deterministic_rules.{field_name}.rules[{index}] missing 'value'"
-            )
+            raise ValueError(f"deterministic_rules.{field_name}.rules[{index}] missing 'value'")
         return rule["value"]
     return default
 
@@ -147,8 +144,7 @@ def sample_weighted_category(
     total = float(probabilities.sum())
     if total <= 0 or not math.isfinite(total):
         raise ValueError(
-            "category weights must sum to a positive finite value, "
-            f"got {category_weights!r}"
+            f"category weights must sum to a positive finite value, got {category_weights!r}"
         )
     probabilities /= total
     return str(rng.choice(labels, p=probabilities))
@@ -164,8 +160,7 @@ def sample_weighted_category_column(
     total = float(probabilities.sum())
     if total <= 0 or not math.isfinite(total):
         raise ValueError(
-            "category weights must sum to a positive finite value, "
-            f"got {category_weights!r}"
+            f"category weights must sum to a positive finite value, got {category_weights!r}"
         )
     probabilities /= total
     draws = rng.choice(labels, size=row_count, p=probabilities)
@@ -420,9 +415,7 @@ def sample_component_geometry(
             clamp_max,
         )
     else:
-        raise ValueError(
-            f"{asset_class_key!r}: unknown geometry_sampling.method {method!r}"
-        )
+        raise ValueError(f"{asset_class_key!r}: unknown geometry_sampling.method {method!r}")
 
     return round(diameter, 1), round(wall, 2)
 
@@ -456,9 +449,7 @@ def resolve_operating_temperature_profile(
     """
     default_profiles = operating_temperature_config["asset_class_default_profile"]
     if asset_class not in default_profiles:
-        raise KeyError(
-            f"No asset_class_default_profile entry for asset class {asset_class!r}"
-        )
+        raise KeyError(f"No asset_class_default_profile entry for asset class {asset_class!r}")
 
     if asset_class in _COLD_SERVICE_PROFILE_BY_CLASS:
         cold_fracs = operating_temperature_config["cold_service_fraction"]
@@ -507,9 +498,7 @@ def sample_operating_temperature_fields(
     )
 
     cycles_block = profile["avg_cycles_per_quarter"]
-    cycles = int(
-        rng.integers(int(cycles_block["min"]), int(cycles_block["max"]) + 1)
-    )
+    cycles = int(rng.integers(int(cycles_block["min"]), int(cycles_block["max"]) + 1))
 
     fraction_block = profile["operation_vs_shutdown_fraction"]
     on_stream = round(
