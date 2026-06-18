@@ -33,6 +33,17 @@ test:
 	@echo "Running tests..."
 	docker compose run --rm dev pytest
 
+# Generate a fresh dataset to a temp file, run all tests (including dataset-dependent
+# ones), then discard the CSV. Does not overwrite config/outputs/synthetic_*.csv.
+test-dataset:
+	@echo "Running tests against a freshly generated dataset (not saved)..."
+	docker compose run --rm dev bash -c '\
+		set -euo pipefail; \
+		TMP=$$(mktemp --suffix=.csv); \
+		trap "rm -f \"$$TMP\"" EXIT; \
+		python lean_virtual_sensor/inputs_generation/generate.py --output-path "$$TMP" && \
+		pytest tests/ --dataset "$$TMP"'
+
 sync:
 	@echo "Syncing Python dependencies (uv)..."
 	docker compose run --rm dev uv sync --extra dev
@@ -51,9 +62,10 @@ help:
 	@echo "  clean      - Clean development environment (removes volumes)"
 	@echo "  format     - Format code with ruff"
 	@echo "  lint       - Lint code with ruff"
-	@echo "  test       - Run tests"
-	@echo "  sync       - Sync Python dependencies with uv"
+	@echo "  test          - Run tests (dataset-dependent tests skipped unless --dataset passed)"
+	@echo "  test-dataset  - Generate fresh CSV to temp; run full suite; discard CSV"
+	@echo "  sync          - Sync Python dependencies with uv"
 	@echo "  notebook-server - Start classic notebook server (connect IDE to URL)"
 	@echo "  help       - Show this help message"
 
-.PHONY: up down shell build clean format lint test sync notebook-server help
+.PHONY: up down shell build clean format lint test test-dataset sync notebook-server help

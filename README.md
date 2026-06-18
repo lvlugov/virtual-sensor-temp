@@ -32,7 +32,8 @@ Common ones:
 - `make up`: start a long-lived dev container (`virtual-sensor-dev`)
 - `make shell`: open a shell inside the running container
 - `make sync`: install/sync Python dependencies (from `uv.lock`)
-- `make test`: run tests
+- `make test`: run tests (fast; dataset-dependent tests skip unless `--dataset` is passed)
+- `make test-dataset`: generate a fresh CSV to a temp file, run the full suite, discard the CSV
 - `make lint`: ruff lint
 - `make format`: ruff format + autofix
 - `make down`: stop the container

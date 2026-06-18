@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.0",
     "pandas>=2.2",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -23,13 +24,19 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = [".", "lean_virtual_sensor/inputs_generation", "tests/lean_virtual_sensor/inputs_generation"]
 addopts = "-q"
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["lean_virtual_sensor", "scripts", "tests"]
+src = [
+    "virtual_sensor",
+    "advanced_virtual_sensor",
+    "lean_virtual_sensor",
+    "scripts",
+    "tests",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "W"]

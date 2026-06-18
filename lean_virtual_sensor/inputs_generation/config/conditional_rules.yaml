@@ -1,0 +1,443 @@
+# =============================================================================
+# conditional_rules.yaml
+# Conditional generation rules for the CUI lean virtual sensor synthetic dataset.
+#
+# review_id: "2026-05-29-sme-draft-7"
+# SME pack: docs/conditional_rules_sme_review.md
+#
+# PURPOSE
+# -------
+# This file controls how variable values are drawn when the draw should NOT be
+# uniform random over allowed values. It encodes two types of rules:
+#
+#   TIER 1 — DETERMINISTIC (generation)
+#     Hard rules from the data dictionary (and standards where cited). Each block
+#     must have applies_at: generation. Wired rules run via
+#     apply_deterministic_field_value() in layer_generators (see R-CHLORIDE-01).
+#     Downstream / product-only semantics belong in docs/synthetic_inputs_methodology.md §6.
+#
+#   TIER 2 — PHYSICALLY REASONED
+#     Conditional probability weights that follow from engineering physics or
+#     well-established industry practice. The *direction* of the effect is
+#     defensible; the *specific numbers* are [ENGINEERING_JUDGEMENT] and should
+#     be reviewed by a CUI/corrosion domain expert before production use.
+#     SME approved 2026-05-29-sme-draft-6 (see docs/conditional_rules_sme_review.md).
+#
+# WHAT THIS FILE IS NOT
+# ---------------------
+# This file does NOT contain statistically derived correlations from data.
+# Any numbers marked [ENGINEERING_JUDGEMENT] are assumptions, not measurements.
+# They are clearly flagged so they can be reviewed and updated independently
+# without touching the generator code.
+#
+# HOW THE GENERATOR USES THIS FILE
+# ---------------------------------
+# conditional_weights (Tier 2): loaded by the generator. For each variable, rules
+# are checked in order; the first match wins.
+#
+# deterministic_rules (Tier 1): generation rules only (applies_at: generation).
+# Loaded at generation time via apply_deterministic_field_value (layer_generators).
+#
+# geometry_standards: PIPE NPS / schedule table (ASME B36.10M-style). Not loaded
+# from this file today — specification for component_diameter and
+# furnished_thickness on PIPE rows. See repository PDF:
+#   NPS-nominal-pipe-size-chart-inches__1_.pdf
+#
+# For each Tier 2 variable listed here, the generator checks conditions in order.
+# The first matching condition is applied. If no condition matches, the variable
+# is drawn uniformly over its allowed values (for categoricals) or uniformly
+# over its range (for numerics).
+#
+# Rule evaluation:
+#   action: set_value  → deterministic assignment, no randomness
+#   action: set_weights → weighted random draw over allowed_values
+#
+# Conditions reference already-generated variables (per DAG layer order).
+#
+# RULE IDS
+# --------
+# Stable identifiers for audit, provenance, and citations (Phase 2 restructuring).
+#   Tier 1 deterministic block:  R-{TOPIC}-01
+#   Tier 2 conditional_weights:  R-{TOPIC}-W-01
+#   Geometry specification:      R-{TOPIC}-01
+# Downstream rules (not in generator): docs/synthetic_inputs_methodology.md §6 (e.g. R-COAT-DEFER-01)
+# =============================================================================
+
+
+# ── TIER 1: DETERMINISTIC RULES ───────────────────────────────────────────────
+# Source: data dictionary explicit rules and standards.
+
+deterministic_rules:
+
+  insulation_chloride_flag:
+    id: R-CHLORIDE-01
+    applies_at: generation
+    description: >
+      Auto-flag rule from data dictionary (Insulation section, Edge Cases column).
+      MARINE + CALCIUM_SILICATE + insulation age > 5 years almost always results
+      in chloride contamination. Stated explicitly as auto-flag candidate.
+    source: "Data dictionary insulation_chloride_flag field; NACE SP0198-2010 Section 5.4 [CITATION_TBC]; API 583 Table 4.2 [CITATION_TBC]"
+    rules:
+      - condition:
+          exposure_zone: MARINE
+          insulation_material: CALCIUM_SILICATE
+          insulation_age_years_gt: 5
+        action: set_value
+        value: true
+
+# ── TIER 2: PHYSICALLY REASONED WEIGHTS ───────────────────────────────────────
+# Direction of effect is defensible from engineering principles.
+# Specific probability values are [ENGINEERING_JUDGEMENT] — SME approved 2026-05-29-sme-draft-6.
+
+conditional_weights:
+
+  insulation_material:
+    id: R-INSMAT-W-01
+    description: >
+      Insulation material selection is influenced by exposure zone and operating
+      temperature. FOAMGLASS preferred in MARINE environments due to closed-cell
+      structure (very low water absorption, alpha=0.20). CALCIUM_SILICATE more
+      common in high-temperature service but worst for CUI in wet environments.
+      MINERAL_WOOL widely used general-purpose material across all environments.
+    source: >
+      API 583 Table 4.3 material properties [CITATION_TBC]; NACE SP0198-2010 Table 1 [CITATION_TBC];
+      [ENGINEERING_JUDGEMENT] for specific weight values.
+    rules:
+      - condition:
+          exposure_zone: MARINE
+        weights:
+          FOAMGLASS: 0.40
+          MINERAL_WOOL: 0.30
+          FIBERGLASS: 0.10
+          CALCIUM_SILICATE: 0.10
+          PERLITE: 0.05
+          UNKNOWN: 0.04
+          ASBESTOS: 0.01
+        note: "[ENGINEERING_JUDGEMENT] FOAMGLASS upweighted in MARINE — closed-cell preferred for wet environments"
+
+      - condition:
+          exposure_zone: ARID_DRY
+        weights:
+          FOAMGLASS: 0.15
+          MINERAL_WOOL: 0.35
+          FIBERGLASS: 0.15
+          CALCIUM_SILICATE: 0.24
+          PERLITE: 0.05
+          UNKNOWN: 0.04
+          ASBESTOS: 0.01
+        note: "[ENGINEERING_JUDGEMENT] CaSi more common where drying concern less acute"
+
+      - condition:
+          exposure_zone: SEVERE
+        weights:
+          FOAMGLASS: 0.30
+          MINERAL_WOOL: 0.35
+          FIBERGLASS: 0.15
+          CALCIUM_SILICATE: 0.09
+          PERLITE: 0.05
+          UNKNOWN: 0.04
+          ASBESTOS: 0.01
+        note: "[ENGINEERING_JUDGEMENT]"
+
+      # Default (TEMPERATE or no condition match)
+      - condition: {}
+        weights:
+          FOAMGLASS: 0.25
+          MINERAL_WOOL: 0.40
+          FIBERGLASS: 0.15
+          CALCIUM_SILICATE: 0.11
+          PERLITE: 0.04
+          UNKNOWN: 0.03
+          ASBESTOS: 0.01
+        note: "[ENGINEERING_JUDGEMENT] MINERAL_WOOL most widely used general-purpose material"
+
+  coating_system:
+    id: R-COAT-W-01
+    description: >
+      Coating system type. Tier 2 weights draw TSA, IOZ, EPOXY_HT_MULTI,
+      EPOXY_HT_SINGLE, BARE, UNKNOWN. Coating age degradation is applied
+      downstream in the CUI model — stored metadata is not rewritten at
+      generation time (see docs/synthetic_inputs_methodology.md §6). Selection is
+      influenced by years since commissioning and exposure zone.
+    source: >
+      API 583 Table 4.4 m_coat values [CITATION_TBC]; API 581 coating modifier [CITATION_TBC];
+      [ENGINEERING_JUDGEMENT] for specific weight values.
+    rules:
+      - condition:
+          asset_age_lte: 10
+          exposure_zone: MARINE
+        weights:
+          TSA: 0.25
+          IOZ: 0.25
+          EPOXY_HT_MULTI: 0.30
+          EPOXY_HT_SINGLE: 0.15
+          BARE: 0.03
+          UNKNOWN: 0.02
+        note: "[ENGINEERING_JUDGEMENT] Newer MARINE assets more likely to have high-spec coatings"
+
+      - condition:
+          asset_age_gt: 25
+          exposure_zone: MARINE
+        weights:
+          TSA: 0.10
+          IOZ: 0.10
+          EPOXY_HT_MULTI: 0.05
+          EPOXY_HT_SINGLE: 0.05
+          BARE: 0.65
+          UNKNOWN: 0.05
+        note: "[ENGINEERING_JUDGEMENT] Old MARINE assets — BARE or aged epoxy retained as EPOXY_HT_* in metadata"
+
+      - condition:
+          asset_age_lte: 10
+        weights:
+          TSA: 0.15
+          IOZ: 0.20
+          EPOXY_HT_MULTI: 0.30
+          EPOXY_HT_SINGLE: 0.30
+          BARE: 0.03
+          UNKNOWN: 0.02
+        note: "[ENGINEERING_JUDGEMENT] Newer non-MARINE assets — epoxy coatings common"
+
+      - condition:
+          asset_age_gt: 25
+        weights:
+          TSA: 0.05
+          IOZ: 0.08
+          EPOXY_HT_MULTI: 0.05
+          EPOXY_HT_SINGLE: 0.07
+          BARE: 0.70
+          UNKNOWN: 0.05
+        note: "[ENGINEERING_JUDGEMENT] Older assets — BARE or aged epoxy retained as EPOXY_HT_* in metadata"
+
+      # Default
+      - condition: {}
+        weights:
+          TSA: 0.10
+          IOZ: 0.15
+          EPOXY_HT_MULTI: 0.20
+          EPOXY_HT_SINGLE: 0.20
+          BARE: 0.30
+          UNKNOWN: 0.05
+        note: "[ENGINEERING_JUDGEMENT]"
+
+  insulation_condition:
+    id: R-INSCOND-W-01
+    description: >
+      Insulation condition degrades with age and exposure severity. Newer
+      insulation more likely ABOVE_AVERAGE; older insulation in aggressive environments
+      more likely BELOW_AVERAGE. Physically consistent with API 583 age bands.
+    source: >
+      API 583 Section 5.3 [CITATION_TBC]; API 581 insulation age modifier [CITATION_TBC];
+      [ENGINEERING_JUDGEMENT] for specific weight values.
+    rules:
+      - condition:
+          insulation_age_years_lte: 5
+        weights:
+          ABOVE_AVERAGE: 0.65
+          AVERAGE: 0.30
+          BELOW_AVERAGE: 0.05
+        note: "[ENGINEERING_JUDGEMENT] New insulation predominantly good condition"
+
+      - condition:
+          insulation_age_years_gt: 15
+          exposure_zone: MARINE
+        weights:
+          ABOVE_AVERAGE: 0.10
+          AVERAGE: 0.35
+          BELOW_AVERAGE: 0.55
+        note: "[ENGINEERING_JUDGEMENT] Old insulation in marine environment likely degraded"
+
+      - condition:
+          insulation_age_years_gt: 15
+        weights:
+          ABOVE_AVERAGE: 0.15
+          AVERAGE: 0.45
+          BELOW_AVERAGE: 0.40
+        note: "[ENGINEERING_JUDGEMENT]"
+
+      - condition:
+          insulation_age_years_gt: 5
+          insulation_age_years_lte: 15
+        weights:
+          ABOVE_AVERAGE: 0.35
+          AVERAGE: 0.50
+          BELOW_AVERAGE: 0.15
+        note: "[ENGINEERING_JUDGEMENT]"
+
+      # Default
+      - condition: {}
+        weights:
+          ABOVE_AVERAGE: 0.30
+          AVERAGE: 0.50
+          BELOW_AVERAGE: 0.20
+        note: "[ENGINEERING_JUDGEMENT]"
+
+  cladding_integrity:
+    id: R-CLAD-W-01
+    description: >
+      Cladding integrity degrades with age, independent of insulation condition.
+      Mechanically damaged by thermal cycling, wind, personnel access, corrosion
+      of cladding fasteners. Similar age-dependence to insulation condition but
+      separate variable.
+    source: >
+      API 583 Section 5.3 [CITATION_TBC]; [ENGINEERING_JUDGEMENT] for specific weight values.
+    rules:
+      - condition:
+          asset_age_lte: 10
+        weights:
+          ABOVE_AVERAGE: 0.60
+          AVERAGE: 0.35
+          BELOW_AVERAGE: 0.05
+        note: "[ENGINEERING_JUDGEMENT]"
+
+      - condition:
+          asset_age_gt: 20
+        weights:
+          ABOVE_AVERAGE: 0.15
+          AVERAGE: 0.45
+          BELOW_AVERAGE: 0.40
+        note: "[ENGINEERING_JUDGEMENT]"
+
+      # Default
+      - condition: {}
+        weights:
+          ABOVE_AVERAGE: 0.30
+          AVERAGE: 0.50
+          BELOW_AVERAGE: 0.20
+        note: "[ENGINEERING_JUDGEMENT]"
+
+  tracing_system:
+    id: R-TRACE-W-01
+    description: >
+      Heat tracing type. Allowed values: NONE, HIGH_INTEGRITY_STEAM_TRACED,
+      MEDIUM_INTEGRITY_STEAM_TRACED, POOR_INTEGRITY_STEAM_TRACED, ELECTRIC_TRACED,
+      HOT_OIL_TRACED. Drawn after operating_temperature is known (layer 5).
+      Steam integrity distinguishes tracing effectiveness. NONE is the majority
+      case for insulated piping.
+    source: >
+      API 583 Section 4.3 (~20-30% of insulated O&G piping has some tracing) [CITATION_TBC];
+      [ENGINEERING_JUDGEMENT] for condition-specific weights.
+    rules:
+      - condition:
+          operating_temperature_lt: 10
+        weights:
+          NONE: 0.40
+          HIGH_INTEGRITY_STEAM_TRACED: 0.10
+          MEDIUM_INTEGRITY_STEAM_TRACED: 0.15
+          POOR_INTEGRITY_STEAM_TRACED: 0.10
+          ELECTRIC_TRACED: 0.20
+          HOT_OIL_TRACED: 0.05
+        note: "[ENGINEERING_JUDGEMENT] Cold service — steam tracing split by integrity band"
+
+      - condition:
+          operating_temperature_gte: 60
+        weights:
+          NONE: 0.90
+          HIGH_INTEGRITY_STEAM_TRACED: 0.02
+          MEDIUM_INTEGRITY_STEAM_TRACED: 0.02
+          POOR_INTEGRITY_STEAM_TRACED: 0.01
+          ELECTRIC_TRACED: 0.03
+          HOT_OIL_TRACED: 0.02
+        note: "[ENGINEERING_JUDGEMENT] Hot service rarely needs tracing for freeze protection"
+
+      # Default
+      - condition: {}
+        weights:
+          NONE: 0.72
+          HIGH_INTEGRITY_STEAM_TRACED: 0.05
+          MEDIUM_INTEGRITY_STEAM_TRACED: 0.07
+          POOR_INTEGRITY_STEAM_TRACED: 0.04
+          ELECTRIC_TRACED: 0.08
+          HOT_OIL_TRACED: 0.04
+        note: "[ENGINEERING_JUDGEMENT] Former STEAM_TRACED weight split across integrity bands"
+
+  sweating_asset:
+    id: R-SWEAT-W-01
+    description: >
+      Boolean: asset exhibits external surface sweating / condensation under
+      insulation (moisture source for CUI). More likely on cold service and
+      cyclic through-0°C operation. Drawn after operating_temperature is known
+      (layer 5, with tracing_system).
+    source: "Data dictionary [CITATION_TBC]; [ENGINEERING_JUDGEMENT] for weight values"
+    rules:
+      - condition:
+          operating_temperature_lt: 10
+        weights:
+          true: 0.35
+          false: 0.65
+        note: "[ENGINEERING_JUDGEMENT] Cold service — elevated sweating risk"
+
+      - condition:
+          operating_temperature_gte: 60
+        weights:
+          true: 0.05
+          false: 0.95
+        note: "[ENGINEERING_JUDGEMENT] Hot service — sweating uncommon"
+
+      - condition: {}
+        weights:
+          true: 0.15
+          false: 0.85
+        note: "[ENGINEERING_JUDGEMENT] Default prevalence — SME to calibrate"
+
+  metallurgy_family:
+    id: R-METAL-W-01
+    description: >
+      Allowed values: CARBON_STEEL, LOW_ALLOY_STEEL, AUSTENITIC_SS, DUPLEX_SS.
+      Carbon steel dominates O&G insulated equipment;
+      stainless steels used for corrosive or elevated-temperature service.
+    source: >
+      ISO 14224:2016 Table A.41 [CITATION_TBC]; HOIS industry survey data (CS dominant) [CITATION_TBC];
+      [ENGINEERING_JUDGEMENT] for specific weights by exposure zone.
+    rules:
+      - condition:
+          exposure_zone: SEVERE
+        weights:
+          CARBON_STEEL: 0.55
+          LOW_ALLOY_STEEL: 0.15
+          AUSTENITIC_SS: 0.21
+          DUPLEX_SS: 0.09
+        note: "[ENGINEERING_JUDGEMENT] Severe environments drive SS specification more often"
+
+      # Default (all other exposure zones)
+      - condition: {}
+        weights:
+          CARBON_STEEL: 0.74
+          LOW_ALLOY_STEEL: 0.12
+          AUSTENITIC_SS: 0.10
+          DUPLEX_SS: 0.04
+        note: "[ENGINEERING_JUDGEMENT] CS dominant per ISO 14224 and HOIS survey data"
+
+
+# ── GEOMETRY STANDARDS (generation) ─────────────────────────────────────────────
+# PIPE: weighted NPS catalog (OD + wall coupled). Non-pipe: asset_class_config.yaml.
+
+geometry_standards:
+
+  pipe_nps:
+    id: R-PIPE-NPS-01
+    applies_at: generation
+    asset_class: PIPE
+    variables:
+      component_diameter: od_mm
+      furnished_thickness: wall_mm
+    source_document: "NPS-nominal-pipe-size-chart-inches__1_.pdf"
+    standard: "ASME B36.10M [CITATION_TBC]"
+    method: >
+      Draw one row from nps_catalog by weight; set component_diameter to od_mm
+      and furnished_thickness to wall_mm from that row (coupled pair).
+    note: "[ENGINEERING_JUDGEMENT] Weights sum to 100; refinery line population, median ≈ 4″"
+    nps_catalog:
+      # od_mm / wall_mm from ASME B36.10M Sch 40 up to 12″, STD above [CITATION_TBC]
+      - { nps_in: "1", od_mm: 33.4, wall_mm: 3.38, schedule: "Sch 40", weight: 8 }
+      - { nps_in: "1 1/2", od_mm: 48.3, wall_mm: 3.68, schedule: "Sch 40", weight: 10 }
+      - { nps_in: "2", od_mm: 60.3, wall_mm: 3.91, schedule: "Sch 40", weight: 15 }
+      - { nps_in: "3", od_mm: 88.9, wall_mm: 5.49, schedule: "Sch 40", weight: 15 }
+      - { nps_in: "4", od_mm: 114.3, wall_mm: 6.02, schedule: "Sch 40", weight: 15 }
+      - { nps_in: "6", od_mm: 168.3, wall_mm: 7.11, schedule: "Sch 40", weight: 12 }
+      - { nps_in: "8", od_mm: 219.1, wall_mm: 8.18, schedule: "Sch 40", weight: 9 }
+      - { nps_in: "10", od_mm: 273.0, wall_mm: 9.27, schedule: "Sch 40", weight: 6 }
+      - { nps_in: "12", od_mm: 323.9, wall_mm: 10.31, schedule: "Sch 40", weight: 5 }
+      - { nps_in: "16", od_mm: 406.4, wall_mm: 9.53, schedule: "STD", weight: 3 }
+      - { nps_in: "20", od_mm: 508.0, wall_mm: 9.53, schedule: "STD", weight: 1.5 }
+      - { nps_in: "24", od_mm: 610.0, wall_mm: 9.53, schedule: "STD", weight: 0.5 }
