@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-
 from generation_helpers import parse_commissioning_timestamp
 from layer_generators import (
     generate_anchors,
@@ -90,8 +89,7 @@ def test_cold_service_identified_by_negative_operating_temperature(cfg):
     dataframe = _dataframe_through_layer5(cfg, n_rows=1000, seed=42)
     cold_eligible = {"PIPE", "PRESSURE_VESSEL", "STORAGE_TANK"}
     cold_rows = dataframe[
-        (dataframe["operating_temperature"] < 0)
-        & (~dataframe.apply(_is_wide_swing_row, axis=1))
+        (dataframe["operating_temperature"] < 0) & (~dataframe.apply(_is_wide_swing_row, axis=1))
     ]
     assert not cold_rows.empty
     assert set(cold_rows["asset_class"]).issubset(cold_eligible)
@@ -106,7 +104,9 @@ def test_wide_swing_fraction_near_five_percent(cfg):
 def test_reactor_on_stream_fraction_below_pipe(cfg):
     dataframe = _dataframe_through_layer5(cfg, n_rows=1000, seed=42)
     reactor_median = float(
-        dataframe.loc[dataframe["asset_class"] == "REACTOR", "operation_vs_shutdown_fraction"].median()
+        dataframe.loc[
+            dataframe["asset_class"] == "REACTOR", "operation_vs_shutdown_fraction"
+        ].median()
     )
     pipe_median = float(
         dataframe.loc[dataframe["asset_class"] == "PIPE", "operation_vs_shutdown_fraction"].median()

@@ -12,6 +12,7 @@ dependencies = [
     "numpy>=2.0",
     "pandas>=2.2",
     "pyyaml>=6.0",
+    "scipy>=1.13",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +22,11 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.8",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lean_virtual_sensor*", "advanced_virtual_sensor*"]
+exclude = ["data*", "docs*", "notebooks*", "output*", "reports*", "scripts*", "tests*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

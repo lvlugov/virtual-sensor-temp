@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-
 from generation_helpers import (
     apply_deterministic_field_value,
+    apply_wide_swing_temperature_assignments,
     asset_age_years_at_reference,
     conditional_weights_block,
     parse_commissioning_timestamp,
@@ -29,7 +29,6 @@ from generation_helpers import (
     sample_first_matching_weighted_rule,
     sample_geometry_class_for_asset_class,
     sample_operating_temperature_fields,
-    apply_wide_swing_temperature_assignments,
     sample_weighted_category,
     sample_weighted_category_column,
     schema_categorical_choices,
@@ -78,9 +77,7 @@ def generate_anchors(
     result["asset_class"] = shuffled_classes
 
     exposure_weights = generation_yaml["exposure_zone_weights"]
-    result["exposure_zone"] = sample_weighted_category_column(
-        rng, exposure_weights, row_count
-    )
+    result["exposure_zone"] = sample_weighted_category_column(rng, exposure_weights, row_count)
 
     metallurgy_block = conditional_weights_block(config, "metallurgy_family")
     if metallurgy_block is None:
@@ -93,9 +90,7 @@ def generate_anchors(
             "exposure_zone": result.at[row_index, "exposure_zone"],
         }
         metallurgy_series.append(
-            sample_first_matching_weighted_rule(
-                metallurgy_rules, row_context_for_metallurgy, rng
-            )
+            sample_first_matching_weighted_rule(metallurgy_rules, row_context_for_metallurgy, rng)
         )
     result["metallurgy_family"] = metallurgy_series
 
@@ -170,8 +165,8 @@ def generate_wall_insulation(
         raise ValueError("conditional_rules.conditional_weights.insulation_material is required")
     insulation_material_rules = insulation_material_block.get("rules", [])
 
-    schema_insulation_thickness_low, schema_insulation_thickness_high = (
-        schema_float_range_bounds(config.schema, "insulation_thickness")
+    schema_insulation_thickness_low, schema_insulation_thickness_high = schema_float_range_bounds(
+        config.schema, "insulation_thickness"
     )
 
     component_diameters: list[float] = []
@@ -187,8 +182,9 @@ def generate_wall_insulation(
 
         insulation_thickness_limits = class_config["insulation_thickness"]
 
-        insul_mm_low, insul_mm_high = float(insulation_thickness_limits["min"]), float(
-            insulation_thickness_limits["max"]
+        insul_mm_low, insul_mm_high = (
+            float(insulation_thickness_limits["min"]),
+            float(insulation_thickness_limits["max"]),
         )
 
         od_mm, wall_mm = sample_component_geometry(
@@ -255,9 +251,7 @@ def generate_dates(
         )
         asset_age_years = asset_age_years_at_reference(reference_ts, commissioning_ts)
 
-        insulation_ts = random_timestamp_uniform_between(
-            rng, commissioning_ts, reference_ts
-        )
+        insulation_ts = random_timestamp_uniform_between(rng, commissioning_ts, reference_ts)
         insulation_dates.append(insulation_ts.date().isoformat())
 
         coating_ts = random_timestamp_uniform_between(rng, commissioning_ts, reference_ts)
@@ -419,9 +413,7 @@ def generate_insulation_flags(
             "asset_age_years": asset_age_years,
         }
         insulation_conditions.append(
-            sample_first_matching_weighted_rule(
-                insulation_rules, row_ctx_insulation, rng
-            )
+            sample_first_matching_weighted_rule(insulation_rules, row_ctx_insulation, rng)
         )
 
         row_ctx_cladding = {

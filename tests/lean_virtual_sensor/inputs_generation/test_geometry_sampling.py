@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
 from generation_helpers import (
     sample_component_geometry,
     sample_coupled_wall_thickness,
@@ -46,10 +45,7 @@ def _run_first_three_dag_layers(cfg, *, n_rows: int = 1000, seed: int = 42):
 
 def _pipe_catalog_pairs(cfg) -> set[tuple[float, float]]:
     catalog = cfg.conditional_rules["geometry_standards"]["pipe_nps"]["nps_catalog"]
-    return {
-        (round(float(row["od_mm"]), 1), round(float(row["wall_mm"]), 2))
-        for row in catalog
-    }
+    return {(round(float(row["od_mm"]), 1), round(float(row["wall_mm"]), 2)) for row in catalog}
 
 
 def test_pipe_geometry_from_nps_catalog(cfg):
@@ -70,9 +66,7 @@ def test_pipe_diameter_skewed_small(cfg):
 
 def test_non_pipe_wall_coupled_to_diameter(cfg):
     dataframe = _run_first_three_dag_layers(cfg, seed=42)
-    non_pipe_classes = [
-        key for key in cfg.asset_class if key != "PIPE"
-    ]
+    non_pipe_classes = [key for key in cfg.asset_class if key != "PIPE"]
     for asset_class_key in non_pipe_classes:
         class_cfg = cfg.asset_class[asset_class_key]
         geometry_sampling = class_cfg["geometry_sampling"]
@@ -95,8 +89,12 @@ def test_non_pipe_wall_coupled_to_diameter(cfg):
         wall_cfg = geometry_sampling["wall"]
         t_min = float(wall_cfg["t_over_d_min"])
         t_max = float(wall_cfg["t_over_d_max"])
-        clamp_min = max(float(wall_cfg["clamp_min"]), float(class_cfg["furnished_thickness"]["min"]))
-        clamp_max = min(float(wall_cfg["clamp_max"]), float(class_cfg["furnished_thickness"]["max"]))
+        clamp_min = max(
+            float(wall_cfg["clamp_min"]), float(class_cfg["furnished_thickness"]["min"])
+        )
+        clamp_max = min(
+            float(wall_cfg["clamp_max"]), float(class_cfg["furnished_thickness"]["max"])
+        )
         for _, row in class_rows.iterrows():
             diameter = float(row["component_diameter"])
             wall = float(row["furnished_thickness"])
@@ -135,9 +133,7 @@ def test_sample_nps_catalog_geometry_unit(cfg):
 
 def test_sample_triangular_diameter_respects_bounds():
     rng = np.random.default_rng(1)
-    samples = [
-        sample_triangular_diameter(rng, 100.0, 300.0, 500.0) for _ in range(500)
-    ]
+    samples = [sample_triangular_diameter(rng, 100.0, 300.0, 500.0) for _ in range(500)]
     assert min(samples) >= 100.0
     assert max(samples) <= 500.0
 

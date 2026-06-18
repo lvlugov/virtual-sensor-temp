@@ -11,9 +11,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-
 from constraints import _clamp_and_round_numerics, _enforce_temperature_triplet
-from generation_helpers import parse_commissioning_timestamp, years_between_timestamps
+from generation_helpers import years_between_timestamps
 from layer_generators import (
     generate_anchors,
     generate_dates,
@@ -27,10 +26,7 @@ from schema_loader import load_all_configs
 
 def _config_dir() -> Path:
     return (
-        Path(__file__).resolve().parents[3]
-        / "lean_virtual_sensor"
-        / "inputs_generation"
-        / "config"
+        Path(__file__).resolve().parents[3] / "lean_virtual_sensor" / "inputs_generation" / "config"
     )
 
 
@@ -62,12 +58,8 @@ def test_enforce_constraints_on_operating_layer_output():
     corrected, _triplet_fixes = _enforce_temperature_triplet(dataframe)
     corrected, _clamp_fixes = _clamp_and_round_numerics(corrected, cfg)
 
-    assert (
-        corrected["min_operating_temperature"] <= corrected["operating_temperature"]
-    ).all()
-    assert (
-        corrected["operating_temperature"] <= corrected["max_operating_temperature"]
-    ).all()
+    assert (corrected["min_operating_temperature"] <= corrected["operating_temperature"]).all()
+    assert (corrected["operating_temperature"] <= corrected["max_operating_temperature"]).all()
     op_lo, op_hi = cfg.schema["variables"]["operating_temperature"]["range"]
     for column in (
         "operating_temperature",
@@ -76,12 +68,8 @@ def test_enforce_constraints_on_operating_layer_output():
     ):
         series = pd.to_numeric(corrected[column], errors="coerce")
         assert series.between(float(op_lo), float(op_hi)).all(), column
-    frac_decimals = int(
-        cfg.schema["variables"]["operation_vs_shutdown_fraction"]["decimals"]
-    )
-    frac_series = pd.to_numeric(
-        corrected["operation_vs_shutdown_fraction"], errors="coerce"
-    )
+    frac_decimals = int(cfg.schema["variables"]["operation_vs_shutdown_fraction"]["decimals"])
+    frac_series = pd.to_numeric(corrected["operation_vs_shutdown_fraction"], errors="coerce")
     assert frac_series.eq(frac_series.round(frac_decimals)).all()
 
 

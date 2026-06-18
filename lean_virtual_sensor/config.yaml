@@ -1,0 +1,48 @@
+asset_temperature:
+  # Thermal conductivity of insulation materials at typical service conditions (W/m·K).
+  # Values are mid-range from ASTM standards and ASHRAE Handbook.
+  insulation_lambda_w_per_mk:
+    FOAMGLASS: 0.045 # ASTM C552, cellular glass.    Range 0.038-0.055.
+    MINERAL_WOOL: 0.040 # ASTM C547, rock/slag wool.    Range 0.033-0.046.
+    FIBERGLASS: 0.035 # ASTM C547, glass fibre.       Range 0.032-0.044.
+    CALCIUM_SILICATE: 0.058 # ASTM C533.                    Range 0.050-0.070.
+    PEARLITE: 0.052 # ASTM C610, expanded perlite.  Range 0.045-0.060.
+    ASBESTOS: 0.070 # Legacy/historical.            Range 0.060-0.090.
+    UNKNOWN: 0.040 # Conservative mid-range fallback.
+  # External convection coefficient (W/m²·K): 10 = still air, 15 = light wind, 25 = windy.
+  default_h_external_w_per_m2k: 10.0
+  # Internal heat transfer coefficient (W/m²·K). Varies strongly by service:
+  # ~1000 for liquid, ~50 for low-velocity gas. Override per-asset when known.
+  default_h_internal_w_per_m2k: 1000.0
+  # Magnus formula coefficients for dew point (T in °C, RH in %).
+  magnus_a: 17.62
+  magnus_b: 243.12
+  # NACE SP0198-2010 Figure 1 damage curves (Speller 1935, as digitised in NACE).
+  # Active band: f(T_skin) returns 0 outside [nace_t_low_c, nace_t_high_c].
+  nace_t_low_c: -4.0
+  nace_t_high_c: 175.0
+  # Closed system: linear fit through (T_LOW, 0). Slope in (mm/y)/°C.
+  nace_slope_closed: 0.00525
+  # Open system: PCHIP through these six "Open System" digitised points.
+  # Outside [40, 100] °C — but inside the active band — extrapolate linearly
+  # using the slope of the nearest boundary segment, clipped at zero.
+  nace_open_t_points_c: [40, 60, 70, 80, 90, 100]
+  nace_open_r_points: [0.27, 0.35, 0.40, 0.42, 0.40, 0.35]
+  # Wetness factor transition band: width in °C above T_dew over which
+  # the wetness factor w(T_skin, T_dew) drops linearly from 1.0 to 0.0.
+  wetness_transition_band_c: 10.0
+  # Active CUI Hours aggregation window — number of days back from `today`
+  # the orchestrator slices to before summing into ACH. Single source of
+  # truth for the published "trailing 90-day" convention; load-bearing —
+  # read by `compute_ach_for_asset` and shared by `compute_cycles_for_asset`.
+  ach_window_days: 90
+  # Cycle counting: a T_skin trough counts as a cooldown cycle when its
+  # prominence (drop vs surrounding baseline) is at least this many °C.
+  # 20 °C sits comfortably above hourly sensor noise (~3 °C) and well
+  # below typical process cooldowns (50 °C+).
+  cycle_min_swing_c: 20.0
+  # Cycle counting: maximum consecutive-NaN gap (in hours) that the
+  # cycle counter will linearly interpolate before computing prominence.
+  # Longer gaps remain NaN and effectively split the series so no
+  # phantom trough spans them.
+  cycle_max_gap_hours: 6

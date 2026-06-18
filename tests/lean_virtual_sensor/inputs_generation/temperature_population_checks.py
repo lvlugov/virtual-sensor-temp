@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 import pandas as pd
 
@@ -84,9 +85,7 @@ def assert_reactor_on_stream_below_pipe(dataframe: pd.DataFrame) -> None:
         ].median()
     )
     pipe_median = float(
-        dataframe.loc[
-            dataframe["asset_class"] == "PIPE", "operation_vs_shutdown_fraction"
-        ].median()
+        dataframe.loc[dataframe["asset_class"] == "PIPE", "operation_vs_shutdown_fraction"].median()
     )
     assert reactor_median < pipe_median
 
@@ -98,8 +97,6 @@ def assert_temperature_population_acceptance(
     """Run all Section 2 population acceptance checks."""
     assert_wide_swing_fraction_near_five_percent(dataframe)
     assert_pipe_operating_median_nearer_peak_than_midpoint(dataframe)
-    assert_cold_service_fractions_within_tolerance(
-        dataframe, operating_temperature_config
-    )
+    assert_cold_service_fractions_within_tolerance(dataframe, operating_temperature_config)
     assert_hot_assets_have_non_negative_min(dataframe)
     assert_reactor_on_stream_below_pipe(dataframe)

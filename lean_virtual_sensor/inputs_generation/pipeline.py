@@ -28,7 +28,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 from constraints import enforce_all_constraints
 from layer_generators import (
     generate_anchors,

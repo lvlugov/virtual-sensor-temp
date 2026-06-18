@@ -6,7 +6,6 @@ import shutil
 from pathlib import Path
 
 import pytest
-
 from schema_loader import GeneratorConfig, load_all_configs
 
 

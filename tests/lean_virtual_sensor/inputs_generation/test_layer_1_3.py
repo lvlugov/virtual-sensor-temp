@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-
 from layer_generators import generate_anchors, generate_geometry, generate_wall_insulation
 from pipeline import _assign_asset_ids, _build_empty_dataframe
 from schema_loader import load_all_configs
@@ -91,8 +90,10 @@ def test_wall_and_insulation_columns_respect_schema_and_class_ranges(cfg):
         assert diameter_min <= row["component_diameter"] <= diameter_max
         assert wall_min <= row["furnished_thickness"] <= wall_max
         assert row["insulation_material"] in insulation_material_allowed
-        assert float(insulation_thickness_low) <= row["insulation_thickness"] <= float(
-            insulation_thickness_high
+        assert (
+            float(insulation_thickness_low)
+            <= row["insulation_thickness"]
+            <= float(insulation_thickness_high)
         )
 
 
