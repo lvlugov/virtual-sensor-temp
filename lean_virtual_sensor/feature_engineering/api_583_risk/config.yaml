@@ -1,0 +1,156 @@
+# API 583 Annex A — CUI risk scorer thresholds, allowed values, and
+# lookup mappings. Every parameter referenced by the scorers in this
+# package lives here so the entire calibration is auditable in one file
+# against the standard.
+
+operating_temperature:
+  # Allowed input enums
+  allowed_metallurgy:
+    - CARBON_STEEL
+    - LOW_ALLOY_STEEL
+    - AUSTENITIC_SS
+    - DUPLEX_SS
+  carbon_steel_families:
+    - CARBON_STEEL
+    - LOW_ALLOY_STEEL
+  stainless_steel_families:
+    - AUSTENITIC_SS
+    - DUPLEX_SS
+
+  # Cyclic-service override (carbon/low-alloy steel only)
+  cyclic_max_temp_above_c: 177    # max operating temp must exceed this
+  cyclic_min_temp_below_c: 110    # min operating temp must fall below this
+
+  # Carbon / low-alloy steel — Table A.1 bucket boundaries (°C)
+  # Score 5: 77 ≤ T ≤ 110 (CUI peak)
+  cs_peak_low_c: 77
+  cs_peak_high_c: 110
+  # Score 3: 38 ≤ T < 77 (mod lower) OR 110 < T ≤ 132 (mod upper)
+  cs_mod_lower_low_c: 38
+  cs_mod_upper_high_c: 132
+  # Score 1: -4 ≤ T < 38 (low lower) OR 132 < T ≤ 177 (low upper)
+  cs_envelope_low_c: -4
+  cs_envelope_high_c: 177
+
+  # Austenitic / duplex stainless — Table A.8 bucket boundaries (°C)
+  # Score 5: 60 ≤ T ≤ 121 (ECSCC peak)
+  ss_peak_low_c: 60
+  ss_peak_high_c: 121
+  # Score 3: 121 < T ≤ 204 (ECSCC elevated)
+  ss_elev_high_c: 204
+  # Score 1: 49 ≤ T < 60 (ECSCC low)
+  ss_envelope_low_c: 49
+
+coating_age:
+  allowed:
+    - TSA
+    - IOZ
+    - EPOXY_HT_MULTI
+    - EPOXY_HT_SINGLE
+    - BARE
+    - UNKNOWN
+  legacy:
+    - EPOXY_AGED
+  # Coating-system → API 583 class mapping
+  class:
+    TSA: Quality
+    IOZ: Quality
+    EPOXY_HT_MULTI: Quality
+    EPOXY_HT_SINGLE: General
+    BARE: BARE
+    UNKNOWN: UNKNOWN
+
+  # Coating-age thresholds (years)
+  quality_low_max_age: 8     # Quality + age < 8        → score 0
+  quality_mid_max_age: 15    # Quality + 8 ≤ age < 15   → score 1
+  general_max_age: 15        # General + 8 ≤ age ≤ 15   → score 3
+                             # General + age > 15       → score 5
+  # System-age thresholds (years), class-independent
+  system_low_max_age: 15     # system < 15              → score 0
+  system_mid_max_age: 30     # 15 ≤ system < 30         → score 1
+                             # system ≥ 30              → score 5
+
+jacketing_insulation:
+  allowed:
+    - ABOVE_AVERAGE
+    - AVERAGE
+    - BELOW_AVERAGE
+  new_system_max_age: 5      # system < 5 yr + both ABOVE_AVERAGE → score 0
+
+heat_tracing:
+  # CorrosionRadar refinement of API 583 Annex A's heat-tracing parameter:
+  # steam tracing splits into integrity tiers (HIGH/MEDIUM/POOR) instead of
+  # the standard's binary active/failed dimension, so a deteriorating steam
+  # loop scores progressively higher without needing a separate operational-
+  # state input. Electric and hot-oil tracing keep a single score — neither
+  # presents the leak-mode CUI mechanism that drove the original failed-steam
+  # escalation.
+  allowed:
+    - NONE
+    - HIGH_INTEGRITY_STEAM_TRACED
+    - MEDIUM_INTEGRITY_STEAM_TRACED
+    - POOR_INTEGRITY_STEAM_TRACED
+    - ELECTRIC_TRACED
+    - HOT_OIL_TRACED
+  score:
+    NONE: 0
+    HIGH_INTEGRITY_STEAM_TRACED: 1
+    MEDIUM_INTEGRITY_STEAM_TRACED: 3
+    POOR_INTEGRITY_STEAM_TRACED: 5
+    ELECTRIC_TRACED: 1
+    HOT_OIL_TRACED: 1
+
+external_environment:
+  allowed_exposure:
+    - MARINE
+    - TEMPERATE
+    - ARID
+  allowed_shelter:
+    - PROTECTED
+    - NORMAL
+    - DAMAGED
+
+insulation_type:
+  # Insulation material → score
+  score:
+    FOAMGLASS: 1
+    PEARLITE: 1
+    CALCIUM_SILICATE: 3
+    FIBERGLASS: 3
+    MINERAL_WOOL: 5
+    ASBESTOS: 5
+    UNKNOWN: 5
+
+line_size:
+  allowed_asset_class:
+    - PIPE
+    - PRESSURE_VESSEL
+    - HEAT_EXCHANGER
+    - AIR_COOLER
+    - STORAGE_TANK
+  equipment_classes:
+    - PRESSURE_VESSEL
+    - HEAT_EXCHANGER
+    - AIR_COOLER
+    - STORAGE_TANK
+  # ASME B36.10 outer diameter thresholds (mm)
+  od_2in_nps_mm: 60.3
+  od_6in_nps_mm: 168.3
+
+pipeline:
+  carbon_steel_families:
+    - CARBON_STEEL
+    - LOW_ALLOY_STEEL
+  # Table A.7 (carbon/low-alloy) — total ≤ threshold → band
+  cs_band_a_max: 6     # total ≤ 6   → A
+  cs_band_b_max: 13    # 7 ≤ total ≤ 13  → B
+  cs_band_c_max: 20    # 14 ≤ total ≤ 20 → C
+  cs_band_d_max: 27    # 21 ≤ total ≤ 27 → D
+                       # total > 27  → E
+  # Table A.9 (stainless) — narrower C band plus 18-20 gap
+  ss_band_a_max: 6
+  ss_band_b_max: 13
+  ss_band_c_max: 17    # 14 ≤ total ≤ 17 → C
+  ss_gap_max: 20       # 18 ≤ total ≤ 20 → undefined (flag ss_gap_18_to_20)
+  ss_band_d_max: 27
+                       # total > 27  → E
