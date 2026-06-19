@@ -101,3 +101,56 @@ wall_loss:
   beta: 8.0
   min_fraction: 0.01   # At least 1% wall loss (some corrosion expected)
   max_fraction: 0.60   # Hard cap at 60% wall loss
+
+
+# ── TEMPERATURE SERIES (T_process) PARAMETERS ─────────────────────────────────
+# Constants for the per-asset thermal time constant tau, used by the separate
+# time-series module (temperature_series.py). tau sets how fast an asset slides
+# toward its cooldown target during a shutdown:
+#   tau_h = C * R / 3600
+#   C = rho * c * (pi/4)(Do^2 - Di^2)      metal heat capacity per metre
+#   R = ln(Dins / Do) / (2 * pi * k_ins)   insulation resistance per metre
+#
+# metal_properties: room-temperature density (rho) and specific heat (c) per
+# metallurgy family. Only these four families are modelled; NICKEL_ALLOY and
+# OTHER are out of scope (nickel alloys vary too widely — Inconel / Monel /
+# Hastelloy — to pin one credible pair, and OTHER is unspecified) and have no
+# entry, so a lookup for them is an error to be handled upstream, not a silent
+# default.
+#
+# insulation_conductivity_w_per_mk: k_ins per material (W/m·K). Single source
+# of truth on this branch; values are the ASTM-cited ones that match the
+# asset-temperature branch's `insulation_lambda_w_per_mk`, so the two reconcile
+# at merge rather than carrying two competing tables.
+
+temperature_series:
+  # Generation window: 90 days = one quarter, matching avg_cycles_per_quarter
+  # and the 2,160-hour ambient slice. window_hours = window_days * 24.
+  window_days: 90
+  # Floor on a single cycle's off-duration (hours): guards the rare
+  # high-fraction / high-cycle-count case where (1-f)*spacing rounds below a
+  # meaningful shutdown. A cycle shorter than this isn't a real excursion.
+  min_cycle_duration_hours: 2
+  # Running-period sensor wiggle (Step 8): +/- this many degrees C, uniform,
+  # added only to hours at operating temperature (slides/dips left clean).
+  running_noise_amplitude_c: 2.0
+  # Asymmetric recovery (Step 7): the return to operating temperature (active
+  # re-heating / re-cooling by the process) is faster than the passive
+  # excursion. Recovery legs use tau * this factor; < 1 = faster, 1 = symmetric.
+  recovery_tau_factor: 0.5
+  # Global physical bounds (Step 9): every hour is clamped to [min, max] of the
+  # asset, then to this global range (process service: NGL/refining/petrochem).
+  global_temperature_min_c: -100.0
+  global_temperature_max_c: 500.0
+  metal_properties:                                                             # rho [kg/m^3], c [J/(kg·K)]
+    CARBON_STEEL:    { density_kg_per_m3: 7850, specific_heat_j_per_kg_k: 490 }  # plain carbon steel
+    LOW_ALLOY_STEEL: { density_kg_per_m3: 7850, specific_heat_j_per_kg_k: 460 }  # AISI 4140
+    AUSTENITIC_SS:   { density_kg_per_m3: 8000, specific_heat_j_per_kg_k: 500 }  # 304 / 316
+    DUPLEX_SS:       { density_kg_per_m3: 7800, specific_heat_j_per_kg_k: 480 }  # 2205
+  insulation_conductivity_w_per_mk:
+    FOAMGLASS:        0.045   # ASTM C552, cellular glass
+    MINERAL_WOOL:     0.040   # ASTM C547, rock/slag wool
+    FIBERGLASS:       0.035   # ASTM C547, glass fibre
+    CALCIUM_SILICATE: 0.058   # ASTM C533
+    PEARLITE:         0.052   # ASTM C610, expanded perlite
+    UNKNOWN:          0.040   # conservative mid-range fallback
