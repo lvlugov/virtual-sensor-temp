@@ -32,7 +32,7 @@ def test_lowercase_material_rejected():
     "insulation_material, expected_score",
     [
         ("FOAMGLASS", 1),
-        ("PEARLITE", 1),
+        ("PERLITE", 1),
         ("CALCIUM_SILICATE", 3),
         ("FIBERGLASS", 3),
         ("MINERAL_WOOL", 5),
@@ -57,7 +57,7 @@ def test_none_defaults_to_unknown():
 
 def test_closed_cell_materials_score_1():
     # Foam glass and expanded perlite both have low water-wicking → 1.
-    assert score_insulation_type("FOAMGLASS") == score_insulation_type("PEARLITE") == 1
+    assert score_insulation_type("FOAMGLASS") == score_insulation_type("PERLITE") == 1
 
 
 def test_moderately_absorbent_materials_score_3():

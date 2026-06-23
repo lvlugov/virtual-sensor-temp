@@ -1,28 +1,32 @@
 """Derive the NACE open/closed system flag from asset condition strings.
 
 A closed system — water trapped against the steel by intact insulation and
-cladding — requires BOTH insulation AND cladding to be in GOOD condition.
-Any compromise to either lets atmospheric moisture in (and oxygen-bearing
-water out), so the system is effectively open from the NACE corrosion-
-mechanism standpoint. That binary in turn chooses between :func:`compute_f_open`
-and :func:`compute_f_closed` in the asset-temperature pipeline.
+cladding — requires BOTH insulation AND cladding to be in ABOVE_AVERAGE
+condition. Any compromise to either lets atmospheric moisture in (and
+oxygen-bearing water out), so the system is effectively open from the NACE
+corrosion-mechanism standpoint. That binary in turn chooses between
+:func:`compute_f_open` and :func:`compute_f_closed` in the asset-temperature
+pipeline.
+
+The condition scale (``BELOW_AVERAGE`` / ``AVERAGE`` / ``ABOVE_AVERAGE``)
+matches the synthetic-data schema and the API 583 jacketing scorer.
 """
 
-VALID_CONDITIONS = frozenset({"GOOD", "AVERAGE", "POOR"})
+VALID_CONDITIONS = frozenset({"ABOVE_AVERAGE", "AVERAGE", "BELOW_AVERAGE"})
 
 
 def is_open_system(insulation_condition: str, cladding_integrity: str) -> bool:
     """Return True when the asset behaves as an open NACE system.
 
     Args:
-        insulation_condition: One of ``"GOOD"``, ``"AVERAGE"``, ``"POOR"``
-            (case-insensitive).
-        cladding_integrity: One of ``"GOOD"``, ``"AVERAGE"``, ``"POOR"``
-            (case-insensitive).
+        insulation_condition: One of ``"ABOVE_AVERAGE"``, ``"AVERAGE"``,
+            ``"BELOW_AVERAGE"`` (case-insensitive).
+        cladding_integrity: One of ``"ABOVE_AVERAGE"``, ``"AVERAGE"``,
+            ``"BELOW_AVERAGE"`` (case-insensitive).
 
     Returns:
-        ``False`` (closed) only when both inputs are ``"GOOD"``; ``True``
-        (open) otherwise.
+        ``False`` (closed) only when both inputs are ``"ABOVE_AVERAGE"``;
+        ``True`` (open) otherwise.
 
     Raises:
         ValueError: If either input is not one of the three valid condition
@@ -40,4 +44,4 @@ def is_open_system(insulation_condition: str, cladding_integrity: str) -> bool:
             f"cladding_integrity must be one of {sorted(VALID_CONDITIONS)}, "
             f"got {cladding_integrity!r}"
         )
-    return not (ins == "GOOD" and clad == "GOOD")
+    return not (ins == "ABOVE_AVERAGE" and clad == "ABOVE_AVERAGE")

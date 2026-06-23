@@ -1,7 +1,7 @@
 """API 583 CUI risk — external-environment scorer.
 
-Maps the asset's exposure zone (MARINE / TEMPERATE / ARID), local
-shelter condition (PROTECTED / NORMAL / DAMAGED), and an explicit
+Maps the asset's exposure zone (MARINE / SEVERE / TEMPERATE / ARID_DRY),
+local shelter condition (PROTECTED / NORMAL / DAMAGED), and an explicit
 ``sweating_asset`` flag to a 0–5 CUI-likelihood score per API 583
 Annex A.
 
@@ -9,8 +9,9 @@ Cascade (top-to-bottom, first match wins):
 1. ``sweating_asset is False`` → 0 (no sweating mechanism present;
    CUI cannot develop on this asset regardless of exposure).
 2. ``shelter_flag == "DAMAGED"`` → 5 (local water source).
-3. ``exposure_zone == "MARINE"`` → 5 (coastal corrosivity).
-4. ``exposure_zone == "ARID"`` → 1 (arid inland).
+3. ``exposure_zone in {"MARINE", "SEVERE"}`` → 5 (coastal / harshest
+   corrosivity).
+4. ``exposure_zone == "ARID_DRY"`` → 1 (arid inland).
 5. ``exposure_zone == "TEMPERATE"`` → 3 (catch-all).
 
 Missing categorical inputs are silently defaulted to ``"TEMPERATE"``
@@ -85,8 +86,8 @@ def score_external_environment(
         return 5
 
     # Score 5 / 1 / 3: dispatch on exposure zone.
-    if exposure_zone == "MARINE":
+    if exposure_zone in ("MARINE", "SEVERE"):
         return 5
-    if exposure_zone == "ARID":
+    if exposure_zone == "ARID_DRY":
         return 1
     return 3  # TEMPERATE — catch-all

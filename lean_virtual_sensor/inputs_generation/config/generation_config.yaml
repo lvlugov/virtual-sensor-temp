@@ -152,5 +152,6 @@ temperature_series:
     MINERAL_WOOL:     0.040   # ASTM C547, rock/slag wool
     FIBERGLASS:       0.035   # ASTM C547, glass fibre
     CALCIUM_SILICATE: 0.058   # ASTM C533
-    PEARLITE:         0.052   # ASTM C610, expanded perlite
+    PERLITE:          0.052   # ASTM C610, expanded perlite
+    ASBESTOS:         0.150   # [ENGINEERING_JUDGEMENT] legacy asbestos lagging; k ~0.10-0.16 W/m·K, no current ASTM spec — review with SME
     UNKNOWN:          0.040   # conservative mid-range fallback

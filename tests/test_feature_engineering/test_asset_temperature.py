@@ -26,8 +26,8 @@ INSULATION_MATERIAL = "MINERAL_WOOL"
 INSULATION_THICKNESS = 50
 COMPONENT_DIAMETER = 100
 FURNISHED_THICKNESS = 5
-INSULATION_CONDITION = "GOOD"
-CLADDING_INTEGRITY = "GOOD"
+INSULATION_CONDITION = "ABOVE_AVERAGE"
+CLADDING_INTEGRITY = "ABOVE_AVERAGE"
 
 # Fixed reference dates so every test's window placement is deterministic.
 # LAST_INSPECTION is well before TODAY - 90 days, so the ACH window is the
@@ -274,9 +274,9 @@ def test_compute_ach_for_asset_wet_warm_is_positive():
 
 
 def test_compute_ach_for_asset_open_vs_closed_differs():
-    # Same geometry; differ only on condition strings. Both GOOD → closed
-    # (uses compute_f_closed); cladding POOR → open (uses compute_f_open).
-    # At low T_skin those two curves disagree, so ACH differs.
+    # Same geometry; differ only on condition strings. Both ABOVE_AVERAGE →
+    # closed (uses compute_f_closed); cladding BELOW_AVERAGE → open (uses
+    # compute_f_open). At low T_skin those two curves disagree, so ACH differs.
     weather = _weather_df(temp=15, humidity=95, n_hours=24)
     process = _process_df(t_process=20, n_hours=24)
     ach_closed = compute_ach_for_asset(
@@ -284,8 +284,8 @@ def test_compute_ach_for_asset_open_vs_closed_differs():
         INSULATION_THICKNESS,
         COMPONENT_DIAMETER,
         FURNISHED_THICKNESS,
-        "GOOD",
-        "GOOD",
+        "ABOVE_AVERAGE",
+        "ABOVE_AVERAGE",
         weather,
         process,
         LAST_INSPECTION,
@@ -296,8 +296,8 @@ def test_compute_ach_for_asset_open_vs_closed_differs():
         INSULATION_THICKNESS,
         COMPONENT_DIAMETER,
         FURNISHED_THICKNESS,
-        "GOOD",
-        "POOR",
+        "ABOVE_AVERAGE",
+        "BELOW_AVERAGE",
         weather,
         process,
         LAST_INSPECTION,

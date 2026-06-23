@@ -44,8 +44,8 @@ def test_missing_exposure_defaults_to_temperate():
 
 
 def test_missing_shelter_defaults_to_normal():
-    # ARID exposure + shelter None → no DAMAGED override → ARID → 1.
-    assert _score(exposure="ARID", shelter=None) == 1
+    # ARID_DRY exposure + shelter None → no DAMAGED override → ARID_DRY → 1.
+    assert _score(exposure="ARID_DRY", shelter=None) == 1
 
 
 def test_both_categorical_inputs_missing_defaults_to_3():
@@ -78,7 +78,7 @@ def test_missing_sweating_does_not_trigger_escape():
 # ====================================== Damaged shelter override ======================================
 
 
-@pytest.mark.parametrize("exposure", ["MARINE", "TEMPERATE", "ARID"])
+@pytest.mark.parametrize("exposure", ["MARINE", "SEVERE", "TEMPERATE", "ARID_DRY"])
 def test_damaged_shelter_forces_score_5_regardless_of_exposure(exposure):
     # DAMAGED shelter introduces a local water source — overrides every
     # exposure-zone classification (assuming the asset can sweat).
@@ -92,7 +92,8 @@ def test_damaged_shelter_forces_score_5_regardless_of_exposure(exposure):
     "exposure, expected_score",
     [
         ("MARINE", 5),
-        ("ARID", 1),
+        ("SEVERE", 5),
+        ("ARID_DRY", 1),
         ("TEMPERATE", 3),
     ],
 )

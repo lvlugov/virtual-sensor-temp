@@ -405,10 +405,10 @@ def compute_ach_for_asset(
         insulation_thickness: Insulation jacket thickness, mm (> 0).
         component_diameter: Pipe outer diameter, mm (> 0).
         furnished_thickness: Original/furnished metal wall thickness, mm.
-        insulation_condition: ``"GOOD"``/``"AVERAGE"``/``"POOR"`` — combined
-            with ``cladding_integrity`` to derive the NACE open/closed flag
-            via :func:`is_open_system`.
-        cladding_integrity: ``"GOOD"``/``"AVERAGE"``/``"POOR"``.
+        insulation_condition: ``"ABOVE_AVERAGE"``/``"AVERAGE"``/``"BELOW_AVERAGE"``
+            — combined with ``cladding_integrity`` to derive the NACE
+            open/closed flag via :func:`is_open_system`.
+        cladding_integrity: ``"ABOVE_AVERAGE"``/``"AVERAGE"``/``"BELOW_AVERAGE"``.
         weather_df: Hourly DataFrame from the weather cache. Columns
             ``datetime``, ``temp`` (ambient °C), ``dew`` (°C),
             ``humidity`` (% in (0, 100]), ``precip`` (mm). This function
