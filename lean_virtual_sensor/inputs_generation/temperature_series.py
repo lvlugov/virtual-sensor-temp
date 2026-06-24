@@ -76,13 +76,10 @@ def compute_tau(
             f"must be < outer_diameter_mm / 2 ({outer_diameter_mm / 2})."
         )
     if insulation_thickness_mm <= 0:
-        raise ValueError(
-            f"insulation_thickness_mm must be > 0, got {insulation_thickness_mm}"
-        )
+        raise ValueError(f"insulation_thickness_mm must be > 0, got {insulation_thickness_mm}")
     if insulation_conductivity_w_per_mk <= 0:
         raise ValueError(
-            f"insulation_conductivity_w_per_mk must be > 0, got "
-            f"{insulation_conductivity_w_per_mk}"
+            f"insulation_conductivity_w_per_mk must be > 0, got {insulation_conductivity_w_per_mk}"
         )
 
     do_m = outer_diameter_mm / 1000
@@ -95,7 +92,7 @@ def compute_tau(
     return c * r / 3600
 
 
-# ====================================== Step 3: Cycle placement ======================================
+# ==================================== Step 3: Cycle placement ====================================
 
 
 def place_cycles(n_cycles: int, window_hours: int) -> np.ndarray:
@@ -138,7 +135,7 @@ def place_cycles(n_cycles: int, window_hours: int) -> np.ndarray:
     return np.clip(starts, 0, window_hours - 1)
 
 
-# ====================================== Step 4: Cycle durations ======================================
+# ==================================== Step 4: Cycle durations ====================================
 
 
 def size_cycles(
@@ -189,9 +186,7 @@ def size_cycles(
     if window_hours <= 0:
         raise ValueError(f"window_hours must be > 0, got {window_hours}")
     if min_cycle_duration_hours < 1:
-        raise ValueError(
-            f"min_cycle_duration_hours must be >= 1, got {min_cycle_duration_hours}"
-        )
+        raise ValueError(f"min_cycle_duration_hours must be >= 1, got {min_cycle_duration_hours}")
     if n_cycles == 0:
         return np.empty(0, dtype=int)
 
@@ -202,7 +197,7 @@ def size_cycles(
     return np.full(n_cycles, duration, dtype=int)
 
 
-# ====================================== Step 5: Cooldown target ======================================
+# ==================================== Step 5: Cooldown target ====================================
 
 
 def cooldown_reference(
@@ -236,7 +231,7 @@ def cooldown_reference(
     return "ambient"
 
 
-# ====================================== Step 6: Assemble per-hour target ======================================
+# ============================== Step 6: Assemble per-hour target ==============================
 
 
 def build_target_series(
@@ -281,8 +276,7 @@ def build_target_series(
         raise ValueError("ambient must be non-empty")
     if len(starts) != len(durations):
         raise ValueError(
-            f"starts and durations must be the same length, got "
-            f"{len(starts)}, {len(durations)}"
+            f"starts and durations must be the same length, got {len(starts)}, {len(durations)}"
         )
 
     window_hours = ambient.size
@@ -294,7 +288,7 @@ def build_target_series(
     return target
 
 
-# ====================================== Step 8: Running-period noise ======================================
+# ================================== Step 8: Running-period noise ==================================
 
 
 def add_running_noise(
@@ -329,9 +323,7 @@ def add_running_noise(
     if amplitude_c < 0:
         raise ValueError(f"amplitude_c must be >= 0, got {amplitude_c}")
     if temp.size != target.size:
-        raise ValueError(
-            f"temp and target must be the same length, got {temp.size}, {target.size}"
-        )
+        raise ValueError(f"temp and target must be the same length, got {temp.size}, {target.size}")
     out = temp.astype(float, copy=True)
     if amplitude_c == 0:
         return out
@@ -372,18 +364,15 @@ def clamp_series(
     """
     if min_operating_temperature > max_operating_temperature:
         raise ValueError(
-            f"min ({min_operating_temperature}) must be <= max "
-            f"({max_operating_temperature})"
+            f"min ({min_operating_temperature}) must be <= max ({max_operating_temperature})"
         )
     if global_min_c > global_max_c:
-        raise ValueError(
-            f"global_min_c ({global_min_c}) must be <= global_max_c ({global_max_c})"
-        )
+        raise ValueError(f"global_min_c ({global_min_c}) must be <= global_max_c ({global_max_c})")
     out = np.clip(temp, min_operating_temperature, max_operating_temperature)
     return np.clip(out, global_min_c, global_max_c)
 
 
-# ====================================== Step 7: Exponential slide engine ======================================
+# ============================== Step 7: Exponential slide engine ==============================
 
 
 def apply_thermal_lag(target: np.ndarray, tau: float) -> np.ndarray:

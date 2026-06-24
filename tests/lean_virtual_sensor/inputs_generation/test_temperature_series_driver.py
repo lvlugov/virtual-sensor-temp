@@ -21,7 +21,9 @@ def _repo_root() -> Path:
 
 
 CONFIG = yaml.safe_load(
-    (_repo_root() / "lean_virtual_sensor/inputs_generation/config/generation_config.yaml").read_text()
+    (
+        _repo_root() / "lean_virtual_sensor/inputs_generation/config/generation_config.yaml"
+    ).read_text()
 )["temperature_series"]
 WINDOW = CONFIG["window_days"] * 24
 
@@ -46,11 +48,13 @@ PIPE_KW = dict(
 )
 
 
-# ====================================== core: generate_asset_series ======================================
+# =================================== core: generate_asset_series ==================================
 
 
 def test_core_returns_expected_shape_and_columns() -> None:
-    df = generate_asset_series(**PIPE_KW, ambient=_ambient(), config=CONFIG, rng=np.random.default_rng(0))
+    df = generate_asset_series(
+        **PIPE_KW, ambient=_ambient(), config=CONFIG, rng=np.random.default_rng(0)
+    )
     assert list(df.columns) == ["datetime", "process_temperature_c"]
     assert len(df) == WINDOW
 
@@ -62,7 +66,9 @@ def test_core_carries_ambient_timestamps_through() -> None:
 
 
 def test_core_output_is_bounded() -> None:
-    df = generate_asset_series(**PIPE_KW, ambient=_ambient(), config=CONFIG, rng=np.random.default_rng(0))
+    df = generate_asset_series(
+        **PIPE_KW, ambient=_ambient(), config=CONFIG, rng=np.random.default_rng(0)
+    )
     t = df["process_temperature_c"]
     assert t.min() >= PIPE_KW["min_operating_temperature"] - 1e-6
     assert t.max() <= PIPE_KW["max_operating_temperature"] + 1e-6
@@ -76,8 +82,12 @@ def test_core_uses_last_window_when_ambient_is_longer() -> None:
 
 
 def test_core_is_deterministic_under_same_seed() -> None:
-    a = generate_asset_series(**PIPE_KW, ambient=_ambient(), config=CONFIG, rng=np.random.default_rng(5))
-    b = generate_asset_series(**PIPE_KW, ambient=_ambient(), config=CONFIG, rng=np.random.default_rng(5))
+    a = generate_asset_series(
+        **PIPE_KW, ambient=_ambient(), config=CONFIG, rng=np.random.default_rng(5)
+    )
+    b = generate_asset_series(
+        **PIPE_KW, ambient=_ambient(), config=CONFIG, rng=np.random.default_rng(5)
+    )
     assert np.array_equal(a["process_temperature_c"], b["process_temperature_c"])
 
 
@@ -87,12 +97,16 @@ def test_core_asymmetric_recovery_is_faster_never_slower() -> None:
     symmetric one and is strictly above it on at least some recovery hours."""
     cfg_sym = copy.deepcopy(CONFIG)
     cfg_sym["recovery_tau_factor"] = 1.0  # symmetric baseline
-    fast = generate_asset_series(**PIPE_KW, ambient=_ambient(), config=CONFIG, rng=np.random.default_rng(0))
-    sym = generate_asset_series(**PIPE_KW, ambient=_ambient(), config=cfg_sym, rng=np.random.default_rng(0))
+    fast = generate_asset_series(
+        **PIPE_KW, ambient=_ambient(), config=CONFIG, rng=np.random.default_rng(0)
+    )
+    sym = generate_asset_series(
+        **PIPE_KW, ambient=_ambient(), config=cfg_sym, rng=np.random.default_rng(0)
+    )
     fast_t = fast["process_temperature_c"].to_numpy()
     sym_t = sym["process_temperature_c"].to_numpy()
-    assert np.all(fast_t >= sym_t - 1e-9)   # never recovers slower
-    assert np.any(fast_t > sym_t + 1e-6)    # and faster on the recovery legs
+    assert np.all(fast_t >= sym_t - 1e-9)  # never recovers slower
+    assert np.any(fast_t > sym_t + 1e-6)  # and faster on the recovery legs
 
 
 @pytest.mark.parametrize(
@@ -110,7 +124,9 @@ def test_core_raises_on_unknown_lookups(override, match) -> None:
 
 def test_core_raises_on_short_ambient() -> None:
     with pytest.raises(ValueError):
-        generate_asset_series(**PIPE_KW, ambient=_ambient(WINDOW - 1), config=CONFIG, rng=np.random.default_rng(0))
+        generate_asset_series(
+            **PIPE_KW, ambient=_ambient(WINDOW - 1), config=CONFIG, rng=np.random.default_rng(0)
+        )
 
 
 def test_core_raises_on_missing_ambient_column() -> None:

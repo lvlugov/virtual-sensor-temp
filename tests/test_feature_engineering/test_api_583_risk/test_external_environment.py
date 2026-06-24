@@ -6,14 +6,14 @@ DAMAGED-shelter override, and the exposure-zone cascade.
 """
 
 import pytest
-from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.external_environment import (
-    score_external_environment,
+from lean_virtual_sensor.feature_engineering.api_583_risk.input_features import (
+    external_environment,
 )
 
 
 def _score(exposure=None, shelter=None, sweating_asset=None):
     """Compact wrapper — each input defaults to None (treated as missing)."""
-    return score_external_environment(exposure, shelter, sweating_asset)
+    return external_environment.score_external_environment(exposure, shelter, sweating_asset)
 
 
 # ====================================== Validation ======================================
@@ -34,7 +34,7 @@ def test_lowercase_enum_rejected():
         _score(exposure="marine", shelter="NORMAL")
 
 
-# ====================================== Missing-input defaults ======================================
+# ==================================== Missing-input defaults ====================================
 
 
 def test_missing_exposure_defaults_to_temperate():
@@ -74,7 +74,7 @@ def test_missing_sweating_does_not_trigger_escape():
     assert _score(exposure="MARINE", shelter="NORMAL", sweating_asset=None) == 5
 
 
-# ====================================== Damaged shelter override ======================================
+# ==================================== Damaged shelter override ====================================
 
 
 @pytest.mark.parametrize("exposure", ["MARINE", "TEMPERATE", "ARID"])
@@ -84,7 +84,7 @@ def test_damaged_shelter_forces_score_5_regardless_of_exposure(exposure):
     assert _score(exposure=exposure, shelter="DAMAGED", sweating_asset=True) == 5
 
 
-# ====================================== Exposure-zone cascade ======================================
+# ==================================== Exposure-zone cascade ====================================
 
 
 @pytest.mark.parametrize(

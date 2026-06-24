@@ -59,8 +59,12 @@ def test_compute_tau_second_reference_value() -> None:
 def test_compute_tau_increases_with_metal_heat_capacity() -> None:
     """Higher rho*c (austenitic SS 8000/500) stores more heat -> larger tau than CS."""
     austenitic = compute_tau(
-        114, 6, 50, 0.040,
-        metal_density_kg_per_m3=8000.0, metal_specific_heat_j_per_kg_k=500.0,
+        114,
+        6,
+        50,
+        0.040,
+        metal_density_kg_per_m3=8000.0,
+        metal_specific_heat_j_per_kg_k=500.0,
     )
     assert austenitic > compute_tau(114, 6, 50, 0.040, **CS)
 
@@ -176,25 +180,25 @@ def test_size_cycles_raises_on_bad_input(n, f, w, m) -> None:
         size_cycles(n, f, w, m)
 
 
-# ====================================== Step 5: cooldown_reference ======================================
+# =================================== Step 5: cooldown_reference ===================================
 
 
 @pytest.mark.parametrize(
     "op, mn, expected",
     [
-        (90, 15, "ambient"),     # ordinary hot
-        (320, 15, "ambient"),    # reactor — still ordinary hot (no special case)
-        (-40, -50, "ambient"),   # cold-service: slides up toward ambient
-        (-50, -55, "ambient"),   # refrigerated tank
-        (250, -10, "min"),       # wide-swing: hot op, driven sub-ambient
-        (0, -5, "ambient"),      # op not > 0 -> not wide-swing
+        (90, 15, "ambient"),  # ordinary hot
+        (320, 15, "ambient"),  # reactor — still ordinary hot (no special case)
+        (-40, -50, "ambient"),  # cold-service: slides up toward ambient
+        (-50, -55, "ambient"),  # refrigerated tank
+        (250, -10, "min"),  # wide-swing: hot op, driven sub-ambient
+        (0, -5, "ambient"),  # op not > 0 -> not wide-swing
     ],
 )
 def test_cooldown_reference(op, mn, expected) -> None:
     assert cooldown_reference(op, mn) == expected
 
 
-# ====================================== Step 6: build_target_series ======================================
+# =================================== Step 6: build_target_series ==================================
 
 
 def _two_cycle_setup():
@@ -216,7 +220,7 @@ def test_build_target_ambient_windows_equal_ambient_slice() -> None:
     """Core: window hours take the ambient values; everything else stays at op."""
     ambient, starts, durations = _two_cycle_setup()
     t = build_target_series(90, 15, starts, durations, "ambient", ambient)
-    assert np.array_equal(t[4:7], ambient[4:7])   # cycle 0 window
+    assert np.array_equal(t[4:7], ambient[4:7])  # cycle 0 window
     assert np.array_equal(t[14:16], ambient[14:16])  # cycle 1 window
     running = np.ones(20, bool)
     running[4:7] = False
@@ -262,7 +266,7 @@ def test_build_target_raises_on_bad_input(op, mn, starts, durs, ref, amb, why) -
         build_target_series(op, mn, starts, durs, ref, amb)
 
 
-# ====================================== Step 7: apply_thermal_lag (engine) ======================================
+# ============================== Step 7: apply_thermal_lag (engine) ==============================
 
 _OP, _AMB = 90.0, 20.0
 _GAP = _OP - _AMB
@@ -286,7 +290,7 @@ def test_apply_thermal_lag_reaches_target_on_long_hold() -> None:
 
 
 def test_apply_thermal_lag_63_95_curve() -> None:
-    """Core: ~63% of the gap closed at t=tau, ~95% at t=3*tau (large tau, so rounding is negligible)."""
+    """~63% of gap closed at t=tau, ~95% at t=3*tau (large tau, rounding negligible)."""
     tau = 50.0
     temp = apply_thermal_lag(_step_down(), tau)
     f_tau = (_OP - temp[5 + round(tau)]) / _GAP
@@ -301,7 +305,7 @@ def test_apply_thermal_lag_monotone_and_jump_free() -> None:
     assert np.all(np.diff(temp[5:60]) <= 1e-9)  # descent never goes back up
     first_step = _GAP * (1 - math.exp(-1 / tau))  # biggest possible hourly move
     assert np.abs(np.diff(temp)).max() <= first_step + 1e-6
-    assert np.abs(np.diff(temp)).max() < _GAP     # never a vertical jump
+    assert np.abs(np.diff(temp)).max() < _GAP  # never a vertical jump
 
 
 def test_apply_thermal_lag_short_dip_stays_shallow() -> None:
@@ -367,7 +371,7 @@ def test_apply_thermal_lag_per_hour_tau_nonpositive_raises() -> None:
         apply_thermal_lag(np.full(5, 90.0), np.array([5.5, 5.5, 0.0, 5.5, 5.5]))
 
 
-# ====================================== Step 8: add_running_noise ======================================
+# =================================== Step 8: add_running_noise ===================================
 
 
 def _noise_setup():

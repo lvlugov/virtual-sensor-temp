@@ -36,7 +36,7 @@ def test_negative_system_age_raises():
         _score("TSA", coating_age=5, system_age=-1)
 
 
-# ====================================== Legacy coating mapping ======================================
+# ===================================== Legacy coating mapping =====================================
 
 
 def test_legacy_epoxy_aged_treated_as_unknown():
@@ -106,7 +106,7 @@ def test_general_coating_under_8_with_no_system_info_scores_3():
     assert _score("EPOXY_HT_SINGLE", coating_age=5, system_age=None) == 3
 
 
-# ====================================== Cascade priority cross-cases ======================================
+# ================================== Cascade priority cross-cases ==================================
 
 
 def test_quality_old_coating_with_mid_system_scores_1():
@@ -142,24 +142,24 @@ def test_quality_old_coating_with_no_system_defaults_to_5():
     assert _score("TSA", coating_age=20, system_age=None) == 5
 
 
-# ====================================== Quality coating boundaries ======================================
+# =================================== Quality coating boundaries ===================================
 
 
 @pytest.mark.parametrize(
     "coating_age, expected_score",
     [
-        (0.0, 0),     # bottom of <8 band
-        (7.99, 0),    # just under transition
-        (8.0, 1),     # transition <8 → 8-15
-        (14.99, 1),   # just under transition
-        (15.0, 5),    # ≥15 → no Quality band, no system info → fallback 5
+        (0.0, 0),  # bottom of <8 band
+        (7.99, 0),  # just under transition
+        (8.0, 1),  # transition <8 → 8-15
+        (14.99, 1),  # just under transition
+        (15.0, 5),  # ≥15 → no Quality band, no system info → fallback 5
     ],
 )
 def test_quality_coating_age_boundaries(coating_age, expected_score):
     assert _score("TSA", coating_age=coating_age, system_age=None) == expected_score
 
 
-# ====================================== General coating boundaries ======================================
+# =================================== General coating boundaries ===================================
 
 
 @pytest.mark.parametrize(
@@ -168,25 +168,25 @@ def test_quality_coating_age_boundaries(coating_age, expected_score):
         (0.0, 3),
         (7.99, 3),
         (8.0, 3),
-        (15.0, 3),    # closed upper boundary still inside General bucket
-        (15.01, 5),   # transition into >15 escalation
+        (15.0, 3),  # closed upper boundary still inside General bucket
+        (15.01, 5),  # transition into >15 escalation
     ],
 )
 def test_general_coating_age_boundaries(coating_age, expected_score):
     assert _score("EPOXY_HT_SINGLE", coating_age=coating_age, system_age=None) == expected_score
 
 
-# ====================================== System age boundaries ======================================
+# ==================================== System age boundaries ====================================
 
 
 @pytest.mark.parametrize(
     "system_age, expected_score",
     [
-        (0.0, 0),     # bottom of <15 band
+        (0.0, 0),  # bottom of <15 band
         (14.99, 0),
-        (15.0, 1),    # transition <15 → 15-30
+        (15.0, 1),  # transition <15 → 15-30
         (29.99, 1),
-        (30.0, 5),    # transition 15-30 → escalation
+        (30.0, 5),  # transition 15-30 → escalation
     ],
 )
 def test_system_age_boundaries(system_age, expected_score):

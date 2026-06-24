@@ -119,23 +119,35 @@ def test_recent_rain_scores_higher_than_old_rain():
 
     # Asset A: WET in the OLD half (far from window_end), DRY-HOT in the RECENT half.
     a_old_wet = _hourly_weather(
-        LAST_INSPECTION, half_window - pd.Timedelta(hours=1),
-        temp=10.0, humidity=85, precip_per_hour=1.0,
+        LAST_INSPECTION,
+        half_window - pd.Timedelta(hours=1),
+        temp=10.0,
+        humidity=85,
+        precip_per_hour=1.0,
     )
     a_recent_dry = _hourly_weather(
-        half_window, WINDOW_END,
-        temp=25.0, humidity=30, precip_per_hour=0.0,
+        half_window,
+        WINDOW_END,
+        temp=25.0,
+        humidity=30,
+        precip_per_hour=0.0,
     )
     asset_a = pd.concat([a_old_wet, a_recent_dry], ignore_index=True)
 
     # Asset B: DRY-HOT in the OLD half, WET in the RECENT half.
     b_old_dry = _hourly_weather(
-        LAST_INSPECTION, half_window - pd.Timedelta(hours=1),
-        temp=25.0, humidity=30, precip_per_hour=0.0,
+        LAST_INSPECTION,
+        half_window - pd.Timedelta(hours=1),
+        temp=25.0,
+        humidity=30,
+        precip_per_hour=0.0,
     )
     b_recent_wet = _hourly_weather(
-        half_window, WINDOW_END,
-        temp=10.0, humidity=85, precip_per_hour=1.0,
+        half_window,
+        WINDOW_END,
+        temp=10.0,
+        humidity=85,
+        precip_per_hour=1.0,
     )
     asset_b = pd.concat([b_old_dry, b_recent_wet], ignore_index=True)
 
@@ -153,12 +165,16 @@ def test_two_close_in_time_wet_periods_produce_similar_scores():
     df_early = _hourly_weather(
         LAST_INSPECTION,
         LAST_INSPECTION + pd.Timedelta(days=10),
-        temp=10.0, humidity=85, precip_per_hour=1.0,
+        temp=10.0,
+        humidity=85,
+        precip_per_hour=1.0,
     )
     df_just_later = _hourly_weather(
         LAST_INSPECTION + pd.Timedelta(days=1),
         LAST_INSPECTION + pd.Timedelta(days=11),
-        temp=10.0, humidity=85, precip_per_hour=1.0,
+        temp=10.0,
+        humidity=85,
+        precip_per_hour=1.0,
     )
     score_early = compute_wet_load(df_early, LAST_INSPECTION, TODAY, open_system=False)
     score_later = compute_wet_load(df_just_later, LAST_INSPECTION, TODAY, open_system=False)

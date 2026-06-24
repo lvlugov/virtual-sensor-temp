@@ -58,10 +58,10 @@ CHUNK_DAYS = 365
 
 # Visual Crossing native field names (unitGroup=metric → °C, mm, %).
 HOURLY_FIELDS: tuple[str, ...] = (
-    "temp",      # air temperature, °C
-    "dew",       # dew point, °C
+    "temp",  # air temperature, °C
+    "dew",  # dew point, °C
     "humidity",  # relative humidity, %
-    "precip",    # hourly precipitation, mm
+    "precip",  # hourly precipitation, mm
 )
 
 
@@ -213,14 +213,11 @@ def fetch_bulk_to_disk(
         matched = [
             loc
             for loc in locations
-            if loc["operator"].casefold() == op_target
-            and loc["site"].casefold() == site_target
+            if loc["operator"].casefold() == op_target and loc["site"].casefold() == site_target
         ]
         if not matched:
             available = sorted(f"{loc['operator']}/{loc['site']}" for loc in locations)
-            raise ValueError(
-                f"target {target!r} not found. Available: {available}"
-            )
+            raise ValueError(f"target {target!r} not found. Available: {available}")
         locations = matched
 
     if output_dir is None:
