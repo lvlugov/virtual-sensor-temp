@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t virtual-sensor:ci .
+
+      - name: Lint
+        run: docker run --rm virtual-sensor:ci ruff check .
+
+      - name: Test
+        run: docker run --rm virtual-sensor:ci pytest
