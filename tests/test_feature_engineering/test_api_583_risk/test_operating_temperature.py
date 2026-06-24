@@ -7,7 +7,7 @@ steel) and Table A.8 (austenitic/duplex stainless).
 
 import pytest
 from lean_virtual_sensor.feature_engineering.api_583_risk.input_features import (
-    operating_temperature,
+    operating_temperature as op_temp_mod,
 )
 
 
@@ -15,7 +15,7 @@ def _score(metallurgy, operating_temperature, *, t_min=None, t_max=None, cycles=
     """Compact wrapper — defaults the envelope to ``operating_temperature``
     and ``avg_cycles_per_quarter`` to 0 so callers can opt in to cyclic
     inputs only when they're relevant to the test."""
-    return operating_temperature.operating_temperature.score_operating_temperature(
+    return op_temp_mod.score_operating_temperature(
         metallurgy_family=metallurgy,
         operating_temperature=operating_temperature,
         min_operating_temperature=operating_temperature if t_min is None else t_min,
@@ -34,12 +34,12 @@ def test_unknown_metallurgy_raises():
 
 def test_operating_temperature_below_min_envelope_raises():
     with pytest.raises(ValueError, match="min_operating_temperature > operating_temperature"):
-        operating_temperature.score_operating_temperature("CARBON_STEEL", 80, 100, 200, 0)
+        op_temp_mod.score_operating_temperature("CARBON_STEEL", 80, 100, 200, 0)
 
 
 def test_operating_temperature_above_max_envelope_raises():
     with pytest.raises(ValueError, match="max_operating_temperature < operating_temperature"):
-        operating_temperature.score_operating_temperature("CARBON_STEEL", 250, 0, 200, 0)
+        op_temp_mod.score_operating_temperature("CARBON_STEEL", 250, 0, 200, 0)
 
 
 # ================================ Carbon / low-alloy steel buckets ================================
@@ -78,24 +78,24 @@ def test_low_alloy_steel_uses_same_table_as_carbon_steel():
 def test_cyclic_service_overrides_bucket_score():
     # T_op = 0 would land in the LOW bucket (1), but the cyclic
     # conditions all hold (max > 177, min < 110, cycles > 0) → score 5.
-    assert operating_temperature.score_operating_temperature("CARBON_STEEL", 0, 0, 200, 4) == 5
+    assert op_temp_mod.score_operating_temperature("CARBON_STEEL", 0, 0, 200, 4) == 5
 
 
 def test_cyclic_requires_active_cycling():
     # Cycles = 0 disables the override; falls back to bucket (T_op = 0 → 1).
-    assert operating_temperature.score_operating_temperature("CARBON_STEEL", 0, 0, 200, 0) == 1
+    assert op_temp_mod.score_operating_temperature("CARBON_STEEL", 0, 0, 200, 0) == 1
 
 
 def test_cyclic_requires_max_above_177_strict():
     # max == 177 fails the strict `> 177` clause; falls back to bucket.
     # T_op = 0 → low bucket (1).
-    assert operating_temperature.score_operating_temperature("CARBON_STEEL", 0, 0, 177, 4) == 1
+    assert op_temp_mod.score_operating_temperature("CARBON_STEEL", 0, 0, 177, 4) == 1
 
 
 def test_cyclic_requires_min_below_110_strict():
     # min == 110 fails the strict `< 110` clause; falls back to bucket.
     # T_op = 115 → moderate bucket (3).
-    assert operating_temperature.score_operating_temperature("CARBON_STEEL", 115, 110, 200, 4) == 3
+    assert op_temp_mod.score_operating_temperature("CARBON_STEEL", 115, 110, 200, 4) == 3
 
 
 # ==================================== Stainless steel buckets ====================================
@@ -126,4 +126,4 @@ def test_stainless_steel_has_no_cyclic_override():
     # All carbon-steel cyclic conditions hold, but Table A.8 has no
     # cyclic clause — score by bucket only. T_op = 0 is below the SS
     # envelope (49 °C) → score 0, NOT the carbon-steel override (5).
-    assert operating_temperature.score_operating_temperature("AUSTENITIC_SS", 0, 0, 200, 4) == 0
+    assert op_temp_mod.score_operating_temperature("AUSTENITIC_SS", 0, 0, 200, 4) == 0
