@@ -9,12 +9,30 @@ untouched for cross-cutting features.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable
 
 import yaml
 
 _CONFIG_PATH = Path(__file__).resolve().parent / "config.yaml"
+
+
+@lru_cache(maxsize=1)
+def _load_api_583_doc() -> dict[str, Any]:
+    """Parse ``api_583_risk/config.yaml`` once and memoise it.
+
+    The config is static for a process's lifetime, so caching the parse turns
+    the thousands of ``load_api_583_section`` calls a population run makes (seven
+    scorers per asset, some called more than once) into a single disk read.
+    """
+    if not _CONFIG_PATH.is_file():
+        raise FileNotFoundError(f"API 583 config not found at {_CONFIG_PATH}")
+    with _CONFIG_PATH.open("r", encoding="utf-8") as fh:
+        data = yaml.safe_load(fh)
+    if not isinstance(data, dict):
+        raise ValueError(f"{_CONFIG_PATH} must be a YAML mapping")
+    return data
 
 
 def load_api_583_section(
@@ -40,12 +58,7 @@ def load_api_583_section(
             ``required_keys`` is missing.
         ValueError: If the resolved subsection is not a YAML mapping.
     """
-    if not _CONFIG_PATH.is_file():
-        raise FileNotFoundError(f"API 583 config not found at {_CONFIG_PATH}")
-    with _CONFIG_PATH.open("r", encoding="utf-8") as fh:
-        data = yaml.safe_load(fh)
-    if not isinstance(data, dict):
-        raise ValueError(f"{_CONFIG_PATH} must be a YAML mapping")
+    data = _load_api_583_doc()
     if subsection not in data:
         raise KeyError(f"{_CONFIG_PATH.name} is missing subsection: {subsection!r}")
     section = data[subsection]

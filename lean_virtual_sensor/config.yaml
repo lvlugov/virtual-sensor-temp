@@ -6,7 +6,7 @@ asset_temperature:
     MINERAL_WOOL: 0.040 # ASTM C547, rock/slag wool.    Range 0.033-0.046.
     FIBERGLASS: 0.035 # ASTM C547, glass fibre.       Range 0.032-0.044.
     CALCIUM_SILICATE: 0.058 # ASTM C533.                    Range 0.050-0.070.
-    PEARLITE: 0.052 # ASTM C610, expanded perlite.  Range 0.045-0.060.
+    PERLITE: 0.052 # ASTM C610, expanded perlite.  Range 0.045-0.060.
     ASBESTOS: 0.070 # Legacy/historical.            Range 0.060-0.090.
     UNKNOWN: 0.040 # Conservative mid-range fallback.
   # External convection coefficient (W/m²·K): 10 = still air, 15 = light wind, 25 = windy.

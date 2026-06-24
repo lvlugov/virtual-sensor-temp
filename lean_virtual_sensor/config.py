@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterable
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -43,8 +44,30 @@ def resolve_config_path() -> Path:
     return path
 
 
+@lru_cache(maxsize=None)
+def _load_config_cached(path_str: str) -> dict[str, Any]:
+    """Parse a config file once per path and memoise the result.
+
+    Keyed on the resolved path so distinct config files (e.g. a test fixture
+    set via ``$LEAN_VS_CONFIG``) each get their own entry. The config is static
+    for a process's lifetime, so caching here turns the thousands of
+    ``load_section`` calls a population run makes — one per hour, per feature —
+    into a single disk read and YAML parse.
+    """
+    path = Path(path_str)
+    with path.open("r", encoding="utf-8") as fh:
+        data = yaml.safe_load(fh)
+    if not isinstance(data, dict):
+        raise ValueError(f"Config at {path} must be a YAML mapping.")
+    return data
+
+
 def load_config() -> dict[str, Any]:
     """Load and return the full ``config.yaml`` document as a mapping.
+
+    The parsed document is cached per resolved path (see
+    :func:`_load_config_cached`); callers must treat the returned mapping as
+    read-only, since it is shared across calls.
 
     Returns:
         Parsed YAML as a dict.
@@ -53,12 +76,7 @@ def load_config() -> dict[str, Any]:
         FileNotFoundError: If no config file is found.
         ValueError: If the config file is not a YAML mapping.
     """
-    path = resolve_config_path()
-    with path.open("r", encoding="utf-8") as fh:
-        data = yaml.safe_load(fh)
-    if not isinstance(data, dict):
-        raise ValueError(f"Config at {path} must be a YAML mapping.")
-    return data
+    return _load_config_cached(str(resolve_config_path()))
 
 
 def load_section(section: str, required_keys: Iterable[str] = ()) -> dict[str, Any]:
