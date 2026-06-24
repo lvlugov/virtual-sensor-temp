@@ -14,7 +14,6 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 import requests
-
 from lean_virtual_sensor.feature_engineering.external_temperature import (
     fetch_bulk_to_disk,
     fetch_hourly_window,

@@ -7,14 +7,12 @@ stainless 18-20 gap, and the end-to-end return shape).
 """
 
 import pytest
-
 from lean_virtual_sensor.feature_engineering.api_583_risk.pipeline import (
     _map_carbon_steel_total,
     _map_stainless_steel_total,
     compute_api_583_likelihood,
     compute_api_583_scores,
 )
-
 
 # ====================================== Per-parameter pipeline: happy path ======================================
 

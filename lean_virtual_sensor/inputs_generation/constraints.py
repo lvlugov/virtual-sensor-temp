@@ -11,11 +11,12 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from generation_helpers import (
+
+from lean_virtual_sensor.inputs_generation.generation_helpers import (
     parse_commissioning_timestamp,
     reference_timestamp,
 )
-from schema_loader import GeneratorConfig
+from lean_virtual_sensor.inputs_generation.schema_loader import GeneratorConfig
 
 logger = logging.getLogger(__name__)
 

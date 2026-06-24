@@ -6,7 +6,6 @@ DAMAGED-shelter override, and the exposure-zone cascade.
 """
 
 import pytest
-
 from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.external_environment import (
     score_external_environment,
 )

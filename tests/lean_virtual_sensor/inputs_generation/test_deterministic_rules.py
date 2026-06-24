@@ -5,8 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from generation_helpers import apply_deterministic_field_value
-from schema_loader import load_all_configs
+from lean_virtual_sensor.inputs_generation.generation_helpers import (
+    apply_deterministic_field_value,
+)
+from lean_virtual_sensor.inputs_generation.schema_loader import load_all_configs
 
 
 def _repo_root() -> Path:

@@ -6,11 +6,9 @@ thresholds, and the asset-class equivalence within the equipment group.
 """
 
 import pytest
-
 from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.line_size import (
     score_line_size,
 )
-
 
 # ====================================== Validation ======================================
 

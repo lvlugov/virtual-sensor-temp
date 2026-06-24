@@ -11,7 +11,6 @@ fetch schema (``datetime``, ``temp``, ``humidity``, ``precip``);
 """
 
 import pandas as pd
-
 from lean_virtual_sensor.feature_engineering.historical_weather_feature import (
     compute_wet_load,
 )

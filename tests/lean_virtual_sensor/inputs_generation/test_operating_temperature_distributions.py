@@ -6,8 +6,8 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from constraints import enforce_all_constraints
-from layer_generators import (
+from lean_virtual_sensor.inputs_generation.constraints import enforce_all_constraints
+from lean_virtual_sensor.inputs_generation.layer_generators import (
     generate_anchors,
     generate_dates,
     generate_geometry,
@@ -16,9 +16,12 @@ from layer_generators import (
     generate_thickness_washdown,
     generate_wall_insulation,
 )
-from pipeline import _assign_asset_ids, _build_empty_dataframe
-from schema_loader import load_all_configs
-from temperature_population_checks import assert_temperature_population_acceptance
+from lean_virtual_sensor.inputs_generation.pipeline import _assign_asset_ids, _build_empty_dataframe
+from lean_virtual_sensor.inputs_generation.schema_loader import load_all_configs
+
+from tests.lean_virtual_sensor.inputs_generation.temperature_population_checks import (
+    assert_temperature_population_acceptance,
+)
 
 
 def _repo_root() -> Path:

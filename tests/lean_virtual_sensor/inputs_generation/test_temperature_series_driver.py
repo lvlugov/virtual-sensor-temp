@@ -9,8 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import yaml
-
-from temperature_series_driver import generate_asset_series
+from lean_virtual_sensor.inputs_generation.temperature_series_driver import generate_asset_series
 
 
 def _repo_root() -> Path:

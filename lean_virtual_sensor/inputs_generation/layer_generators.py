@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from generation_helpers import (
+
+from lean_virtual_sensor.inputs_generation.generation_helpers import (
     apply_deterministic_field_value,
     apply_wide_swing_temperature_assignments,
     asset_age_years_at_reference,
@@ -36,7 +37,7 @@ from generation_helpers import (
     schema_integer_range_bounds,
     years_between_timestamps,
 )
-from schema_loader import GeneratorConfig
+from lean_virtual_sensor.inputs_generation.schema_loader import GeneratorConfig
 
 
 def generate_anchors(

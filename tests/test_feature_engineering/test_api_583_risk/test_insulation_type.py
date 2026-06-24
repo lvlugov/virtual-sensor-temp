@@ -6,11 +6,9 @@ material → score mapping lives in ``api_583_risk/config.yaml``.
 """
 
 import pytest
-
 from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.insulation_type import (
     score_insulation_type,
 )
-
 
 # ====================================== Validation ======================================
 
