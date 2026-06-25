@@ -32,7 +32,7 @@ exclude = ["data*", "docs*", "notebooks*", "output*", "reports*", "scripts*", "t
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".", "lean_virtual_sensor/inputs_generation", "tests/lean_virtual_sensor/inputs_generation"]
+pythonpath = ["."]
 addopts = "-q"
 
 [tool.ruff]

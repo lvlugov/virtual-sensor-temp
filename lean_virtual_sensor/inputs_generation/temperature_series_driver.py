@@ -20,7 +20,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from temperature_series import (
+from lean_virtual_sensor.inputs_generation.temperature_series import (
     add_running_noise,
     apply_thermal_lag,
     build_target_series,
@@ -143,7 +143,10 @@ def generate_asset_series(
     tau_profile = np.where(target == operating_temperature, tau * recovery_tau_factor, tau)
     temp = apply_thermal_lag(target, tau_profile)
     temp = add_running_noise(
-        temp, target, operating_temperature, rng,
+        temp,
+        target,
+        operating_temperature,
+        rng,
         float(config["running_noise_amplitude_c"]),
     )
     temp = clamp_series(

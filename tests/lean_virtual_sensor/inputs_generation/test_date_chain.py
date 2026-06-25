@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
-from generation_helpers import parse_commissioning_timestamp
+from lean_virtual_sensor.inputs_generation.generation_helpers import parse_commissioning_timestamp
 
 
 def _reference_ts(gen_config: dict) -> pd.Timestamp:

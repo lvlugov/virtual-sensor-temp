@@ -36,9 +36,7 @@ def _slice_window(
     end: pd.Timestamp,
 ) -> pd.DataFrame:
     """Filter hourly weather to ``[start, end)`` by ``datetime``."""
-    return weather_df[
-        (weather_df["datetime"] >= start) & (weather_df["datetime"] < end)
-    ]
+    return weather_df[(weather_df["datetime"] >= start) & (weather_df["datetime"] < end)]
 
 
 def _resample_to_daily(window: pd.DataFrame) -> pd.DataFrame:
@@ -70,9 +68,7 @@ def _weighted_wet(
 
     Vapor contributes only when daily humidity exceeds the threshold.
     """
-    vapor_per_day = vapor_weight * np.maximum(
-        daily["humidity"] - vapor_humidity_threshold, 0
-    )
+    vapor_per_day = vapor_weight * np.maximum(daily["humidity"] - vapor_humidity_threshold, 0)
     return float(((daily["precip"] + vapor_per_day) * weight).sum())
 
 

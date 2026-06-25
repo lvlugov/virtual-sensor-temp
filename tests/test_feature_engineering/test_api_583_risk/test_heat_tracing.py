@@ -6,11 +6,9 @@ tracing-system values.
 """
 
 import pytest
-
 from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.heat_tracing import (
     score_heat_tracing,
 )
-
 
 # ====================================== Validation ======================================
 
@@ -45,7 +43,7 @@ def test_score_table(tracing_system, expected_score):
     assert score_heat_tracing(tracing_system) == expected_score
 
 
-# ====================================== Missing-data default ======================================
+# ==================================== Missing-data default ====================================
 
 
 def test_tracing_system_none_treated_as_no_tracing():
@@ -53,7 +51,7 @@ def test_tracing_system_none_treated_as_no_tracing():
     assert score_heat_tracing(None) == 0
 
 
-# ====================================== Behavioural invariants ======================================
+# ==================================== Behavioural invariants ====================================
 
 
 def test_integrity_tiers_are_strictly_increasing():

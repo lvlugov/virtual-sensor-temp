@@ -68,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     # Import after argparse so ``--help`` works without numpy/pandas installed.
-    from pipeline import run_pipeline
+    from lean_virtual_sensor.inputs_generation.pipeline import run_pipeline
 
     ok = run_pipeline(
         config_path,

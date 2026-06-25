@@ -7,7 +7,6 @@ stainless 18-20 gap, and the end-to-end return shape).
 """
 
 import pytest
-
 from lean_virtual_sensor.feature_engineering.api_583_risk.pipeline import (
     _map_carbon_steel_total,
     _map_stainless_steel_total,
@@ -15,8 +14,7 @@ from lean_virtual_sensor.feature_engineering.api_583_risk.pipeline import (
     compute_api_583_scores,
 )
 
-
-# ====================================== Per-parameter pipeline: happy path ======================================
+# =============================== Per-parameter pipeline: happy path ===============================
 
 
 def test_full_asset_returns_all_seven_scores():
@@ -40,17 +38,17 @@ def test_full_asset_returns_all_seven_scores():
         "component_diameter": 100.0,
     }
     assert compute_api_583_scores(asset) == {
-        "operating_temperature": 5,    # CARBON_STEEL @ 90 °C → CUI-peak bucket
-        "coating_age": 0,              # Quality + 5 yr (< 8 yr)
-        "jacketing_insulation": 3,     # AVERAGE / AVERAGE → worse = AVERAGE
-        "heat_tracing": 1,             # electric tracing operating
-        "external_environment": 3,     # TEMPERATE + non-zero ACH
-        "insulation_type": 1,          # foam glass
-        "line_size": 3,                # 2 in. < OD ≤ 6 in. NPS
+        "operating_temperature": 5,  # CARBON_STEEL @ 90 °C → CUI-peak bucket
+        "coating_age": 0,  # Quality + 5 yr (< 8 yr)
+        "jacketing_insulation": 3,  # AVERAGE / AVERAGE → worse = AVERAGE
+        "heat_tracing": 1,  # electric tracing operating
+        "external_environment": 3,  # TEMPERATE + non-zero ACH
+        "insulation_type": 1,  # foam glass
+        "line_size": 3,  # 2 in. < OD ≤ 6 in. NPS
     }
 
 
-# ====================================== Per-parameter pipeline: required-key enforcement ======================================
+# ======================== Per-parameter pipeline: required-key enforcement ========================
 
 
 def _minimal_required_asset():
@@ -105,7 +103,7 @@ def test_missing_required_key_raises_key_error(missing_key):
         compute_api_583_scores(asset)
 
 
-# ====================================== Per-parameter pipeline: minimal-asset happy path ======================================
+# ======================== Per-parameter pipeline: minimal-asset happy path ========================
 
 
 def test_minimal_required_asset_runs():
@@ -130,7 +128,7 @@ def test_pipeline_ignores_extra_keys():
     assert len(scores) == 7
 
 
-# ====================================== Per-parameter pipeline: behavioural pass-through ======================================
+# ======================== Per-parameter pipeline: behavioural pass-through ========================
 
 
 def test_equipment_asset_class_does_not_need_diameter():
@@ -156,7 +154,7 @@ def test_system_age_years_feeds_both_coating_and_jacketing_scorers():
     assert scores["jacketing_insulation"] == 3
 
 
-# ====================================== Likelihood mapping: Table A.7 (carbon/low-alloy) ======================================
+# ======================== Likelihood mapping: Table A.7 (carbon/low-alloy) ========================
 
 
 @pytest.mark.parametrize(
@@ -183,7 +181,7 @@ def test_map_carbon_steel_total_boundaries(total, expected):
     assert _map_carbon_steel_total(total) == expected
 
 
-# ====================================== Likelihood mapping: Table A.9 (stainless, with 18-20 gap) ======================================
+# =================== Likelihood mapping: Table A.9 (stainless, with 18-20 gap) ===================
 
 
 @pytest.mark.parametrize(
@@ -214,7 +212,7 @@ def test_map_stainless_steel_total_boundaries(total, expected):
     assert _map_stainless_steel_total(total) == expected
 
 
-# ====================================== Likelihood end-to-end ======================================
+# ==================================== Likelihood end-to-end ====================================
 
 
 def _representative_asset():

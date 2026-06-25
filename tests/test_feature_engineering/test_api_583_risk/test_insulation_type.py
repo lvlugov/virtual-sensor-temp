@@ -6,11 +6,9 @@ material → score mapping lives in ``api_583_risk/config.yaml``.
 """
 
 import pytest
-
 from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.insulation_type import (
     score_insulation_type,
 )
-
 
 # ====================================== Validation ======================================
 
@@ -44,7 +42,7 @@ def test_insulation_material_scores(insulation_material, expected_score):
     assert score_insulation_type(insulation_material) == expected_score
 
 
-# ====================================== Missing-data default ======================================
+# ==================================== Missing-data default ====================================
 
 
 def test_none_defaults_to_unknown():
@@ -52,7 +50,7 @@ def test_none_defaults_to_unknown():
     assert score_insulation_type(None) == 5
 
 
-# ====================================== Score-grouping invariants ======================================
+# =================================== Score-grouping invariants ===================================
 
 
 def test_closed_cell_materials_score_1():
@@ -73,5 +71,3 @@ def test_high_risk_and_unknown_materials_score_5():
         == score_insulation_type("UNKNOWN")
         == 5
     )
-
-

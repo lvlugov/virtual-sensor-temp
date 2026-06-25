@@ -12,8 +12,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
-from temperature_series import (
+from lean_virtual_sensor.inputs_generation.temperature_series import (
     add_running_noise,
     apply_thermal_lag,
     build_target_series,
@@ -77,24 +76,24 @@ def test_e2e_different_seed_changes_output() -> None:
 
 def test_e2e_pipe_sits_in_corrosion_zone() -> None:
     s = _run_chain(seed=1, **PIPE)
-    assert s.max() <= PIPE["op"] + 3            # lives at op (plus running noise)
+    assert s.max() <= PIPE["op"] + 3  # lives at op (plus running noise)
     assert ((s >= -4) & (s <= 175)).mean() > 0.95  # essentially always active
 
 
 def test_e2e_reactor_never_fully_cools() -> None:
     """Large tau -> partial dips; it never gets near ambient (~12-28) or its own min."""
     s = _run_chain(seed=1, **REACTOR)
-    assert s.min() > 40                  # stays well clear of ambient — never fully cold
+    assert s.min() > 40  # stays well clear of ambient — never fully cold
     assert s.min() > REACTOR["mn"] + 25  # nowhere near its cooldown floor
 
 
 def test_e2e_cold_service_crosses_zero_and_caps_at_max() -> None:
     s = _run_chain(seed=1, **COLD)
-    assert s.min() < 0 < s.max()         # runs cold, warms across 0 on shutdown
+    assert s.min() < 0 < s.max()  # runs cold, warms across 0 on shutdown
     assert s.max() <= COLD["mx"] + 1e-6  # capped at the asset max
 
 
 def test_e2e_wide_swing_spans_envelope() -> None:
     s = _run_chain(seed=1, **WIDE)
-    assert (s.max() - s.min()) > 150     # driven across a huge range
-    assert s.max() >= WIDE["op"] - 3      # runs at the top
+    assert (s.max() - s.min()) > 150  # driven across a huge range
+    assert s.max() >= WIDE["op"] - 3  # runs at the top

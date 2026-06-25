@@ -6,15 +6,19 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from generation_helpers import (
+from lean_virtual_sensor.inputs_generation.generation_helpers import (
     sample_component_geometry,
     sample_coupled_wall_thickness,
     sample_nps_catalog_geometry,
     sample_triangular_diameter,
 )
-from layer_generators import generate_anchors, generate_geometry, generate_wall_insulation
-from pipeline import _assign_asset_ids, _build_empty_dataframe
-from schema_loader import load_all_configs
+from lean_virtual_sensor.inputs_generation.layer_generators import (
+    generate_anchors,
+    generate_geometry,
+    generate_wall_insulation,
+)
+from lean_virtual_sensor.inputs_generation.pipeline import _assign_asset_ids, _build_empty_dataframe
+from lean_virtual_sensor.inputs_generation.schema_loader import load_all_configs
 
 
 def _repo_root() -> Path:
