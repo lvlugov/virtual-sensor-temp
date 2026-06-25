@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from functools import lru_cache
-from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
