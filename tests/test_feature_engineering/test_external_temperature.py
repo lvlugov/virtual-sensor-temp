@@ -167,7 +167,7 @@ def test_fetch_bulk_to_disk_skips_failing_locations(
     assert not (tmp_path / "weather_cache" / "aramco_berth_51.csv").exists()
 
 
-# ====================================== Single-asset target filter ======================================
+# =================================== Single-asset target filter ===================================
 
 
 @patch("lean_virtual_sensor.feature_engineering.external_temperature.resolve_config_path")

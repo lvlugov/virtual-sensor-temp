@@ -6,14 +6,16 @@ worse-of-two cascade across all rating combinations, and symmetry.
 """
 
 import pytest
-from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.jacketing_insulation import (
-    score_jacketing_insulation_condition,
+from lean_virtual_sensor.feature_engineering.api_583_risk.input_features import (
+    jacketing_insulation,
 )
 
 
 def _score(cladding=None, insulation=None, system_age=None):
     """Compact wrapper — defaults each input to None (treated as missing)."""
-    return score_jacketing_insulation_condition(cladding, insulation, system_age)
+    return jacketing_insulation.score_jacketing_insulation_condition(
+        cladding, insulation, system_age
+    )
 
 
 # ====================================== Validation ======================================
@@ -41,7 +43,7 @@ def test_negative_system_age_raises():
         _score(cladding="AVERAGE", insulation="AVERAGE", system_age=-1)
 
 
-# ====================================== Missing-rating defaults ======================================
+# =================================== Missing-rating defaults ===================================
 
 
 def test_missing_cladding_defaults_to_average():

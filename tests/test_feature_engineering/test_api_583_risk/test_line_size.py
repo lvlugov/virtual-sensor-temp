@@ -43,7 +43,7 @@ def test_pipe_without_diameter_raises():
         score_line_size("PIPE", component_diameter=None)
 
 
-# ====================================== Equipment short-circuit ======================================
+# ==================================== Equipment short-circuit ====================================
 
 
 @pytest.mark.parametrize(
@@ -65,7 +65,7 @@ def test_equipment_class_ignores_extreme_diameter():
     assert score_line_size("STORAGE_TANK", component_diameter=10000.0) == 0
 
 
-# ====================================== Pipe diameter buckets ======================================
+# ==================================== Pipe diameter buckets ====================================
 
 
 @pytest.mark.parametrize(
@@ -74,17 +74,17 @@ def test_equipment_class_ignores_extreme_diameter():
         # > 6 in. NPS (OD > 168.3 mm) → 1
         (300.0, 1),
         (200.0, 1),
-        (168.4, 1),   # just above the 6-in. boundary
+        (168.4, 1),  # just above the 6-in. boundary
         # > 2 in. to 6 in. NPS (60.3 < OD ≤ 168.3 mm) → 3
-        (168.3, 3),   # closed 6-in. boundary
+        (168.3, 3),  # closed 6-in. boundary
         (150.0, 3),
         (100.0, 3),
-        (60.4, 3),    # just above the 2-in. boundary
+        (60.4, 3),  # just above the 2-in. boundary
         # ≤ 2 in. NPS (OD ≤ 60.3 mm) → 5
-        (60.3, 5),    # closed 2-in. boundary
+        (60.3, 5),  # closed 2-in. boundary
         (50.0, 5),
         (20.0, 5),
-        (0.1, 5),     # arbitrarily small but positive
+        (0.1, 5),  # arbitrarily small but positive
     ],
 )
 def test_pipe_diameter_buckets(component_diameter, expected_score):
