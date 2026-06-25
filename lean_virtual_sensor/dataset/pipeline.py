@@ -31,7 +31,9 @@ def _load_run_config(generation_config_path: Path) -> tuple[dict[str, Any], dict
     return cfg.get("run", {}), cfg.get("temperature_series", {})
 
 
-def run_dataset_pipeline(config: DatasetConfig, *, data_dir: Path = Path("data")) -> Path:
+def run_dataset_pipeline(
+    config: DatasetConfig, *, data_dir: Path = Path("data"), force: bool = False
+) -> Path:
     """Run all 4 steps; skip steps whose output already exists.
 
     Steps:
@@ -43,6 +45,7 @@ def run_dataset_pipeline(config: DatasetConfig, *, data_dir: Path = Path("data")
     Args:
         config: Dataset configuration.
         data_dir: Root data directory.
+        force: If True, re-run all steps even if outputs already exist.
 
     Returns:
         Path to final dataset CSV.
@@ -57,7 +60,7 @@ def run_dataset_pipeline(config: DatasetConfig, *, data_dir: Path = Path("data")
     final_csv = data_dir / "datasets" / f"{config.name}.csv"
 
     # Step 1: generate raw synthetic inputs
-    if raw_csv.exists():
+    if raw_csv.exists() and not force:
         logger.info("Step 1 (generate): output exists, skipping → %s", raw_csv)
     else:
         logger.info("Step 1 (generate): running → %s", raw_csv)
@@ -75,7 +78,7 @@ def run_dataset_pipeline(config: DatasetConfig, *, data_dir: Path = Path("data")
         logger.warning(
             "Step 2 (gen_timeseries): weather_dir absent (%s), skipping", config.weather_dir
         )
-    elif timeseries_dir.exists():
+    elif timeseries_dir.exists() and not force:
         logger.info("Step 2 (gen_timeseries): output exists, skipping → %s", timeseries_dir)
     else:
         logger.info("Step 2 (gen_timeseries): running → %s", timeseries_dir)
@@ -89,7 +92,7 @@ def run_dataset_pipeline(config: DatasetConfig, *, data_dir: Path = Path("data")
         )
 
     # Step 3: featurise
-    if featurised_csv.exists():
+    if featurised_csv.exists() and not force:
         logger.info("Step 3 (featurise): output exists, skipping → %s", featurised_csv)
     else:
         logger.info("Step 3 (featurise): running → %s", featurised_csv)
@@ -103,7 +106,7 @@ def run_dataset_pipeline(config: DatasetConfig, *, data_dir: Path = Path("data")
         )
 
     # Step 4: LLM scoring
-    if final_csv.exists():
+    if final_csv.exists() and not force:
         logger.info("Step 4 (llm_score): output exists, skipping → %s", final_csv)
     else:
         logger.info("Step 4 (llm_score): running → %s", final_csv)
@@ -113,16 +116,23 @@ def run_dataset_pipeline(config: DatasetConfig, *, data_dir: Path = Path("data")
 
 
 def run_all_configs(
-    configs: dict[str, DatasetConfig] | None = None, **kwargs
+    configs: dict[str, DatasetConfig] | None = None,
+    *,
+    data_dir: Path = Path("data"),
+    force: bool = False,
 ) -> list[Path]:
     """Run pipeline for every config (default: ALL_CONFIGS).
 
     Args:
         configs: Dict of name -> DatasetConfig. Defaults to ALL_CONFIGS.
-        **kwargs: Passed through to run_dataset_pipeline.
+        data_dir: Root data directory.
+        force: If True, re-run all steps even if outputs already exist.
 
     Returns:
         List of paths to final dataset CSVs.
     """
     resolved_configs = configs if configs is not None else ALL_CONFIGS
-    return [run_dataset_pipeline(cfg, **kwargs) for cfg in resolved_configs.values()]
+    return [
+        run_dataset_pipeline(cfg, data_dir=data_dir, force=force)
+        for cfg in resolved_configs.values()
+    ]
