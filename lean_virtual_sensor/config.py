@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterable
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -44,7 +44,7 @@ def resolve_config_path() -> Path:
     return path
 
 
-@lru_cache(maxsize=None)
+@cache
 def _load_config_cached(path_str: str) -> dict[str, Any]:
     """Parse a config file once per path and memoise the result.
 

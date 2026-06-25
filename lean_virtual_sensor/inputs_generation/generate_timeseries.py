@@ -48,6 +48,10 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
+# Weather-cache directory entries that are not per-location caches.
+_WEATHER_SKIP_EXACT = {"INDEX.csv"}
+_WEATHER_SKIP_PREFIX = "sample_"
+
 
 # Static-dataset column -> generate_asset_series keyword. The five thermal and
 # cycle scalars share their names; the three geometry columns are renamed to the
@@ -70,7 +74,9 @@ def _inputs_generation_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
-def _load_run_and_series_config(generation_config_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+def _load_run_and_series_config(
+    generation_config_path: Path,
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """Read the ``run`` and ``temperature_series`` blocks from generation_config.yaml."""
     cfg = yaml.safe_load(generation_config_path.read_text(encoding="utf-8"))
     if not isinstance(cfg, dict) or "run" not in cfg or "temperature_series" not in cfg:
