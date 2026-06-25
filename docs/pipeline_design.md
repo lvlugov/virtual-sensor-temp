@@ -4,32 +4,39 @@
 
 The repo has synthetic data generation and feature engineering fully built, but no structure
 for: (a) producing a labelled dataset end-to-end, or (b) training/evaluating models against
-that dataset. This design adds clear interfaces and stubs so the full flow is wired up, with
-actual implementations filled in later.
+that dataset. This design adds the full pipeline wired up and running, with a mock LLM scorer
+so the complete flow executes immediately on synthetic data.
 
 Datasets are small -- commit all intermediate and final CSVs to the repo under `data/`.
 
 ## Overview
 
 Two phases, clean boundary between them.
-Each phase 1 step reads a CSV and writes a CSV -- checkpointing, auditability, and resume
-from any step.
+Each phase 1 step reads a CSV (or directory) and writes a CSV -- checkpointing, auditability,
+and resume from any step.
 
 ```text
 Phase 1: Dataset Production (each step: CSV in -> CSV out, all committed to repo)
 
-  +----------+       +-----------+       +-----------+
-  | Generate |-> CSV | Featurise |-> CSV | LLM Score |-> CSV
-  +----------+       +-----------+       +-----------+
-  inventory_*.csv    featurised_*.csv    dataset_*.csv
+  +----------+    +----------------+    +-----------+    +-----------+
+  | Generate |--> | Gen Timeseries |--> | Featurise |--> | LLM Score |--> CSV
+  +----------+    +----------------+    +-----------+    +-----------+
+  raw_synthetic_  timeseries/           featurised_      dataset_*.csv
+  inputs_*.csv    <ASSET>_*.csv         *.csv
 
 Phase 2: Model Development (kotsu, directly)
 
   dataset_*.csv -> kotsu.run(model_registry, validation_registry) -> results.csv
 ```
 
+The three raw inputs per run:
+- `raw_synthetic_inputs_*.csv` — static per-asset inventory (output of `generate.py`)
+- `timeseries/<ASSET>_*.csv` — per-asset process-temperature series (output of
+  `generate_timeseries.py`); requires a weather cache directory; step skipped if absent
+- weather cache directory — pre-fetched hourly weather per location (not generated here)
+
 **Phase 1 configs** are dataclasses that define the parameters for each run.
-A configs module holds named configs (e.g. `baseline_1k`, `marine_heavy_500`).
+A configs module holds named configs (e.g. `baseline_1k`).
 The runner iterates configs, producing one CSV per config per step.
 The config *is* the provenance record -- you can re-compute any CSV from its config.
 Configs can reference upstream outputs by name -- e.g. a scoring-only config points at an
@@ -42,20 +49,24 @@ We register models and validations against kotsu's API and call `kotsu.run()`.
 
 ```text
 data/
-  inventories/          # step 1 output: raw synthetic inventory CSVs
+  raw_synthetic_inputs/   # step 1 output: static per-asset CSVs
     baseline_1k.csv
-  featurised/           # step 2 output: inventory + derived features + API 583
+  timeseries/             # step 2 output: per-asset process-temperature CSVs
+    baseline_1k/
+      SYNTH-0001_<start>_<end>.csv
+      ...
+  featurised/             # step 3 output: static + derived features + API 583 total
     baseline_1k.csv
-  datasets/             # step 3 output: featurised + cui_risk_score (0-100)
-    baseline_1k.csv           # scored with sonnet
-    baseline_1k_opus.csv      # same features, re-scored with opus
-  models/               # trained model artefacts
-  results/              # kotsu results CSVs
+  datasets/               # step 4 output: featurised + cui_risk_score (0-100)
+    baseline_1k.csv           # scored with mock scorer
+    BASELINE_1K_LLM.csv       # same features, re-scored with different LLM config
+  models/                 # trained model artefacts
+  results/                # kotsu results CSVs
     results.csv
 ```
 
-File names come from the config's `name`/`inventory_name`/`featurised_name` fields.
-Multiple dataset configs can share the same upstream inventory and featurised CSVs.
+File names come from the config's `name`/`raw_synthetic_inputs_name`/`featurised_name` fields.
+Multiple dataset configs can share the same upstream raw inputs and featurised CSVs.
 
 ---
 
@@ -68,7 +79,7 @@ The generation step reuses the existing `generation_config.yaml` files; featuris
 scoring steps get their params here too.
 
 ```python
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -79,17 +90,17 @@ class DatasetConfig:
     # Step 1: Generate
     generation_config_path: Path
 
-    # Step 2: Featurise
-    reference_date: str                    # ISO format, e.g. "2026-05-13"
+    # Step 2+3: Featurise (timeseries step skipped if weather_dir absent)
+    weather_dir: Path
 
-    # Step 3: LLM Score
-    llm_model: str                         # e.g. "claude-sonnet-4-20250514"
-    llm_temperature: float                 # e.g. 0.0 for deterministic scoring
+    # Step 4: LLM Score
+    llm_config: dict = field(default_factory=dict)
 
     # Reuse upstream outputs from a different config by name.
     # When None, defaults to self.name.
-    inventory_name: str | None = None      # -> data/inventories/{inventory_name}.csv
-    featurised_name: str | None = None     # -> data/featurised/{featurised_name}.csv
+    raw_synthetic_inputs_name: str | None = None  # -> data/raw_synthetic_inputs/{name}.csv
+    timeseries_name: str | None = None            # -> data/timeseries/{name}/
+    featurised_name: str | None = None            # -> data/featurised/{name}.csv
 
 
 BASELINE_1K = DatasetConfig(
@@ -97,49 +108,50 @@ BASELINE_1K = DatasetConfig(
     generation_config_path=Path(
         "lean_virtual_sensor/inputs_generation/config/generation_config.yaml"
     ),
-    reference_date="2026-05-13",
-    llm_model="claude-sonnet-4-20250514",
-    llm_temperature=0.0,
+    weather_dir=Path("lean_virtual_sensor/output"),
+    llm_config={"seed": 42},
 )
 
-# Example: same inventory + features, different LLM scorer
-BASELINE_1K_OPUS = DatasetConfig(
-    name="baseline_1k_opus",
+# Example: same raw inputs + features, different LLM scorer config
+BASELINE_1K_LLM = DatasetConfig(
+    name="baseline_1k_llm",
     generation_config_path=BASELINE_1K.generation_config_path,
-    reference_date=BASELINE_1K.reference_date,
-    llm_model="claude-opus-4-20250514",
-    llm_temperature=0.0,
+    weather_dir=BASELINE_1K.weather_dir,
+    llm_config={"seed": 99},
     featurised_name="baseline_1k",  # reuse existing featurised CSV
 )
 
 ALL_CONFIGS: dict[str, DatasetConfig] = {
     "baseline_1k": BASELINE_1K,
-    "baseline_1k_opus": BASELINE_1K_OPUS,
+    "baseline_1k_llm": BASELINE_1K_LLM,
 }
 ```
 
-### `featurise.py` -- inventory CSV -> featurised CSV
+### `featurise.py` -- raw synthetic inputs CSV -> featurised CSV
+
+Thin wrapper over `inputs_generation.generate_features.append_features()`, which handles
+all column mapping and feature computation.
 
 ```python
 def featurise_inventory(
-    inventory_csv: Path,
+    raw_synthetic_inputs_csv: Path,
+    timeseries_dir: Path,
+    weather_dir: Path,
     output_csv: Path,
+    *,
     reference_date: str,
+    seed: int,
 ) -> Path:
-    """Read inventory CSV, compute derived features + API 583 scores, write output CSV.
+    """Read raw synthetic inputs CSV, compute derived features + API 583 total, write output.
 
-    For each row:
-      1. compute_features_for_asset() -> coating_age_years, system_age_years,
-         open_system, ach_90d, cycle_count, wet_load
-      2. compute_api_583_likelihood() -> 7 parameter scores + total + likelihood band
+    Delegates to inputs_generation.generate_features.append_features().
 
-    Input columns: schema.yaml variable names (output of generation).
-    Output columns: all input columns + derived feature columns + API 583 columns.
+    Input columns: schema.yaml variable names (output of generate.py).
+    Output columns: all input columns + 6 derived feature columns + api583_total_score.
     """
-    raise NotImplementedError
 ```
 
-**Field name mapping** (generation schema -> feature pipeline):
+**Field name mapping** (generation schema -> feature pipeline, handled inside `append_features`):
 
 | Generation column              | Feature pipeline parameter | Notes                                     |
 |--------------------------------|----------------------------|--------------------------------------------|
@@ -154,17 +166,18 @@ def score_dataset(
     featurised_csv: Path,
     output_csv: Path,
     *,
-    llm_model: str,
-    llm_temperature: float,
+    llm_config: dict,
 ) -> Path:
-    """Read featurised CSV, get CUI risk score (0-100) from LLM per row, write output.
+    """Read featurised CSV, assign CUI risk score (0-100) per row, write output.
+
+    Current implementation: mock scorer using random integers seeded from
+    llm_config.get("seed", 42). Replace _call_llm() to use a real model.
 
     If output_csv already exists with some rows scored, skips those rows
     (resume support for expensive LLM runs).
 
     Output columns: all input columns + cui_risk_score (int 0-100).
     """
-    raise NotImplementedError
 
 
 def _build_prompt(asset_row: dict) -> str:
@@ -172,8 +185,8 @@ def _build_prompt(asset_row: dict) -> str:
     raise NotImplementedError
 
 
-def _call_llm(prompt: str, *, model: str, temperature: float) -> int:
-    """Call Claude API, parse response, return integer 0-100."""
+def _call_llm(prompt: str, *, llm_config: dict) -> int:
+    """Call LLM API, parse response, return integer 0-100."""
     raise NotImplementedError
 ```
 
@@ -188,16 +201,17 @@ def run_dataset_pipeline(
     """Run dataset production pipeline for one config.
 
     Path resolution per step:
-      generate  -> writes data/inventories/{inventory_name}.csv
-      featurise -> reads  data/inventories/{inventory_name}.csv
-                   writes data/featurised/{featurised_name}.csv
-      score     -> reads  data/featurised/{featurised_name}.csv
-                   writes data/datasets/{name}.csv
+      generate      -> data/raw_synthetic_inputs/{raw_synthetic_inputs_name}.csv
+      gen_timeseries-> data/timeseries/{timeseries_name}/   (skipped if weather_dir absent)
+      featurise     -> reads  data/raw_synthetic_inputs/{raw_synthetic_inputs_name}.csv
+                       writes data/featurised/{featurised_name}.csv
+      llm_score     -> reads  data/featurised/{featurised_name}.csv
+                       writes data/datasets/{name}.csv
 
-    Where inventory_name/featurised_name default to config.name when not set.
-    Skips a step when its output CSV already exists.
+    Where raw_synthetic_inputs_name/featurised_name default to config.name when not set.
+    Skips a step when its output CSV/dir already exists.
+    Returns path to the final dataset CSV.
     """
-    raise NotImplementedError
 
 
 def run_all_configs(
@@ -205,7 +219,6 @@ def run_all_configs(
     **kwargs,
 ) -> list[Path]:
     """Run the pipeline for every config (default: ALL_CONFIGS)."""
-    raise NotImplementedError
 ```
 
 ---
@@ -229,15 +242,16 @@ class SklearnModel:
     def __init__(self, estimator, feature_columns: list[str], target: str = "cui_risk_score"):
         ...
 
-    def fit(self, train_df: pd.DataFrame) -> None:
-        raise NotImplementedError
+    def fit(self, train_df: pd.DataFrame) -> None: ...
 
-    def predict(self, input_df: pd.DataFrame) -> np.ndarray:
-        raise NotImplementedError
+    def predict(self, input_df: pd.DataFrame) -> np.ndarray: ...
 
 
-# Example registration -- actual models added as we go
-# model_registry.register(id="xgb-v1.0", entry_point=SklearnModel, kwargs={...})
+model_registry.register(
+    id="linear-v1.0",
+    entry_point=SklearnModel,
+    kwargs={"estimator": LinearRegression(), "feature_columns": [...]},
+)
 ```
 
 ### `validations.py` -- validation functions registered with kotsu
@@ -250,15 +264,14 @@ validation_registry = kotsu.registration.ValidationRegistry()
 
 def kfold_cv(model, *, dataset_path: str, n_splits: int = 5) -> dict[str, float]:
     """K-fold cross-validation. Returns {"mae": ..., "rmse": ..., "r2": ...}."""
-    raise NotImplementedError
+    # real implementation using sklearn KFold
 
 
-# Example registration
-# validation_registry.register(
-#     id="kfold-5-v1.0",
-#     entry_point=kfold_cv,
-#     kwargs={"dataset_path": "data/datasets/baseline_1k.csv", "n_splits": 5},
-# )
+validation_registry.register(
+    id="kfold-5-v1.0",
+    entry_point=kfold_cv,
+    kwargs={"dataset_path": "data/datasets/baseline_1k.csv", "n_splits": 5},
+)
 ```
 
 ### `run.py` -- experiment runner entry point
@@ -290,16 +303,31 @@ def run_experiments(
 
 ## Files to modify
 
-- **`pyproject.toml`**: add `anthropic` and `kotsu` to dependencies
+- **`pyproject.toml`**: add `anthropic`, `kotsu`, `scikit-learn` to dependencies
 - **`CLAUDE.md`**: update architecture section to document `dataset/` and `modelling/`,
   replace TODO with current state
 
 ## Verification
 
+End-to-end run:
+```bash
+python -c "
+from lean_virtual_sensor.dataset.pipeline import run_dataset_pipeline
+from lean_virtual_sensor.dataset.configs import BASELINE_1K
+run_dataset_pipeline(BASELINE_1K)
+"
+# produces: data/raw_synthetic_inputs/baseline_1k.csv
+#           data/featurised/baseline_1k.csv
+#           data/datasets/baseline_1k.csv
+
+python -c "
+from lean_virtual_sensor.modelling.run import run_experiments
+run_experiments()
+"
+# produces: data/results/results.csv
+```
+
+Plus:
 1. `make lint` passes
-2. `make test` passes (stubs only, no new tests)
-3. All modules importable:
-   ```bash
-   python -c "from lean_virtual_sensor.dataset import configs, pipeline, featurise, llm_scoring; \
-              from lean_virtual_sensor.modelling import models, validations, run"
-   ```
+2. `make test` passes
+3. All modules importable cleanly
