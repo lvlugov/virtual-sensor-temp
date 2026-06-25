@@ -104,7 +104,8 @@ external_environment:
   allowed_exposure:
     - MARINE
     - TEMPERATE
-    - ARID
+    - ARID_DRY
+    - SEVERE
   allowed_shelter:
     - PROTECTED
     - NORMAL
@@ -114,7 +115,7 @@ insulation_type:
   # Insulation material → score
   score:
     FOAMGLASS: 1
-    PEARLITE: 1
+    PERLITE: 1
     CALCIUM_SILICATE: 3
     FIBERGLASS: 3
     MINERAL_WOOL: 5
@@ -128,11 +129,15 @@ line_size:
     - HEAT_EXCHANGER
     - AIR_COOLER
     - STORAGE_TANK
+    - COLUMN
+    - REACTOR
   equipment_classes:
     - PRESSURE_VESSEL
     - HEAT_EXCHANGER
     - AIR_COOLER
     - STORAGE_TANK
+    - COLUMN
+    - REACTOR
   # ASME B36.10 outer diameter thresholds (mm)
   od_2in_nps_mm: 60.3
   od_6in_nps_mm: 168.3

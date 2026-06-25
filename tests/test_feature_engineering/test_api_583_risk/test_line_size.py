@@ -20,7 +20,7 @@ def test_missing_asset_class_raises():
 
 def test_unknown_asset_class_raises():
     with pytest.raises(ValueError, match="Bad asset_class"):
-        score_line_size("REACTOR", component_diameter=100.0)
+        score_line_size("UNKNOWN_CLASS", component_diameter=100.0)
 
 
 def test_lowercase_asset_class_rejected():
@@ -48,7 +48,7 @@ def test_pipe_without_diameter_raises():
 
 @pytest.mark.parametrize(
     "asset_class",
-    ["PRESSURE_VESSEL", "HEAT_EXCHANGER", "AIR_COOLER", "STORAGE_TANK"],
+    ["PRESSURE_VESSEL", "HEAT_EXCHANGER", "AIR_COOLER", "STORAGE_TANK", "COLUMN", "REACTOR"],
 )
 def test_equipment_classes_score_0(asset_class):
     # Every equipment class returns 0 regardless of diameter.

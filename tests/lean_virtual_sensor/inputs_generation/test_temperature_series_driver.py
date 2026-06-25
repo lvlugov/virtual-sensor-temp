@@ -112,7 +112,7 @@ def test_core_asymmetric_recovery_is_faster_never_slower() -> None:
 @pytest.mark.parametrize(
     "override, match",
     [
-        (dict(insulation_material="ASBESTOS"), "insulation_material"),
+        (dict(insulation_material="AEROGEL"), "insulation_material"),
         (dict(metallurgy_family="NICKEL_ALLOY"), "out of scope"),
     ],
 )

@@ -34,6 +34,7 @@ coverage.xml
 local_reference/
 local_data/
 output/
+outputs/
 
 # IDE / OS
 .vscode/

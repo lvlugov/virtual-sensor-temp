@@ -336,7 +336,7 @@ asset_temperature:
     MINERAL_WOOL: 0.040
     FIBERGLASS: 0.035
     CALCIUM_SILICATE: 0.058
-    PEARLITE: 0.052
+    PERLITE: 0.052
     ASBESTOS: 0.070
     UNKNOWN: 0.040                   # conservative mid-range fallback
   default_h_external_w_per_m2k: 10.0
