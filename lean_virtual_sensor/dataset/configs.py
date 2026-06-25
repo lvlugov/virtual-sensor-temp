@@ -37,15 +37,19 @@ BASELINE_1K = DatasetConfig(
     llm_config={"seed": 42},
 )
 
-BASELINE_1K_LLM = DatasetConfig(
-    name="baseline_1k_llm",
+# Example: re-score an existing featurised dataset with a different LLM configuration,
+# without re-running the generate or featurise steps.
+# featurised_name points at an already-computed CSV; only the llm_score step runs.
+# Swap llm_config for real model parameters once LLM scoring is implemented.
+BASELINE_1K_RESCORE = DatasetConfig(
+    name="baseline_1k_rescore",
     generation_config_path=BASELINE_1K.generation_config_path,
     weather_dir=BASELINE_1K.weather_dir,
     llm_config={"seed": 99},
-    featurised_name="baseline_1k",
+    featurised_name="baseline_1k",  # reuses data/featurised/baseline_1k.csv
 )
 
 ALL_CONFIGS: dict[str, DatasetConfig] = {
     "baseline_1k": BASELINE_1K,
-    "baseline_1k_llm": BASELINE_1K_LLM,
+    # Add configs here to include them in `python -m lean_virtual_sensor.dataset`
 }
