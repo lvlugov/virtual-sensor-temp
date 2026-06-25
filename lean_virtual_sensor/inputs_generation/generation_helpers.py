@@ -12,7 +12,8 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from schema_loader import GeneratorConfig
+
+from lean_virtual_sensor.inputs_generation.schema_loader import GeneratorConfig
 
 
 def conditional_weights_block(

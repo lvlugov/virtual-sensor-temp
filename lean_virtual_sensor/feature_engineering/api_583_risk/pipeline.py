@@ -24,26 +24,14 @@ from typing import Any
 from lean_virtual_sensor.feature_engineering.api_583_risk._config import (
     load_api_583_section,
 )
-from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.coating_age import (
-    score_coating_age,
-)
-from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.external_environment import (
-    score_external_environment,
-)
-from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.heat_tracing import (
-    score_heat_tracing,
-)
-from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.insulation_type import (
-    score_insulation_type,
-)
-from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.jacketing_insulation import (
-    score_jacketing_insulation_condition,
-)
-from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.line_size import (
-    score_line_size,
-)
-from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.operating_temperature import (
-    score_operating_temperature,
+from lean_virtual_sensor.feature_engineering.api_583_risk.input_features import (
+    coating_age,
+    external_environment,
+    heat_tracing,
+    insulation_type,
+    jacketing_insulation,
+    line_size,
+    operating_temperature,
 )
 
 CONFIG_SUBSECTION = "pipeline"
@@ -61,7 +49,7 @@ REQUIRED_KEYS = (
 )
 
 
-# ====================================== Per-parameter pipeline ======================================
+# ===================================== Per-parameter pipeline =====================================
 
 
 def compute_api_583_scores(asset: dict[str, Any]) -> dict[str, int]:
@@ -94,42 +82,42 @@ def compute_api_583_scores(asset: dict[str, Any]) -> dict[str, int]:
             docstring).
     """
     return {
-        "operating_temperature": score_operating_temperature(
+        "operating_temperature": operating_temperature.score_operating_temperature(
             metallurgy_family=asset["metallurgy_family"],
             operating_temperature=asset["operating_temperature"],
             min_operating_temperature=asset["min_operating_temperature"],
             max_operating_temperature=asset["max_operating_temperature"],
             avg_cycles_per_quarter=asset["avg_cycles_per_quarter"],
         ),
-        "coating_age": score_coating_age(
+        "coating_age": coating_age.score_coating_age(
             coating_system=asset["coating_system"],
             coating_age_years=asset["coating_age_years"],
             system_age_years=asset["system_age_years"],
         ),
-        "jacketing_insulation": score_jacketing_insulation_condition(
+        "jacketing_insulation": jacketing_insulation.score_jacketing_insulation_condition(
             cladding_integrity=asset["cladding_integrity"],
             insulation_condition=asset["insulation_condition"],
             system_age_years=asset["system_age_years"],
         ),
-        "heat_tracing": score_heat_tracing(
+        "heat_tracing": heat_tracing.score_heat_tracing(
             tracing_system=asset["tracing_system"],
         ),
-        "external_environment": score_external_environment(
+        "external_environment": external_environment.score_external_environment(
             exposure_zone=asset["exposure_zone"],
             shelter_flag=asset["shelter_flag"],
             sweating_asset=asset["sweating_asset"],
         ),
-        "insulation_type": score_insulation_type(
+        "insulation_type": insulation_type.score_insulation_type(
             insulation_material=asset["insulation_material"],
         ),
-        "line_size": score_line_size(
+        "line_size": line_size.score_line_size(
             asset_class=asset["asset_class"],
             component_diameter=asset["component_diameter"],
         ),
     }
 
 
-# ====================================== Likelihood-table helpers ======================================
+# ==================================== Likelihood-table helpers ====================================
 
 
 def _map_carbon_steel_total(total: int) -> tuple[str, str]:
@@ -166,7 +154,7 @@ def _map_stainless_steel_total(total: int) -> tuple[str | None, str]:
     return ("E", "ok")
 
 
-# ====================================== Likelihood entry point ======================================
+# ===================================== Likelihood entry point =====================================
 
 
 def compute_api_583_likelihood(asset: dict[str, Any]) -> dict[str, Any]:

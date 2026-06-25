@@ -11,8 +11,11 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from schema_loader import load_all_configs
-from temperature_population_checks import assert_temperature_population_acceptance
+from lean_virtual_sensor.inputs_generation.schema_loader import load_all_configs
+
+from tests.lean_virtual_sensor.inputs_generation.temperature_population_checks import (
+    assert_temperature_population_acceptance,
+)
 
 ASSET_CLASS_TOLERANCE = 0.05
 

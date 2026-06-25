@@ -10,8 +10,9 @@ untouched for cross-cutting features.
 from __future__ import annotations
 
 from functools import lru_cache
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import yaml
 

@@ -102,6 +102,4 @@ def score_line_size(
     # PIPE: diameter required.
     if component_diameter is None:
         raise ValueError("component_diameter is required for asset_class = PIPE")
-    return _score_pipe_diameter(
-        component_diameter, cfg["od_2in_nps_mm"], cfg["od_6in_nps_mm"]
-    )
+    return _score_pipe_diameter(component_diameter, cfg["od_2in_nps_mm"], cfg["od_6in_nps_mm"])
