@@ -33,5 +33,8 @@ RUN uv sync --no-install-project --extra dev
 # Copy project files (mounted in compose for dev, but useful for image-only usage too).
 COPY . /app
 
+# Install the project itself in editable mode so absolute imports resolve.
+RUN uv sync --extra dev
+
 # Default to an interactive shell; compose can override this (e.g. to run Jupyter).
 CMD ["/bin/bash"]

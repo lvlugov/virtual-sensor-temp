@@ -11,17 +11,20 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from constraints import _clamp_and_round_numerics, _enforce_temperature_triplet
-from generation_helpers import years_between_timestamps
-from layer_generators import (
+from lean_virtual_sensor.inputs_generation.constraints import (
+    _clamp_and_round_numerics,
+    _enforce_temperature_triplet,
+)
+from lean_virtual_sensor.inputs_generation.generation_helpers import years_between_timestamps
+from lean_virtual_sensor.inputs_generation.layer_generators import (
     generate_anchors,
     generate_dates,
     generate_geometry,
     generate_operating,
     generate_wall_insulation,
 )
-from pipeline import _assign_asset_ids, _build_empty_dataframe
-from schema_loader import load_all_configs
+from lean_virtual_sensor.inputs_generation.pipeline import _assign_asset_ids, _build_empty_dataframe
+from lean_virtual_sensor.inputs_generation.schema_loader import load_all_configs
 
 
 def _config_dir() -> Path:

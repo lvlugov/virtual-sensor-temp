@@ -41,7 +41,7 @@ test-dataset:
 		set -euo pipefail; \
 		TMP=$$(mktemp --suffix=.csv); \
 		trap "rm -f \"$$TMP\"" EXIT; \
-		python lean_virtual_sensor/inputs_generation/generate.py --output-path "$$TMP" && \
+		python -m lean_virtual_sensor.inputs_generation.generate --output-path "$$TMP" && \
 		pytest tests/ --dataset "$$TMP"'
 
 sync:

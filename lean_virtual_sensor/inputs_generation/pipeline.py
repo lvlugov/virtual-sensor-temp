@@ -28,8 +28,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from constraints import enforce_all_constraints
-from layer_generators import (
+
+from lean_virtual_sensor.inputs_generation.constraints import enforce_all_constraints
+from lean_virtual_sensor.inputs_generation.layer_generators import (
     generate_anchors,
     generate_dates,
     generate_geometry,
@@ -38,7 +39,7 @@ from layer_generators import (
     generate_thickness_washdown,
     generate_wall_insulation,
 )
-from schema_loader import GeneratorConfig, load_all_configs
+from lean_virtual_sensor.inputs_generation.schema_loader import GeneratorConfig, load_all_configs
 
 logger = logging.getLogger(__name__)
 

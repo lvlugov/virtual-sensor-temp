@@ -20,7 +20,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from temperature_series import (
+from lean_virtual_sensor.inputs_generation.temperature_series import (
     add_running_noise,
     apply_thermal_lag,
     build_target_series,

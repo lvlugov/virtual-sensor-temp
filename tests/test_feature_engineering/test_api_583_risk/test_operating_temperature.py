@@ -6,7 +6,6 @@ steel) and Table A.8 (austenitic/duplex stainless).
 """
 
 import pytest
-
 from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.operating_temperature import (
     score_operating_temperature,
 )

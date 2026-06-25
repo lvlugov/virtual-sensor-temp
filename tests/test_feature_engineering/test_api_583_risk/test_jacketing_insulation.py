@@ -6,7 +6,6 @@ worse-of-two cascade across all rating combinations, and symmetry.
 """
 
 import pytest
-
 from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.jacketing_insulation import (
     score_jacketing_insulation_condition,
 )

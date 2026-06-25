@@ -7,7 +7,6 @@ bucket boundaries for Quality, General, and system age.
 """
 
 import pytest
-
 from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.coating_age import (
     score_coating_age,
 )

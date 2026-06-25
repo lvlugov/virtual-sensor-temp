@@ -6,8 +6,10 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from generation_helpers import sample_operating_temperature_fields
-from schema_loader import load_all_configs
+from lean_virtual_sensor.inputs_generation.generation_helpers import (
+    sample_operating_temperature_fields,
+)
+from lean_virtual_sensor.inputs_generation.schema_loader import load_all_configs
 
 
 def _repo_root() -> Path:

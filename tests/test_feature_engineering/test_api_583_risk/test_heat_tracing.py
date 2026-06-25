@@ -6,11 +6,9 @@ tracing-system values.
 """
 
 import pytest
-
 from lean_virtual_sensor.feature_engineering.api_583_risk.input_features.heat_tracing import (
     score_heat_tracing,
 )
-
 
 # ====================================== Validation ======================================
 
