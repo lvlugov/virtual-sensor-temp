@@ -104,10 +104,6 @@ CREATE TABLE assets (
         CHECK (spec_operation_vs_shutdown_fraction BETWEEN 0 AND 1),
     spec_tracing_system                 tracing_system NOT NULL,
 
-    -- Coating
-    coating_system                  coating_system NOT NULL,
-    coating_application_date        date,                   -- nullable if BARE/UNKNOWN
-
     -- Inspection
     latest_inspection_date          date,
     inspection_ever_done            boolean NOT NULL DEFAULT false,
@@ -160,6 +156,17 @@ CREATE TABLE asset_insulation_records (
 );
 CREATE INDEX idx_insulation_asset_time ON asset_insulation_records(asset_id, recorded_at DESC);
 CREATE INDEX idx_insulation_client     ON asset_insulation_records(client_id);
+
+CREATE TABLE asset_coating_records (
+    id                       bigserial PRIMARY KEY,
+    client_id                uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    asset_id                 uuid NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    recorded_at              timestamptz NOT NULL,
+    coating_system           coating_system NOT NULL,
+    coating_application_date date
+);
+CREATE INDEX idx_coating_asset_time ON asset_coating_records(asset_id, recorded_at DESC);
+CREATE INDEX idx_coating_client     ON asset_coating_records(client_id);
 
 -- ============================================================
 -- TIME SERIES
