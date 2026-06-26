@@ -2,7 +2,7 @@
 -- ENUMS (categorical fields from the data dictionary)
 -- ============================================================
 CREATE TYPE membership_role          AS ENUM ('admin', 'member', 'viewer');
-CREATE TYPE tenant_status            AS ENUM ('active', 'suspended');
+CREATE TYPE client_status            AS ENUM ('active', 'suspended');
 CREATE TYPE asset_class              AS ENUM ('PIPE','PRESSURE_VESSEL','HEAT_EXCHANGER','AIR_COOLER','STORAGE_TANK','COLUMN','REACTOR');
 CREATE TYPE metallurgy_family        AS ENUM ('CARBON_STEEL','LOW_ALLOY_STEEL','AUSTENITIC_SS','DUPLEX_SS');
 CREATE TYPE geometry_class           AS ENUM ('CYLINDRICAL_SHELL','ELBOW','SPHERICAL_SHELL','HEMISPHERICAL_HEAD','ELLIPTICAL_HEAD','TORISPHERICAL_HEAD','CONICAL_SHELL','NOZZLE','STRAIGHT_RUN');
@@ -21,11 +21,11 @@ CREATE TYPE ingest_status            AS ENUM ('pending','processing','succeeded'
 -- ============================================================
 -- TENANCY & USERS
 -- ============================================================
-CREATE TABLE tenants (
+CREATE TABLE clients (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     slug            text NOT NULL UNIQUE,
     name            text NOT NULL,
-    status          tenant_status NOT NULL DEFAULT 'active',
+    status          client_status NOT NULL DEFAULT 'active',
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now()
 );
@@ -42,19 +42,19 @@ CREATE TABLE users (
 CREATE TABLE memberships (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    tenant_id       uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    client_id       uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
     role            membership_role NOT NULL DEFAULT 'member',
     created_at      timestamptz NOT NULL DEFAULT now(),
-    UNIQUE (user_id, tenant_id)
+    UNIQUE (user_id, client_id)
 );
-CREATE INDEX idx_memberships_tenant ON memberships(tenant_id);
+CREATE INDEX idx_memberships_client ON memberships(client_id);
 
 -- ============================================================
 -- SITES
 -- ============================================================
 CREATE TABLE sites (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id       uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    client_id       uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
     name            text NOT NULL,
     location_text   text,                              -- free-form for pilot; lat/lng later
     latitude        numeric(8,5),                      -- needed for weather API lookup
@@ -62,16 +62,16 @@ CREATE TABLE sites (
     exposure_zone   exposure_zone NOT NULL,            -- site-level per data dictionary
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now(),
-    UNIQUE (tenant_id, name)
+    UNIQUE (client_id, name)
 );
-CREATE INDEX idx_sites_tenant ON sites(tenant_id);
+CREATE INDEX idx_sites_client ON sites(client_id);
 
 -- ============================================================
 -- ASSETS  (per data dictionary)
 -- ============================================================
 CREATE TABLE assets (
     id                              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id                       uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    client_id                       uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
     site_id                         uuid NOT NULL REFERENCES sites(id) ON DELETE RESTRICT,
     asset_tag                       text NOT NULL,         -- client's own identifier
     description                     text,
@@ -126,13 +126,13 @@ CREATE TABLE assets (
     created_at                      timestamptz NOT NULL DEFAULT now(),
     updated_at                      timestamptz NOT NULL DEFAULT now(),
 
-    UNIQUE (tenant_id, asset_tag),
+    UNIQUE (client_id, asset_tag),
     CHECK (last_inspection_thickness_mm IS NULL
            OR last_inspection_thickness_mm <= furnished_thickness_mm),
     CHECK (max_operating_temperature_c IS NULL
            OR max_operating_temperature_c >= operating_temperature_c)
 );
-CREATE INDEX idx_assets_tenant   ON assets(tenant_id);
+CREATE INDEX idx_assets_client   ON assets(client_id);
 CREATE INDEX idx_assets_site     ON assets(site_id);
 
 -- ============================================================
@@ -142,7 +142,7 @@ CREATE INDEX idx_assets_site     ON assets(site_id);
 -- Partition by month once volume warrants it; single table is fine for the pilot.
 CREATE TABLE temperature_readings (
     id                  bigserial PRIMARY KEY,
-    tenant_id           uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    client_id           uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
     asset_id            uuid NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
     recorded_at         timestamptz NOT NULL,
     temperature_c       numeric(6,2) NOT NULL,
@@ -150,12 +150,12 @@ CREATE TABLE temperature_readings (
     UNIQUE (asset_id, recorded_at)
 );
 CREATE INDEX idx_temp_asset_time ON temperature_readings(asset_id, recorded_at DESC);
-CREATE INDEX idx_temp_tenant      ON temperature_readings(tenant_id);
+CREATE INDEX idx_temp_client      ON temperature_readings(client_id);
 
 -- External weather feed, per site (T_ambient, RH, rainfall in the dictionary)
 CREATE TABLE weather_readings (
     id                      bigserial PRIMARY KEY,
-    tenant_id               uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    client_id               uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
     site_id                 uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     recorded_at             timestamptz NOT NULL,
     ambient_temperature_c   numeric(5,1) NOT NULL,
@@ -165,14 +165,14 @@ CREATE TABLE weather_readings (
     UNIQUE (site_id, recorded_at)
 );
 CREATE INDEX idx_weather_site_time ON weather_readings(site_id, recorded_at DESC);
-CREATE INDEX idx_weather_tenant     ON weather_readings(tenant_id);
+CREATE INDEX idx_weather_client     ON weather_readings(client_id);
 
 -- ============================================================
 -- PREDICTIONS
 -- ============================================================
 CREATE TABLE predictions (
     id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id           uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    client_id           uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
     asset_id            uuid NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
     predicted_at        timestamptz NOT NULL DEFAULT now(),    -- when the run happened
     as_of_date          date NOT NULL,                          -- the date this prediction is for
@@ -183,14 +183,14 @@ CREATE TABLE predictions (
     inputs_snapshot     jsonb NOT NULL                          -- inputs used, for reproducibility
 );
 CREATE INDEX idx_predictions_asset_time ON predictions(asset_id, predicted_at DESC);
-CREATE INDEX idx_predictions_tenant     ON predictions(tenant_id);
+CREATE INDEX idx_predictions_client     ON predictions(client_id);
 
 -- ============================================================
 -- OPERATIONAL
 -- ============================================================
 CREATE TABLE ingest_batches (
     id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id           uuid REFERENCES tenants(id) ON DELETE CASCADE,   -- null for system-wide weather pulls
+    client_id           uuid REFERENCES clients(id) ON DELETE CASCADE,   -- null for system-wide weather pulls
     source              ingest_source NOT NULL,
     status              ingest_status NOT NULL DEFAULT 'pending',
     triggered_by_user_id uuid REFERENCES users(id),
@@ -203,11 +203,11 @@ CREATE TABLE ingest_batches (
     finished_at         timestamptz,
     created_at          timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_ingest_tenant_time ON ingest_batches(tenant_id, created_at DESC);
+CREATE INDEX idx_ingest_client_time ON ingest_batches(client_id, created_at DESC);
 
 CREATE TABLE audit_log (
     id              bigserial PRIMARY KEY,
-    tenant_id       uuid REFERENCES tenants(id),                          -- null for cross-tenant admin
+    client_id       uuid REFERENCES clients(id),                          -- null for cross-client admin
     user_id         uuid REFERENCES users(id),                            -- null for system actions
     action          text NOT NULL,                                        -- e.g. 'asset.created'
     entity_type     text,
@@ -216,4 +216,4 @@ CREATE TABLE audit_log (
     ip_address      inet,
     created_at      timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_audit_tenant_time ON audit_log(tenant_id, created_at DESC);
+CREATE INDEX idx_audit_client_time ON audit_log(client_id, created_at DESC);
