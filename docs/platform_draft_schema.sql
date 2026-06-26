@@ -104,14 +104,6 @@ CREATE TABLE assets (
         CHECK (spec_operation_vs_shutdown_fraction BETWEEN 0 AND 1),
     spec_tracing_system                 tracing_system NOT NULL,
 
-    -- Insulation
-    insulation_material             insulation_material NOT NULL,
-    insulation_thickness_mm         numeric(5,0) NOT NULL,
-    insulation_install_date         date NOT NULL,
-    insulation_condition            condition_band NOT NULL DEFAULT 'AVERAGE',
-    cladding_integrity              condition_band NOT NULL,
-    insulation_chloride_flag        boolean NOT NULL DEFAULT false,
-
     -- Coating
     coating_system                  coating_system NOT NULL,
     coating_application_date        date,                   -- nullable if BARE/UNKNOWN
@@ -153,6 +145,21 @@ CREATE TABLE asset_process_conditions (
 );
 CREATE INDEX idx_proc_cond_asset_time ON asset_process_conditions(asset_id, recorded_at DESC);
 CREATE INDEX idx_proc_cond_client     ON asset_process_conditions(client_id);
+
+CREATE TABLE asset_insulation_records (
+    id                       bigserial PRIMARY KEY,
+    client_id                uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    asset_id                 uuid NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    recorded_at              timestamptz NOT NULL,
+    insulation_material      insulation_material NOT NULL,
+    insulation_thickness_mm  numeric(5,0) NOT NULL,
+    insulation_install_date  date NOT NULL,
+    insulation_condition     condition_band NOT NULL DEFAULT 'AVERAGE',
+    cladding_integrity       condition_band NOT NULL,
+    insulation_chloride_flag boolean NOT NULL DEFAULT false
+);
+CREATE INDEX idx_insulation_asset_time ON asset_insulation_records(asset_id, recorded_at DESC);
+CREATE INDEX idx_insulation_client     ON asset_insulation_records(client_id);
 
 -- ============================================================
 -- TIME SERIES
