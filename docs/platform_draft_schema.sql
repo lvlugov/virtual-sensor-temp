@@ -81,7 +81,6 @@ CREATE TABLE assets (
     asset_commissioning_date        date NOT NULL,
     component_diameter_mm           numeric(8,1) NOT NULL,
     furnished_thickness_mm          numeric(6,2) NOT NULL,
-    last_inspection_thickness_mm    numeric(6,2),          -- nullable: never inspected
 
     -- Material
     metallurgy_family               metallurgy_family NOT NULL,
@@ -104,19 +103,12 @@ CREATE TABLE assets (
         CHECK (spec_operation_vs_shutdown_fraction BETWEEN 0 AND 1),
     spec_tracing_system                 tracing_system NOT NULL,
 
-    -- Inspection
-    latest_inspection_date          date,
-    inspection_ever_done            boolean NOT NULL DEFAULT false,
-    washdown_records_90d            integer NOT NULL DEFAULT 0,
-
     -- Audit
     created_by_user_id              uuid REFERENCES users(id),
     created_at                      timestamptz NOT NULL DEFAULT now(),
     updated_at                      timestamptz NOT NULL DEFAULT now(),
 
     UNIQUE (client_id, asset_tag),
-    CHECK (last_inspection_thickness_mm IS NULL
-           OR last_inspection_thickness_mm <= furnished_thickness_mm),
     CHECK (spec_max_operating_temperature_c IS NULL
            OR spec_max_operating_temperature_c >= spec_operating_temperature_c)
 );
@@ -167,6 +159,19 @@ CREATE TABLE asset_coating_records (
 );
 CREATE INDEX idx_coating_asset_time ON asset_coating_records(asset_id, recorded_at DESC);
 CREATE INDEX idx_coating_client     ON asset_coating_records(client_id);
+
+CREATE TABLE asset_inspection_records (
+    id                           bigserial PRIMARY KEY,
+    client_id                    uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    asset_id                     uuid NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    recorded_at                  timestamptz NOT NULL,
+    inspection_thickness_mm      numeric(6,2),
+    latest_inspection_date       date,
+    inspection_ever_done         boolean NOT NULL DEFAULT false,
+    washdown_records_90d         integer NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_inspection_asset_time ON asset_inspection_records(asset_id, recorded_at DESC);
+CREATE INDEX idx_inspection_client     ON asset_inspection_records(client_id);
 
 -- ============================================================
 -- TIME SERIES
