@@ -75,6 +75,52 @@ make notebook-server
 - Paste the URL, but if it contains `0.0.0.0`, replace the host with `127.0.0.1`:
   - use `http://127.0.0.1:8888/?token=...`
 
+---
+
+## Pipeline
+
+The end-to-end ML pipeline has two phases.
+
+### Phase 1: Dataset production
+
+Each dataset is defined by a `DatasetConfig` and produced through four sequential steps, each checkpointed as a CSV under `data/`:
+
+| Step | Output |
+|------|--------|
+| Generate (static asset data) | `data/raw_synthetic_inputs/<name>.csv` |
+| Generate timeseries (per-asset process temperatures) | `data/timeseries/<name>/` — requires weather cache; skipped if absent |
+| Featurise (derived features + API 583 scores) | `data/featurised/<name>.csv` |
+| LLM score (CUI risk 0–100 per asset) | `data/datasets/<name>.csv` |
+
+**To produce a new dataset** — define a new `DatasetConfig` in `lean_virtual_sensor/dataset/configs.py` and add it to `ALL_CONFIGS`.
+
+**Commands:**
+```bash
+python -m lean_virtual_sensor.dataset --list                    # list defined datasets
+python -m lean_virtual_sensor.dataset                           # run all datasets
+python -m lean_virtual_sensor.dataset baseline_1k               # run one dataset
+python -m lean_virtual_sensor.dataset baseline_1k --force       # re-run all steps for one dataset
+```
+
+### Phase 2: Modelling
+
+Registered models are evaluated against registered validations via [kotsu](https://github.com/datavaluepeople/kotsu). Results accumulate in `data/results/results.csv` (skips already-run combinations by default).
+
+**To add a model** — register it in `lean_virtual_sensor/modelling/models.py`.  
+**To add a validation** — register it in `lean_virtual_sensor/modelling/validations.py`.
+
+**Commands:**
+```bash
+python -m lean_virtual_sensor.modelling --list                  # list registered models
+python -m lean_virtual_sensor.modelling                         # run all experiments
+python -m lean_virtual_sensor.modelling --force                 # force re-run all
+python -m lean_virtual_sensor.modelling --force linear-v1.0     # force one model
+```
+
+**Results:** `data/results/results.csv` — one row per model × validation combination.
+
+---
+
 ### Dependencies (`uv`)
 
 Dependencies are managed with `uv` via `pyproject.toml`, and pinned in `uv.lock`.
