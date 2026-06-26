@@ -4,7 +4,7 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class DatasetConfig:
-    """Configuration for a single dataset pipeline run.
+    """Defines one complete dataset — every field controls a step in the production pipeline.
 
     Attributes:
         name: Unique identifier; used as default for output file/dir names.

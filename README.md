@@ -83,7 +83,7 @@ The end-to-end ML pipeline has two phases.
 
 ### Phase 1: Dataset production
 
-Four sequential steps, each checkpointed as a CSV under `data/`:
+Each dataset is defined by a `DatasetConfig` and produced through four sequential steps, each checkpointed as a CSV under `data/`:
 
 | Step | Output |
 |------|--------|
@@ -92,14 +92,14 @@ Four sequential steps, each checkpointed as a CSV under `data/`:
 | Featurise (derived features + API 583 scores) | `data/featurised/<name>.csv` |
 | LLM score (CUI risk 0–100 per asset) | `data/datasets/<name>.csv` |
 
-**To add a config** — edit `lean_virtual_sensor/dataset/configs.py`, add a `DatasetConfig` to `ALL_CONFIGS`.
+**To produce a new dataset** — define a new `DatasetConfig` in `lean_virtual_sensor/dataset/configs.py` and add it to `ALL_CONFIGS`.
 
 **Commands:**
 ```bash
-python -m lean_virtual_sensor.dataset --list                    # list configs
-python -m lean_virtual_sensor.dataset                           # run all configs
-python -m lean_virtual_sensor.dataset baseline_1k               # run one config
-python -m lean_virtual_sensor.dataset baseline_1k --force       # re-run all steps
+python -m lean_virtual_sensor.dataset --list                    # list defined datasets
+python -m lean_virtual_sensor.dataset                           # run all datasets
+python -m lean_virtual_sensor.dataset baseline_1k               # run one dataset
+python -m lean_virtual_sensor.dataset baseline_1k --force       # re-run all steps for one dataset
 ```
 
 ### Phase 2: Modelling

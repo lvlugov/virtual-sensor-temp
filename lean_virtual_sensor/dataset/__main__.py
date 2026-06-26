@@ -1,11 +1,11 @@
 """CLI for the dataset production pipeline.
 
 Usage:
-    python -m lean_virtual_sensor.dataset                        run all configs
-    python -m lean_virtual_sensor.dataset baseline_1k            run one config
+    python -m lean_virtual_sensor.dataset                        run all datasets
+    python -m lean_virtual_sensor.dataset baseline_1k            run one dataset
     python -m lean_virtual_sensor.dataset --force                re-run all steps
-    python -m lean_virtual_sensor.dataset baseline_1k --force    re-run one config
-    python -m lean_virtual_sensor.dataset --list                 list available configs
+    python -m lean_virtual_sensor.dataset baseline_1k --force    re-run one dataset
+    python -m lean_virtual_sensor.dataset --list                 list defined datasets
 """
 
 import argparse
@@ -19,13 +19,13 @@ from lean_virtual_sensor.dataset.pipeline import run_all_configs, run_dataset_pi
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m lean_virtual_sensor.dataset",
-        description="Run the dataset production pipeline (generate → featurise → llm_score).",
+        description="Produce datasets from registered configs (generate → featurise → llm_score).",
     )
     parser.add_argument(
         "config",
         nargs="?",
         metavar="CONFIG",
-        help="Config name to run (default: all). Use --list to see available configs.",
+        help="Dataset name to run (default: all). Use --list to see available datasets.",
     )
     parser.add_argument(
         "--force",
@@ -35,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--list",
         action="store_true",
-        help="List available config names and exit.",
+        help="List defined datasets and exit.",
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable DEBUG logging.")
     args = parser.parse_args(argv)
@@ -46,14 +46,14 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if args.list:
-        print("Available configs:")
+        print("Available datasets:")
         for name in ALL_CONFIGS:
             print(f"  {name}")
         return 0
 
     if args.config is not None:
         if args.config not in ALL_CONFIGS:
-            print(f"Unknown config '{args.config}'. Use --list to see available configs.")
+            print(f"Unknown dataset '{args.config}'. Use --list to see available datasets.")
             return 1
         run_dataset_pipeline(ALL_CONFIGS[args.config], force=args.force)
     else:

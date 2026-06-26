@@ -1,4 +1,4 @@
-"""Orchestrates the four-step dataset pipeline: generate → timeseries → featurise → llm_score."""
+"""Produces one dataset per config: generate → timeseries → featurise → llm_score."""
 
 from __future__ import annotations
 
