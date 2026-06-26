@@ -95,14 +95,14 @@ CREATE TABLE assets (
     sweating_asset                  boolean NOT NULL,
     shelter_flag                    shelter_flag NOT NULL DEFAULT 'NORMAL',
 
-    -- Process conditions (static fallbacks; historian time series in temperature_readings)
-    operating_temperature_c         numeric(6,1) NOT NULL,
-    min_operating_temperature_c     numeric(6,1),
-    max_operating_temperature_c     numeric(6,1),
-    avg_cycles_per_quarter          integer NOT NULL DEFAULT 0,
-    operation_vs_shutdown_fraction  numeric(3,2) NOT NULL DEFAULT 1.00
-        CHECK (operation_vs_shutdown_fraction BETWEEN 0 AND 1),
-    tracing_system                  tracing_system NOT NULL,
+    -- Process conditions (design/spec values — static)
+    spec_operating_temperature_c        numeric(6,1) NOT NULL,
+    spec_min_operating_temperature_c    numeric(6,1),
+    spec_max_operating_temperature_c    numeric(6,1),
+    spec_avg_cycles_per_quarter         integer NOT NULL DEFAULT 0,
+    spec_operation_vs_shutdown_fraction numeric(3,2) NOT NULL DEFAULT 1.00
+        CHECK (spec_operation_vs_shutdown_fraction BETWEEN 0 AND 1),
+    spec_tracing_system                 tracing_system NOT NULL,
 
     -- Insulation
     insulation_material             insulation_material NOT NULL,
@@ -129,11 +129,30 @@ CREATE TABLE assets (
     UNIQUE (client_id, asset_tag),
     CHECK (last_inspection_thickness_mm IS NULL
            OR last_inspection_thickness_mm <= furnished_thickness_mm),
-    CHECK (max_operating_temperature_c IS NULL
-           OR max_operating_temperature_c >= operating_temperature_c)
+    CHECK (spec_max_operating_temperature_c IS NULL
+           OR spec_max_operating_temperature_c >= spec_operating_temperature_c)
 );
 CREATE INDEX idx_assets_client   ON assets(client_id);
 CREATE INDEX idx_assets_site     ON assets(site_id);
+
+-- ============================================================
+-- ASSET ATTRIBUTE RECORDS (semi-static / measured over time)
+-- ============================================================
+CREATE TABLE asset_process_conditions (
+    id                              bigserial PRIMARY KEY,
+    client_id                       uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    asset_id                        uuid NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    recorded_at                     timestamptz NOT NULL,
+    operating_temperature_c         numeric(6,1) NOT NULL,
+    min_operating_temperature_c     numeric(6,1),
+    max_operating_temperature_c     numeric(6,1),
+    avg_cycles_per_quarter          integer NOT NULL DEFAULT 0,
+    operation_vs_shutdown_fraction  numeric(3,2) NOT NULL DEFAULT 1.00
+        CHECK (operation_vs_shutdown_fraction BETWEEN 0 AND 1),
+    tracing_system                  tracing_system NOT NULL
+);
+CREATE INDEX idx_proc_cond_asset_time ON asset_process_conditions(asset_id, recorded_at DESC);
+CREATE INDEX idx_proc_cond_client     ON asset_process_conditions(client_id);
 
 -- ============================================================
 -- TIME SERIES
