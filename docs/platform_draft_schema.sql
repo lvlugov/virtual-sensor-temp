@@ -103,8 +103,6 @@ CREATE TABLE assets (
         CHECK (spec_operation_vs_shutdown_fraction BETWEEN 0 AND 1),
     spec_tracing_system                 tracing_system NOT NULL,
 
-    -- Audit
-    created_by_user_id              uuid REFERENCES users(id),
     created_at                      timestamptz NOT NULL DEFAULT now(),
     updated_at                      timestamptz NOT NULL DEFAULT now(),
 
@@ -242,16 +240,3 @@ CREATE TABLE ingest_batches (
     created_at          timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_ingest_client_time ON ingest_batches(client_id, created_at DESC);
-
-CREATE TABLE audit_log (
-    id              bigserial PRIMARY KEY,
-    client_id       uuid REFERENCES clients(id),                          -- null for cross-client admin
-    user_id         uuid REFERENCES users(id),                            -- null for system actions
-    action          text NOT NULL,                                        -- e.g. 'asset.created'
-    entity_type     text,
-    entity_id       uuid,
-    changes         jsonb,                                                -- before/after snippet
-    ip_address      inet,
-    created_at      timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX idx_audit_client_time ON audit_log(client_id, created_at DESC);
