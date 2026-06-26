@@ -105,6 +105,8 @@ def run_dataset_pipeline(
     Returns:
         Path to final dataset CSV.
     """
+    logger.info("Running pipeline for dataset: %s", config.name)
+
     raw_inputs_name = config.raw_synthetic_inputs_name or config.name
     timeseries_name = config.timeseries_name or config.name
     featurised_name = config.featurised_name or config.name
