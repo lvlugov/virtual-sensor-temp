@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +18,59 @@ from lean_virtual_sensor.inputs_generation.generate_timeseries import generate_p
 from lean_virtual_sensor.inputs_generation.pipeline import run_pipeline
 
 logger = logging.getLogger(__name__)
+
+
+def _write_provenance(
+    config: DatasetConfig, output_csv: Path, timestamp: datetime
+) -> None:
+    """Write JSON and Markdown provenance files alongside the dataset CSV.
+
+    Args:
+        config: Dataset configuration.
+        output_csv: Path to the final dataset CSV.
+        timestamp: Timestamp when the dataset was produced (ISO format).
+    """
+    df = pd.read_csv(output_csv)
+    num_rows = len(df)
+
+    provenance_data = {
+        "name": config.name,
+        "generation_config_path": str(config.generation_config_path),
+        "weather_dir": str(config.weather_dir),
+        "llm_config": config.llm_config,
+        "raw_synthetic_inputs_name": config.raw_synthetic_inputs_name,
+        "timeseries_name": config.timeseries_name,
+        "featurised_name": config.featurised_name,
+        "timestamp": timestamp.isoformat(),
+        "num_rows": num_rows,
+    }
+
+    json_path = output_csv.parent / f"{output_csv.stem}.json"
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(provenance_data, f, indent=2)
+    logger.info("Wrote provenance JSON → %s", json_path)
+
+    md_lines = [
+        f"# {config.name}",
+        "",
+        "## Configuration",
+        f"- **name**: {config.name}",
+        f"- **generation_config_path**: {config.generation_config_path}",
+        f"- **weather_dir**: {config.weather_dir}",
+        f"- **llm_config**: {config.llm_config}",
+        f"- **raw_synthetic_inputs_name**: {config.raw_synthetic_inputs_name}",
+        f"- **timeseries_name**: {config.timeseries_name}",
+        f"- **featurised_name**: {config.featurised_name}",
+        "",
+        "## Metadata",
+        f"- **timestamp**: {timestamp.isoformat()}",
+        f"- **num_rows**: {num_rows}",
+    ]
+
+    md_path = output_csv.parent / f"{output_csv.stem}.md"
+    with open(md_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(md_lines))
+    logger.info("Wrote provenance Markdown → %s", md_path)
 
 
 def _load_run_config(generation_config_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -111,6 +166,8 @@ def run_dataset_pipeline(
     else:
         logger.info("Step 4 (llm_score): running → %s", final_csv)
         score_dataset(featurised_csv, final_csv, llm_config=config.llm_config)
+
+    _write_provenance(config, final_csv, datetime.now())
 
     return final_csv
 

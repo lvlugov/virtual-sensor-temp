@@ -1,0 +1,14 @@
+# baseline_1k
+
+## Configuration
+- **name**: baseline_1k
+- **generation_config_path**: lean_virtual_sensor/inputs_generation/config/generation_config.yaml
+- **weather_dir**: lean_virtual_sensor/output
+- **llm_config**: {'seed': 42}
+- **raw_synthetic_inputs_name**: None
+- **timeseries_name**: None
+- **featurised_name**: None
+
+## Metadata
+- **timestamp**: 2026-06-26T19:21:45.364873
+- **num_rows**: 1000
