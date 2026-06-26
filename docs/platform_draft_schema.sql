@@ -211,11 +211,9 @@ CREATE TABLE predictions (
     client_id           uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
     asset_id            uuid NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
     predicted_at        timestamptz NOT NULL DEFAULT now(),    -- when the run happened
-    as_of_date          date NOT NULL,                          -- the date this prediction is for
-    corrosion_rate_mmpy numeric(6,3) NOT NULL,
     risk_score          numeric(4,3) NOT NULL CHECK (risk_score BETWEEN 0 AND 1),
     risk_band           risk_band NOT NULL,
-    model_version       text NOT NULL,
+    model_id            text NOT NULL,
     inputs_snapshot     jsonb NOT NULL                          -- inputs used, for reproducibility
 );
 CREATE INDEX idx_predictions_asset_time ON predictions(asset_id, predicted_at DESC);
