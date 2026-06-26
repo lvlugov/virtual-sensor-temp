@@ -161,6 +161,8 @@ def run_dataset_pipeline(
             reference_date=reference_date_str,
             seed=seed,
         )
+        n_rows = len(pd.read_csv(featurised_csv))
+        logger.info("Output written to %s (%d rows)", featurised_csv, n_rows)
 
     # Step 4: LLM scoring
     if final_csv.exists() and not force:
@@ -168,6 +170,8 @@ def run_dataset_pipeline(
     else:
         logger.info("Step 4 (llm_score): running → %s", final_csv)
         score_dataset(featurised_csv, final_csv, llm_config=config.llm_config)
+        n_rows = len(pd.read_csv(final_csv))
+        logger.info("Output written to %s (%d rows)", final_csv, n_rows)
 
     _write_provenance(config, final_csv, datetime.now())
 
